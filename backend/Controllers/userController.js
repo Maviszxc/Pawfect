@@ -4,6 +4,9 @@ const nodemailer = require("nodemailer");
 const User = require("../Models/userModels");
 const OtpVerification = require("../Models/otpVerificationModels");
 const cloudinary = require("../Utilities/cloudinaryConfig");
+const multer = require("multer");
+const fs = require("fs");
+const path = require("path");
 
 const { v4: uuidv4 } = require("uuid");
 require("dotenv").config();
@@ -338,10 +341,17 @@ const deleteAccount = async (req, res) => {
 
 const getCurrentUser = async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId, "fullname email");
+    const user = await User.findById(
+      req.user.userId,
+      "fullname email profilePicture"
+    );
     if (!user) {
       return res.status(404).json({ error: true, message: "User not found" });
     }
+    console.log(
+      "Returning user with profile picture:",
+      user.profilePicture ? "Yes" : "No"
+    );
     return res.json({ success: true, user });
   } catch (error) {
     console.error("Error fetching current user:", error);
@@ -446,7 +456,7 @@ const sendOtpForPassword = async (req, res) => {
 const resetPassword = async (req, res) => {
   const { email, otp, newPassword } = req.body;
 
-  console.log("Received data:", { email, otp, newPassword }); // Log received data
+  console.log("Received data:", { email, otp, newPassword }); 
 
   if (!email || !otp || !newPassword) {
     return res.status(400).json({
@@ -487,6 +497,59 @@ const resetPassword = async (req, res) => {
   }
 };
 
+const uploadProfilePicture = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No file uploaded",
+      });
+    }
+
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const fileData = fs.readFileSync(req.file.path);
+    const base64Image = `data:${req.file.mimetype};base64,${fileData.toString(
+      "base64"
+    )}`;
+    console.log("Base64 image created:", base64Image.substring(0, 50) + "...");
+
+    user.profilePicture = base64Image;
+    await user.save();
+
+    console.log("User saved with profile picture");
+
+    fs.unlinkSync(req.file.path);
+
+    return res.json({
+      success: true,
+      message: "Profile picture updated successfully",
+      profilePicture: base64Image,
+    });
+  } catch (error) {
+    console.error("Error uploading profile picture:", error);
+
+    if (req.file && req.file.path) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (unlinkError) {
+        console.error("Error deleting file:", unlinkError);
+      }
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
 module.exports = {
   createAccount,
   sendOtp,
@@ -502,4 +565,5 @@ module.exports = {
   sendOtpForPassword,
   sendOtpForEmail,
   resetPassword,
+  uploadProfilePicture,
 };

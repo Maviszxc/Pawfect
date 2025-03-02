@@ -5,6 +5,9 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { BASE_URL } from "@/utils/constants";
 
 const navItems = [
   {
@@ -55,6 +58,31 @@ const profileItem = {
 
 export default function AuthNavigation() {
   const pathname = usePathname();
+  const [profilePicture, setProfilePicture] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const token = localStorage.getItem("accessToken");
+        if (!token) return;
+
+        const res = await axios.get(`${BASE_URL}/api/users/current-user`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.data.success && res.data.user.profilePicture) {
+          setProfilePicture(res.data.user.profilePicture);
+        }
+      } catch (err) {
+        console.error("Error fetching user data:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   return (
     <nav className="fixed mb-11 top-6 left-1/2 mr-auto -translate-x-1/2 bg-black backdrop-blur-lg rounded-full px-8 py-3 shadow-lg flex items-center justify-between w-[90%] max-w-[800px]">
@@ -120,14 +148,28 @@ export default function AuthNavigation() {
               />
             )}
             <div
-              className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              className={`w-10 h-10 rounded-full flex items-center justify-center overflow-hidden ${
                 profileItem.bgColor
               } transform transition-transform duration-200 group-hover:scale-110 ${
                 pathname === profileItem.href ? "scale-100" : ""
               }`}
             >
-              <i className={`${profileItem.icon} text-2xl text-white`}></i>
-              <div className="w-2 h-2 rounded-full bg-green-500 absolute top-1 right-1"></div>
+              {profilePicture ? (
+                <img
+                  src={profilePicture}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.log("Profile image failed to load");
+                    e.currentTarget.style.display = "none";
+                    const icon = document.createElement("i");
+                    icon.className = `${profileItem.icon} text-2xl text-white`;
+                    e.currentTarget.parentElement?.appendChild(icon);
+                  }}
+                />
+              ) : (
+                <i className={`${profileItem.icon} text-2xl text-white`}></i>
+              )}
             </div>
           </span>
         </Link>
