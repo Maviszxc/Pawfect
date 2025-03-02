@@ -13,7 +13,6 @@ import { BASE_URL } from "@/utils/constants";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { FaUser, FaEnvelope, FaEdit, FaLock, FaCamera } from "react-icons/fa";
-import Image from "next/image";
 
 export default function Profile() {
   const router = useRouter();
@@ -435,7 +434,7 @@ export default function Profile() {
                 </div>
                 <button
                   onClick={handleSendOtpForPassword}
-                  className="p-2 text-gray-600 hover:orange-500"
+                  className="p-2 text-gray-600 hover:text-orange-500"
                   aria-label="Edit password"
                 >
                   <FaEdit size={18} />
