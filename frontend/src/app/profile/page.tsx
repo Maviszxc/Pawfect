@@ -12,6 +12,7 @@ import AuthNavigation from "@/components/authNavigation";
 import { BASE_URL } from "@/utils/constants";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { FaUser, FaEnvelope, FaEdit, FaLock } from "react-icons/fa";
 
 export default function Profile() {
   const router = useRouter();
@@ -21,7 +22,7 @@ export default function Profile() {
     fullname: "",
     email: "",
     password: "",
-    newEmail: "", // Added for storing new email during update
+    newEmail: "", 
   });
   const [otp, setOtp] = useState("");
   const [isOtpSent, setIsOtpSent] = useState(false);
@@ -275,6 +276,68 @@ export default function Profile() {
           Manage your account details
         </p>
 
+        {/* User Info Display Section with Icons and Edit Buttons */}
+        {formData.fullname && formData.email && (
+          <div className="mb-8 p-4 bg-gray-50 rounded-lg">
+            <div className="flex flex-col space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <FaUser className="text-orange-500 mr-3" />
+                  <div>
+                    <p className="text-sm text-gray-500 font-medium">Name</p>
+                    <p className="text-black font-medium">
+                      {formData.fullname}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setView("account")}
+                  className="p-2 text-gray-600 hover:text-orange-500"
+                  aria-label="Edit name"
+                >
+                  <FaEdit size={18} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <FaEnvelope className="text-orange-500 mr-3" />
+                  <div>
+                    <p className="text-sm text-gray-500 font-medium">Email</p>
+                    <p className="text-black font-medium">{formData.email}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleSendOtpForEmail}
+                  className="p-2 text-gray-600 hover:text-orange-500"
+                  aria-label="Edit email"
+                >
+                  <FaEdit size={18} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <FaLock className="text-orange-500 mr-3" />
+                  <div>
+                    <p className="text-sm text-gray-500 font-medium">
+                      Password
+                    </p>
+                    <p className="text-black font-medium">••••••••</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleSendOtpForPassword}
+                  className="p-2 text-gray-600 hover:text-orange-500"
+                  aria-label="Edit password"
+                >
+                  <FaEdit size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-8">
             <Loader />
@@ -282,24 +345,6 @@ export default function Profile() {
           </div>
         ) : view === "main" ? (
           <div className="space-y-6">
-            <Button
-              onClick={() => setView("account")}
-              className="w-full bg-black hover:bg-black/80 text-white py-6 text-lg"
-            >
-              Account Information
-            </Button>
-            <Button
-              onClick={handleSendOtpForEmail}
-              className="w-full bg-black hover:bg-black/80 text-white py-6 text-lg"
-            >
-              Update Email
-            </Button>
-            <Button
-              onClick={handleSendOtpForPassword}
-              className="w-full bg-black hover:bg-black/80 text-white py-6 text-lg"
-            >
-              Update Password
-            </Button>
             <Button
               onClick={handleLogout}
               className="w-full bg-gray-500 hover:bg-gray-700 text-white py-6 text-lg"
