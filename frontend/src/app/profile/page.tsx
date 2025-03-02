@@ -21,11 +21,17 @@ export default function Profile() {
     fullname: "",
     email: "",
     password: "",
+    newEmail: "", // Added for storing new email during update
   });
   const [otp, setOtp] = useState("");
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [view, setView] = useState<
-    "main" | "account" | "email" | "password" | "verifyEmail" | "verifyPassword"
+    | "main"
+    | "account"
+    | "verifyEmail"
+    | "verifyPassword"
+    | "updateEmail"
+    | "updatePassword"
   >("main");
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
@@ -50,6 +56,7 @@ export default function Profile() {
           fullname: user.fullname,
           email: user.email,
           password: "",
+          newEmail: "",
         });
       }
     } catch (err) {
@@ -78,6 +85,7 @@ export default function Profile() {
       );
       if (res.data.success) {
         toast.success("Name updated successfully.");
+        setView("main");
       }
     } catch (err) {
       toast.error("Something went wrong. Please try again.");
@@ -129,15 +137,50 @@ export default function Profile() {
     }
   };
 
-  const handleVerifyOtpAndUpdateEmail = async (e: React.FormEvent) => {
+  // First step: Verify OTP for email update
+  const handleVerifyOtpForEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    // Validate OTP format (simple validation)
+    if (otp.length < 6) {
+      toast.error("Please enter a valid OTP");
+      setIsLoading(false);
+      return;
+    }
+
+    setView("updateEmail");
+    setIsLoading(false);
+    toast.success("Please enter your new email address");
+  };
+
+  // First step: Verify OTP for password update
+  const handleVerifyOtpForPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    // Validate OTP format (simple validation)
+    if (otp.length < 6) {
+      toast.error("Please enter a valid OTP");
+      setIsLoading(false);
+      return;
+    }
+
+    setView("updatePassword");
+    setIsLoading(false);
+    toast.success("Please enter your new password");
+  };
+
+  // Second step: Update email after OTP verification
+  const handleUpdateEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
       const res = await axios.put(
         `${BASE_URL}/api/users/update-user`,
         {
-          email: formData.email,
-          otp,
+          email: formData.newEmail,
+          otp: otp,
         },
         {
           headers: {
@@ -149,15 +192,22 @@ export default function Profile() {
         toast.success("Email updated successfully.");
         setOtp("");
         setView("main");
+        // Update local state with new email
+        setFormData((prev) => ({
+          ...prev,
+          email: formData.newEmail,
+          newEmail: "",
+        }));
       }
     } catch (err) {
-      toast.error("Something went wrong. Please try again.");
+      toast.error("Invalid OTP or something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleVerifyOtpAndUpdatePassword = async (e: React.FormEvent) => {
+  // Second step: Update password after OTP verification
+  const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
@@ -165,7 +215,7 @@ export default function Profile() {
         `${BASE_URL}/api/users/update-user`,
         {
           password: formData.password,
-          otp,
+          otp: otp,
         },
         {
           headers: {
@@ -176,10 +226,11 @@ export default function Profile() {
       if (res.data.success) {
         toast.success("Password updated successfully.");
         setOtp("");
+        setFormData((prev) => ({ ...prev, password: "" }));
         setView("main");
       }
     } catch (err) {
-      toast.error("Something went wrong. Please try again.");
+      toast.error("Invalid OTP or something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -209,7 +260,7 @@ export default function Profile() {
   };
 
   return (
-    <main className="min-h-screen bg-white flex flex-col items-center justify-center ">
+    <main className="min-h-screen bg-white flex flex-col items-center justify-center">
       {/* <ToastContainer /> */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -280,7 +331,10 @@ export default function Profile() {
             </Button>
           </form>
         ) : view === "verifyEmail" ? (
-          <form className="space-y-6" onSubmit={handleVerifyOtpAndUpdateEmail}>
+          <form className="space-y-6" onSubmit={handleVerifyOtpForEmail}>
+            <p className="text-black text-center mb-4">
+              Enter the OTP sent to your email to verify your identity
+            </p>
             <Input
               type="text"
               name="otp"
@@ -289,10 +343,54 @@ export default function Profile() {
               placeholder="Enter OTP"
               required
             />
+            <Button
+              type="submit"
+              className="w-full bg-black hover:bg-black/80 text-white py-6 text-lg"
+            >
+              Verify OTP
+            </Button>
+            <Button
+              onClick={() => setView("main")}
+              className="w-full bg-gray-500 hover:bg-gray-700 text-white py-6 text-lg"
+            >
+              Back
+            </Button>
+          </form>
+        ) : view === "verifyPassword" ? (
+          <form className="space-y-6" onSubmit={handleVerifyOtpForPassword}>
+            <p className="text-black text-center mb-4">
+              Enter the OTP sent to your email to verify your identity
+            </p>
+            <Input
+              type="text"
+              name="otp"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              placeholder="Enter OTP"
+              required
+            />
+            <Button
+              type="submit"
+              className="w-full bg-black hover:bg-black/80 text-white py-6 text-lg"
+            >
+              Verify OTP
+            </Button>
+            <Button
+              onClick={() => setView("main")}
+              className="w-full bg-gray-500 hover:bg-gray-700 text-white py-6 text-lg"
+            >
+              Back
+            </Button>
+          </form>
+        ) : view === "updateEmail" ? (
+          <form className="space-y-6" onSubmit={handleUpdateEmail}>
+            <p className="text-black text-center mb-4">
+              Enter your new email address
+            </p>
             <Input
               type="email"
-              name="email"
-              value={formData.email}
+              name="newEmail"
+              value={formData.newEmail}
               onChange={handleChange}
               placeholder="New Email Address"
               required
@@ -307,22 +405,14 @@ export default function Profile() {
               onClick={() => setView("main")}
               className="w-full bg-gray-500 hover:bg-gray-700 text-white py-6 text-lg"
             >
-              Back
+              Cancel
             </Button>
           </form>
-        ) : view === "verifyPassword" ? (
-          <form
-            className="space-y-6"
-            onSubmit={handleVerifyOtpAndUpdatePassword}
-          >
-            <Input
-              type="text"
-              name="otp"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              placeholder="Enter OTP"
-              required
-            />
+        ) : view === "updatePassword" ? (
+          <form className="space-y-6" onSubmit={handleUpdatePassword}>
+            <p className="text-black text-center mb-4">
+              Enter your new password
+            </p>
             <Input
               type="password"
               name="password"
@@ -341,7 +431,7 @@ export default function Profile() {
               onClick={() => setView("main")}
               className="w-full bg-gray-500 hover:bg-gray-700 text-white py-6 text-lg"
             >
-              Back
+              Cancel
             </Button>
           </form>
         ) : null}

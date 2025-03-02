@@ -3,11 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
-import axios from "axios";
-import { ToastContainer, toast } from "react-toastify";
+import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { BASE_URL } from "@/utils/constants";
 
 const navItems = [
   {
@@ -58,26 +55,6 @@ const profileItem = {
 
 export default function AuthNavigation() {
   const pathname = usePathname();
-  const [profilePicture, setProfilePicture] = useState("");
-
-  useEffect(() => {
-    const fetchProfilePicture = async () => {
-      try {
-        const res = await axios.get(`${BASE_URL}/api/users/current-user`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
-        });
-        if (res.data.success) {
-          setProfilePicture(res.data.user.profilePicture);
-        }
-      } catch (err) {
-        toast.error("Failed to fetch profile picture.");
-      }
-    };
-
-    fetchProfilePicture();
-  }, []);
 
   return (
     <nav className="fixed mb-11 top-6 left-1/2 mr-auto -translate-x-1/2 bg-black backdrop-blur-lg rounded-full px-8 py-3 shadow-lg flex items-center justify-between w-[90%] max-w-[800px]">
