@@ -30,10 +30,8 @@ export default function Home() {
 
   return (
     <main className="min-h-screen pt-[60] bg-white">
-
       {/* Hero Section */}
       <div className="relative h-screen">
-
         {/* Background Image */}
         <div
           className="absolute inset-0 m-11 h-5/6 rounded-[70] "
@@ -44,7 +42,6 @@ export default function Home() {
             backgroundPosition: "center",
           }}
         >
-
           {/* Overlay */}
           <div className="absolute inset-0 bg-black/40 rounded-[70]" />
         </div>
@@ -85,7 +82,6 @@ export default function Home() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
         {/* Stats Section */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}

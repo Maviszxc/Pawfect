@@ -109,7 +109,13 @@ const sendOtp = async ({ _id, email }) => {
 const verifyOtp = async (req, res) => {
   const { email, otp } = req.body;
 
+  console.log("Verify OTP request:", {
+    email,
+    otp: otp ? "provided" : "not provided",
+  });
+
   if (!otp || !email) {
+    console.log("Verify OTP error: OTP or email missing");
     return res
       .status(400)
       .json({ success: false, message: "OTP and email are required" });
@@ -125,6 +131,8 @@ const verifyOtp = async (req, res) => {
     }
 
     const isOtpValid = await bcrypt.compare(otp, otpRecord.otp);
+    console.log("OTP validation result:", isOtpValid);
+
     if (!isOtpValid) {
       console.log("Invalid OTP for email:", email);
       return res.status(400).json({ success: false, message: "Invalid OTP" });
@@ -138,7 +146,11 @@ const verifyOtp = async (req, res) => {
     }
 
     await User.updateOne({ email }, { verified: true });
-    await OtpVerification.deleteOne({ userEmail: email });
+
+    otpRecord.expiresAt = Date.now() + 300000; // 5 minutes
+    await otpRecord.save();
+
+    console.log("OTP verified successfully and extended for 5 minutes");
 
     return res.json({ success: true, message: "OTP verified successfully" });
   } catch (error) {
@@ -267,7 +279,16 @@ const getDashboard = async (req, res) => {
 const updateUser = async (req, res) => {
   const { fullname, email, password, otp } = req.body;
 
+  console.log("Update user request received:", {
+    fullname,
+    email: email ? "provided" : "not provided",
+    password: password ? "provided" : "not provided",
+    otp: otp ? "provided" : "not provided",
+    userId: req.user?.userId,
+  });
+
   if (!fullname && !email && !password) {
+    console.log("Update user error: No fields to update");
     return res
       .status(400)
       .json({ error: true, message: "At least one field is required" });
@@ -276,13 +297,29 @@ const updateUser = async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
     if (!user) {
+      console.log("Update user error: User not found");
       return res.status(400).json({ error: true, message: "User not found" });
     }
 
-    if (fullname) user.fullname = fullname;
+    console.log("Current user data:", {
+      id: user._id,
+      email: user.email,
+      fullname: user.fullname,
+    });
+
+    if (fullname && !email && !password) {
+      user.fullname = fullname;
+      await user.save();
+      console.log("Name updated successfully");
+      return res.json({
+        success: true,
+        message: "Profile updated successfully",
+      });
+    }
 
     if (email || password) {
       if (!otp) {
+        console.log("Update user error: OTP required but not provided");
         return res
           .status(400)
           .json({ error: true, message: "OTP is required" });
@@ -291,31 +328,67 @@ const updateUser = async (req, res) => {
       const otpRecord = await OtpVerification.findOne({
         userEmail: user.email,
       });
+
       if (!otpRecord) {
+        console.log(
+          "Update user error: OTP record not found for email",
+          user.email
+        );
         return res
           .status(400)
-          .json({ error: true, message: "Invalid OTP or email" });
+          .json({
+            error: true,
+            message: "Invalid OTP or email. OTP record not found.",
+          });
       }
 
+      console.log("OTP record found:", {
+        userEmail: otpRecord.userEmail,
+        createdAt: otpRecord.createdAt,
+        expiresAt: otpRecord.expiresAt,
+        currentTime: Date.now(),
+        isExpired: otpRecord.expiresAt < Date.now(),
+      });
+
       const isOtpValid = await bcrypt.compare(otp, otpRecord.otp);
+      console.log("OTP validation result:", isOtpValid);
+
       if (!isOtpValid) {
+        console.log("Update user error: Invalid OTP");
         return res.status(400).json({ error: true, message: "Invalid OTP" });
       }
 
       if (otpRecord.expiresAt < Date.now()) {
+        console.log("Update user error: OTP expired");
         return res
           .status(400)
           .json({ error: true, message: "OTP has expired" });
       }
 
       await OtpVerification.deleteOne({ userEmail: user.email });
+      console.log("OTP record deleted after verification");
 
-      if (email) user.email = email;
-      if (password) user.password = await bcrypt.hash(password, 10);
+      if (email) {
+        const emailExists = await User.findOne({ email });
+        if (emailExists && emailExists._id.toString() !== user._id.toString()) {
+          console.log("Update user error: Email already in use", email);
+          return res.status(400).json({
+            error: true,
+            message: "Email is already in use by another account",
+          });
+        }
+        console.log("Updating email from", user.email, "to", email);
+        user.email = email;
+      }
+
+      if (password) {
+        console.log("Updating password");
+        user.password = await bcrypt.hash(password, 10);
+      }
     }
 
     await user.save();
-
+    console.log("User updated successfully");
     return res.json({ success: true, message: "Profile updated successfully" });
   } catch (error) {
     console.error("Update user error:", error);
@@ -456,7 +529,7 @@ const sendOtpForPassword = async (req, res) => {
 const resetPassword = async (req, res) => {
   const { email, otp, newPassword } = req.body;
 
-  console.log("Received data:", { email, otp, newPassword }); 
+  console.log("Received data:", { email, otp, newPassword });
 
   if (!email || !otp || !newPassword) {
     return res.status(400).json({
@@ -466,27 +539,36 @@ const resetPassword = async (req, res) => {
   }
 
   try {
-    const otpRecord = await OtpVerification.findOne({ userEmail: email });
-    if (!otpRecord) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid OTP or email" });
-    }
-
-    const isOtpValid = bcrypt.compare(otp, otpRecord.otp);
-    if (!isOtpValid) {
-      return res.status(400).json({ success: false, message: "Invalid OTP" });
-    }
-
-    if (otpRecord.expiresAt < Date.now()) {
-      return res
-        .status(400)
-        .json({ success: false, message: "OTP has expired" });
-    }
-
-    await OtpVerification.deleteOne({ userEmail: email });
-
     const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const otpRecord = await OtpVerification.findOne({ userEmail: email });
+
+    if (otpRecord) {
+      const isOtpValid = await bcrypt.compare(otp, otpRecord.otp);
+
+      if (!isOtpValid) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid OTP",
+        });
+      }
+
+      if (otpRecord.expiresAt < Date.now()) {
+        return res.status(400).json({
+          success: false,
+          message: "OTP has expired",
+        });
+      }
+
+      await OtpVerification.deleteOne({ userEmail: email });
+    }
+
     user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
 

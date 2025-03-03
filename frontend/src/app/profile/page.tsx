@@ -28,6 +28,8 @@ export default function Profile() {
   });
   const [otp, setOtp] = useState("");
   const [isOtpSent, setIsOtpSent] = useState(false);
+  const [isOtpVerified, setIsOtpVerified] = useState(false);
+  const [verifiedOtp, setVerifiedOtp] = useState("");
   const [view, setView] = useState<
     | "main"
     | "account"
@@ -49,32 +51,32 @@ export default function Profile() {
     }
   }, [router]);
 
- const fetchUserData = async (token: string) => {
-   try {
-     const res = await axios.get(`${BASE_URL}/api/users/current-user`, {
-       headers: { Authorization: `Bearer ${token}` },
-     });
-     if (res.data.success) {
-       const user = res.data.user;
-       console.log(
-         "Profile picture from server:",
-         user.profilePicture
-           ? user.profilePicture.substring(0, 50) + "..."
-           : "None"
-       );
-       setFormData({
-         fullname: user.fullname,
-         email: user.email,
-         password: "",
-         newEmail: "",
-         profilePicture: user.profilePicture || "",
-       });
-     }
-   } catch (err) {
-     console.error("Error fetching user data:", err);
-     toast.error("Something went wrong. Please try again.");
-   }
- };
+  const fetchUserData = async (token: string) => {
+    try {
+      const res = await axios.get(`${BASE_URL}/api/users/current-user`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.data.success) {
+        const user = res.data.user;
+        console.log(
+          "Profile picture from server:",
+          user.profilePicture
+            ? user.profilePicture.substring(0, 50) + "..."
+            : "None"
+        );
+        setFormData({
+          fullname: user.fullname,
+          email: user.email,
+          password: "",
+          newEmail: "",
+          profilePicture: user.profilePicture || "",
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching user data:", err);
+      toast.error("Something went wrong. Please try again.");
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -114,6 +116,8 @@ export default function Profile() {
       });
       if (res.data.success) {
         setIsOtpSent(true);
+        setIsOtpVerified(false);
+        setOtp("");
         toast.success(
           "OTP sent to your email. Please enter the OTP to proceed."
         );
@@ -137,6 +141,8 @@ export default function Profile() {
       );
       if (res.data.success) {
         setIsOtpSent(true);
+        setIsOtpVerified(false);
+        setOtp("");
         toast.success(
           "OTP sent to your email. Please enter the OTP to proceed."
         );
@@ -159,9 +165,26 @@ export default function Profile() {
       return;
     }
 
-    setView("updateEmail");
-    setIsLoading(false);
-    toast.success("Please enter your new email address");
+    try {
+      const res = await axios.post(`${BASE_URL}/api/users/verify-otp`, {
+        email: formData.email,
+        otp: otp,
+      });
+
+      if (res.data.success) {
+        setIsOtpVerified(true);
+        setVerifiedOtp(otp);
+        toast.success("OTP verified successfully");
+        setView("updateEmail");
+      } else {
+        toast.error(res.data.message || "Invalid OTP. Please try again.");
+      }
+    } catch (err) {
+      console.error("OTP verification error:", err);
+      toast.error("Invalid OTP or verification failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleVerifyOtpForPassword = async (e: React.FormEvent) => {
@@ -174,20 +197,54 @@ export default function Profile() {
       return;
     }
 
-    setView("updatePassword");
-    setIsLoading(false);
-    toast.success("Please enter your new password");
+    try {
+      const res = await axios.post(`${BASE_URL}/api/users/verify-otp`, {
+        email: formData.email,
+        otp: otp,
+      });
+
+      if (res.data.success) {
+        setIsOtpVerified(true);
+        setVerifiedOtp(otp);
+        toast.success("OTP verified successfully");
+        setView("updatePassword");
+      } else {
+        toast.error(res.data.message || "Invalid OTP. Please try again.");
+      }
+    } catch (err) {
+      console.error("OTP verification error:", err);
+      toast.error("Invalid OTP or verification failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleUpdateEmail = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isOtpVerified) {
+      toast.error("Please verify your OTP first");
+      setView("verifyEmail");
+      return;
+    }
+
+    if (!formData.newEmail) {
+      toast.error("Please enter your new email address");
+      return;
+    }
+
     setIsLoading(true);
     try {
+      console.log("Sending email update request with:", {
+        email: formData.newEmail,
+        otp: verifiedOtp,
+      });
+
       const res = await axios.put(
         `${BASE_URL}/api/users/update-user`,
         {
           email: formData.newEmail,
-          otp: otp,
+          otp: verifiedOtp, 
         },
         {
           headers: {
@@ -195,9 +252,14 @@ export default function Profile() {
           },
         }
       );
+
+      console.log("Email update response:", res.data);
+
       if (res.data.success) {
         toast.success("Email updated successfully.");
         setOtp("");
+        setVerifiedOtp("");
+        setIsOtpVerified(false);
         setView("main");
         setFormData((prev) => ({
           ...prev,
@@ -205,8 +267,20 @@ export default function Profile() {
           newEmail: "",
         }));
       }
-    } catch (err) {
-      toast.error("Invalid OTP or something went wrong. Please try again.");
+    } catch (err: any) {
+      console.error("Email update error:", err);
+
+      if (err.response) {
+        console.error("Error response data:", err.response.data);
+        console.error("Error response status:", err.response.status);
+        toast.error(
+          err.response.data.message ||
+            err.response.data.error ||
+            "Something went wrong. Please try again."
+        );
+      } else {
+        toast.error("Something went wrong. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -214,13 +288,20 @@ export default function Profile() {
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isOtpVerified) {
+      toast.error("Please verify your OTP first");
+      setView("verifyPassword");
+      return;
+    }
+
     setIsLoading(true);
     try {
       const res = await axios.put(
         `${BASE_URL}/api/users/update-user`,
         {
           password: formData.password,
-          otp: otp,
+          otp: verifiedOtp, 
         },
         {
           headers: {
@@ -231,11 +312,13 @@ export default function Profile() {
       if (res.data.success) {
         toast.success("Password updated successfully.");
         setOtp("");
+        setVerifiedOtp("");
+        setIsOtpVerified(false);
         setFormData((prev) => ({ ...prev, password: "" }));
         setView("main");
       }
     } catch (err) {
-      toast.error("Invalid OTP or something went wrong. Please try again.");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -314,6 +397,14 @@ export default function Profile() {
   const triggerFileInput = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
+    }
+  };
+
+  const handleResendOtp = () => {
+    if (view === "verifyEmail") {
+      handleSendOtpForEmail();
+    } else if (view === "verifyPassword") {
+      handleSendOtpForPassword();
     }
   };
 
@@ -492,6 +583,8 @@ export default function Profile() {
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
               placeholder="Enter OTP"
+              maxLength={6}
+              className="text-center tracking-widest"
               required
             />
             <Button
@@ -500,7 +593,18 @@ export default function Profile() {
             >
               Verify OTP
             </Button>
+            <p className="text-center mt-4 text-sm">
+              <button
+                type="button"
+                className="text-black/70 hover:text-black"
+                onClick={handleResendOtp}
+                disabled={isLoading}
+              >
+                Didn't receive the OTP? Resend
+              </button>
+            </p>
             <Button
+              type="button"
               onClick={() => setView("main")}
               className="w-full bg-gray-500 hover:bg-gray-700 text-white py-6 text-lg"
             >
@@ -518,6 +622,8 @@ export default function Profile() {
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
               placeholder="Enter OTP"
+              maxLength={6}
+              className="text-center tracking-widest"
               required
             />
             <Button
@@ -526,7 +632,18 @@ export default function Profile() {
             >
               Verify OTP
             </Button>
+            <p className="text-center mt-4 text-sm">
+              <button
+                type="button"
+                className="text-black/70 hover:text-black"
+                onClick={handleResendOtp}
+                disabled={isLoading}
+              >
+                Didn't receive the OTP? Resend
+              </button>
+            </p>
             <Button
+              type="button"
               onClick={() => setView("main")}
               className="w-full bg-gray-500 hover:bg-gray-700 text-white py-6 text-lg"
             >
@@ -553,6 +670,7 @@ export default function Profile() {
               Update Email
             </Button>
             <Button
+              type="button"
               onClick={() => setView("main")}
               className="w-full bg-gray-500 hover:bg-gray-700 text-white py-6 text-lg"
             >
@@ -579,6 +697,7 @@ export default function Profile() {
               Update Password
             </Button>
             <Button
+              type="button"
               onClick={() => setView("main")}
               className="w-full bg-gray-500 hover:bg-gray-700 text-white py-6 text-lg"
             >

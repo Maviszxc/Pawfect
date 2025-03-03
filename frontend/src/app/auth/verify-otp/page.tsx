@@ -8,6 +8,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import axiosInstance from "@/lib/axiosInstance";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import Loader from "@/components/Loader";
+import Navigation from "@/components/Navigation";
+import AuthNavigation from "@/components/authNavigation";
+import { BASE_URL } from "@/utils/constants";
 
 const OtpPage: React.FC = () => {
   const router = useRouter();
@@ -15,12 +19,83 @@ const OtpPage: React.FC = () => {
   const email = searchParams.get("email") || "";
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(true);
   const [resendTimer, setResendTimer] = useState(0);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
+    const checkVerificationStatus = async () => {
+      const accessToken = localStorage.getItem("accessToken");
+      setIsAuthenticated(!!accessToken);
+
+      if (!email) {
+        setCheckingStatus(false);
+        return;
+      }
+
+      try {
+        const response = await axiosInstance.get(
+          `/api/users/check-verified?email=${encodeURIComponent(email)}`
+        );
+
+        console.log("Verification status:", response.data);
+
+        if (response.data.success) {
+          toast.success("Account already verified. Logging you in...");
+
+          try {
+            const signupToken = localStorage.getItem("signupToken");
+
+            if (signupToken) {
+              localStorage.setItem("accessToken", signupToken);
+              setIsAuthenticated(true);
+              setTimeout(() => {
+                router.push("/dashboard");
+              }, 1500);
+            } else {
+              const autoLoginResponse = await axiosInstance.post(
+                "/api/users/auto-login",
+                {
+                  email,
+                }
+              );
+
+              if (autoLoginResponse.data.accessToken) {
+                localStorage.setItem(
+                  "accessToken",
+                  autoLoginResponse.data.accessToken
+                );
+                setIsAuthenticated(true);
+                setTimeout(() => {
+                  router.push("/dashboard");
+                }, 1500);
+              } else {
+                toast.info("Please log in with your credentials");
+                setTimeout(() => {
+                  router.push("/auth/login");
+                }, 1500);
+              }
+            }
+          } catch (loginError) {
+            console.error("Auto-login error:", loginError);
+            toast.info("Please log in with your credentials");
+            setTimeout(() => {
+              router.push("/auth/login");
+            }, 1500);
+          }
+        } else {
+          setCheckingStatus(false);
+        }
+      } catch (error) {
+        console.error("Error checking verification status:", error);
+        setCheckingStatus(false);
+      }
+    };
+
     setOtp("");
     setResendTimer(0);
-  }, []);
+    checkVerificationStatus();
+  }, [email, router]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -31,25 +106,77 @@ const OtpPage: React.FC = () => {
   }, [resendTimer]);
 
   const handleVerify = async () => {
-    if (loading || otp.length !== 6) return;
+    if (loading || otp.length !== 6) {
+      if (otp.length !== 6) {
+        toast.error("Please enter a valid 6-digit OTP");
+      }
+      return;
+    }
+
     setLoading(true);
 
     try {
-      console.log("Sending request with:", { email, otp }); 
+      console.log("Sending request with:", { email, otp });
       const response = await axiosInstance.post("/api/users/verify-otp", {
         email,
         otp,
       });
-      console.log("Server response:", response.data); 
+      console.log("Server response:", response.data);
+
       if (response.data.success) {
-        toast.success("Account verified! Logging in...");
-        router.push("/auth/login");
+        toast.success("Account verified successfully!");
+
+        const signupToken = localStorage.getItem("signupToken");
+
+        if (signupToken) {
+          localStorage.setItem("accessToken", signupToken);
+          setIsAuthenticated(true);
+          toast.success("Logged in successfully!");
+          setTimeout(() => {
+            router.push("/dashboard");
+          }, 1500);
+        } else {
+          try {
+            const loginResponse = await fetch(`${BASE_URL}/api/users/login`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: email,
+                password:
+                  sessionStorage.getItem(`temp_password_${email}`) || "",
+              }),
+            });
+
+            const loginData = await loginResponse.json();
+
+            if (loginResponse.ok) {
+              localStorage.setItem("accessToken", loginData.accessToken);
+              setIsAuthenticated(true);
+              toast.success("Logged in successfully!");
+
+              setTimeout(() => {
+                router.push("/dashboard");
+              }, 1500);
+            } else {
+              toast.info("Please log in with your credentials");
+              setTimeout(() => {
+                router.push("/auth/login");
+              }, 1500);
+            }
+          } catch (loginError) {
+            console.error("Error logging in:", loginError);
+            toast.info("Please log in with your credentials");
+            setTimeout(() => {
+              router.push("/auth/login");
+            }, 1500);
+          }
+        }
       } else {
-        toast.error(response.data.message);
+        toast.error(response.data.message || "Failed to verify OTP");
       }
     } catch (error: any) {
-      console.error("Error response:", error.response); 
-      console.log("Error details:", error.response?.data); 
+      console.error("Error response:", error.response);
+      console.log("Error details:", error.response?.data);
       toast.error(
         error.response?.data?.message || "Something went wrong. Try again."
       );
@@ -77,8 +204,17 @@ const OtpPage: React.FC = () => {
     }
   };
 
+  if (checkingStatus) {
+    return (
+      <main className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
+        <Loader />
+        <p className="mt-4 text-black">Checking verification status...</p>
+      </main>
+    );
+  }
+
   return (
-    <main className="min-h-screen bg-white flex items-center justify-center p-4">
+    <main className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
       <ToastContainer />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -106,7 +242,9 @@ const OtpPage: React.FC = () => {
         <Input
           type="text"
           value={otp}
-          onChange={(e) => setOtp(e.target.value)}
+          onChange={(e) =>
+            setOtp(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))
+          }
           maxLength={6}
           placeholder="Enter OTP"
           className="bg-white/10 border-black/20 focus:border-black text-black placeholder:text-black-200 w-full text-center text-lg tracking-widest py-4"
@@ -131,6 +269,10 @@ const OtpPage: React.FC = () => {
           </button>
         </p>
       </motion.div>
+
+      <div className="fixed bottom-0 left-0 right-0">
+        {isAuthenticated ? <AuthNavigation /> : <Navigation />}
+      </div>
     </main>
   );
 };

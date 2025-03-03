@@ -36,7 +36,6 @@ export default function Login() {
 
       const data = await res.json();
       if (res.ok) {
-        // Store the access token in local storage or cookies
         localStorage.setItem("accessToken", data.accessToken);
         toast.success("Logged in successfully!");
         router.push("/dashboard");
@@ -54,7 +53,6 @@ export default function Login() {
     <main className="min-h-screen bg-white flex items-center justify-center p-4">
       <ToastContainer />
       <div className="absolute inset-0">
-        {/* Decorative Elements */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
