@@ -38,7 +38,18 @@ export default function SignUp() {
           }, 3000);
         }
       } catch (error) {
-        console.error("Error checking verification:", error);
+        // Check if this is a 400 error with "User not found" message
+        // This is expected for new signups and should not be treated as an error
+        if (
+          (error as any).response &&
+          (error as any).response?.status === 400 &&
+          (error as any).response?.data?.message === "User not found"
+        ) {
+          console.log("New user signup - email not found in system");
+          // Continue with signup process - this is expected for new users
+        } else {
+          console.error("Error checking verification:", error);
+        }
       }
     };
 
@@ -77,13 +88,13 @@ export default function SignUp() {
   };
 
   return (
-    <main className="min-h-screen bg-white flex items-center justify-center p-4">
+    <main className="min-h-screen bg-white flex items-center justify-center p-4 pt-24">
       <ToastContainer />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
-        className="outline outline-1 outline-black/40 backdrop-blur-lg rounded-3xl p-8 md:p-12 w-full max-w-lg relative"
+        className="shadow-lg border border-gray-200 backdrop-blur-lg rounded-3xl p-8 md:p-12 w-full max-w-lg relative bg-white/90"
       >
         <button
           onClick={() => router.back()}
@@ -93,8 +104,9 @@ export default function SignUp() {
         </button>
 
         <div className="mb-8 flex items-center gap-3 justify-center">
-          <div className="h-10 w-10 rounded-full bg-black" />
-          <h1 className="text-2xl font-semibold text-black">Pawfect</h1>
+          <Link href="/" className="flex items-center gap-2">
+            <img src="/logors.png" alt="Biyaya" className="h-10" />
+          </Link>
         </div>
 
         {isLoading ? (
@@ -120,7 +132,7 @@ export default function SignUp() {
                 value={formData.fullname}
                 onChange={handleChange}
                 placeholder="Full Name"
-                className="bg-white/10 border-black/20 focus:border-black text-black placeholder:text-black-200"
+                className="bg-white/10 border-gray-300 focus:border-orange-500 text-black placeholder:text-gray-500 rounded-xl py-6"
                 required
               />
               <Input
@@ -129,7 +141,7 @@ export default function SignUp() {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="Email Address"
-                className="bg-white/10 border-black/20 focus:border-black text-black placeholder:text-black-200"
+                className="bg-white/10 border-gray-300 focus:border-orange-500 text-black placeholder:text-gray-500 rounded-xl py-6"
                 required
               />
               <Input
@@ -138,12 +150,12 @@ export default function SignUp() {
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="Password"
-                className="bg-white/10 border-black/20 focus:border-black text-black placeholder:text-black-200"
+                className="bg-white/10 border-gray-300 focus:border-orange-500 text-black placeholder:text-gray-500 rounded-xl py-6"
                 required
               />
               <Button
                 type="submit"
-                className="w-full bg-black hover:bg-black/80 text-white py-6 text-lg"
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 text-lg rounded-xl transition-all duration-300 font-medium"
               >
                 Sign Up
               </Button>
@@ -153,9 +165,10 @@ export default function SignUp() {
               Already have an account?{" "}
               <Link
                 href="/auth/login"
-                className="text-black hover:font-semibold"
+                className="text-orange-500 hover:text-orange-600 font-medium relative group"
               >
                 Log In
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-orange-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
               </Link>
             </p>
           </>

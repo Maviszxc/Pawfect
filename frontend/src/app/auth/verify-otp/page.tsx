@@ -12,6 +12,7 @@ import Loader from "@/components/Loader";
 import Navigation from "@/components/Navigation";
 import AuthNavigation from "@/components/authNavigation";
 import { BASE_URL } from "@/utils/constants";
+import Link from "next/link";
 
 const OtpPage: React.FC = () => {
   const router = useRouter();
@@ -175,11 +176,10 @@ const OtpPage: React.FC = () => {
         toast.error(response.data.message || "Failed to verify OTP");
       }
     } catch (error: any) {
-      console.error("Error response:", error.response);
-      console.log("Error details:", error.response?.data);
-      toast.error(
-        error.response?.data?.message || "Something went wrong. Try again."
-      );
+      console.error("Error:", error);
+      const errorData = error.response?.data || {};
+      console.log("Error details:", errorData);
+      toast.error(errorData.message || "Something went wrong. Try again.");
     } finally {
       setLoading(false);
     }
@@ -220,18 +220,20 @@ const OtpPage: React.FC = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
-        className="outline outline-1 outline-black/40 backdrop-blur-lg rounded-3xl p-8 md:p-12 w-full max-w-lg relative"
+        className="shadow-lg border border-gray-200 backdrop-blur-lg rounded-3xl p-8 md:p-12 w-full max-w-lg relative bg-white/90"
       >
         <button
           onClick={() => router.back()}
-          className="bi-arrow-left absolute left-8 top-8 text-black hover:font-semibold transition-colors flex items-center gap-2"
+          className="absolute left-8 top-8 text-black hover:text-orange-500 transition-colors flex items-center gap-2"
         >
+          <i className="bi-arrow-left text-xl"></i>
           <span>Back</span>
         </button>
 
         <div className="mb-8 flex items-center gap-3 justify-center">
-          <div className="h-10 w-10 rounded-full bg-black" />
-          <h1 className="text-2xl font-semibold text-black">Pawfect</h1>
+          <Link href="/" className="flex items-center gap-2">
+            <img src="/logors.png" alt="Biyaya" className="h-10" />
+          </Link>
         </div>
 
         <h2 className="text-3xl font-bold text-black mb-2">Verify Code</h2>
@@ -247,12 +249,12 @@ const OtpPage: React.FC = () => {
           }
           maxLength={6}
           placeholder="Enter OTP"
-          className="bg-white/10 border-black/20 focus:border-black text-black placeholder:text-black-200 w-full text-center text-lg tracking-widest py-4"
+          className="bg-white/10 border-gray-300 focus:border-orange-500 text-black placeholder:text-gray-500 w-full text-center text-lg tracking-widest py-6 rounded-xl"
         />
 
         <Button
           onClick={handleVerify}
-          className="w-full bg-black hover:bg-black/80 text-white py-6 text-lg mt-6"
+          className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 text-lg mt-6 rounded-xl transition-all duration-300 font-medium"
           disabled={loading}
         >
           {loading ? "Verifying..." : "Verify Code"}
@@ -262,7 +264,7 @@ const OtpPage: React.FC = () => {
           Didn't receive the code?{" "}
           <button
             onClick={handleResendOtp}
-            className="text-black hover:font-semibold"
+            className="text-black/70 hover:text-orange-500 transition-colors"
             disabled={resendTimer > 0}
           >
             {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend"}

@@ -38,7 +38,15 @@ export default function Login() {
       if (res.ok) {
         localStorage.setItem("accessToken", data.accessToken);
         toast.success("Logged in successfully!");
-        router.push("/dashboard");
+
+        // Check if user is admin from the response data
+        if (data.user && data.user.isAdmin) {
+          // Redirect admin users to admin dashboard
+          router.push("/admin/dashboard");
+        } else {
+          // Redirect regular users to user dashboard
+          router.push("/dashboard");
+        }
       } else {
         toast.error(data.message || "Login failed. Try again.");
       }
@@ -50,7 +58,7 @@ export default function Login() {
   };
 
   return (
-    <main className="min-h-screen bg-white flex items-center justify-center p-4">
+    <main className="min-h-screen bg-white flex items-center justify-center p-4 pt-24">
       <ToastContainer />
       <div className="absolute inset-0">
         <motion.div
@@ -71,7 +79,7 @@ export default function Login() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
-        className="outline outline-1 outline-black/40 backdrop-blur-lg rounded-3xl p-8 md:p-12 w-full max-w-lg relative"
+        className="shadow-lg border border-gray-200 backdrop-blur-lg rounded-3xl p-8 md:p-12 w-full max-w-lg relative bg-white/90"
       >
         <button
           onClick={() => router.back()}
@@ -82,8 +90,9 @@ export default function Login() {
         </button>
 
         <div className="mb-8 flex items-center gap-3 justify-center">
-          <div className="h-10 w-10 rounded-full bg-black" />
-          <h1 className="text-2xl font-semibold text-black">Pawfect</h1>
+          <Link href="/" className="flex items-center gap-2">
+            <img src="/logors.png" alt="Biyaya" className="h-10" />
+          </Link>
         </div>
 
         {isLoading ? (
@@ -106,7 +115,7 @@ export default function Login() {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="Email Address"
-                  className="bg-white/10 focus:border-black border-black/20 text-black placeholder:text-black-200"
+                  className="bg-white/10 focus:border-orange-500 border-gray-300 text-black placeholder:text-gray-500 rounded-xl py-6"
                   required
                 />
               </div>
@@ -117,7 +126,7 @@ export default function Login() {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="Password"
-                  className="bg-white/10 focus:border-black border-black/20 text-black placeholder:text-black-200"
+                  className="bg-white/10 focus:border-orange-500 border-gray-300 text-black placeholder:text-gray-500 rounded-xl py-6"
                   required
                 />
               </div>
@@ -132,7 +141,7 @@ export default function Login() {
                 </label>
                 <Link
                   href="/auth/forgot-password"
-                  className="text-black-200 hover:font-semibold"
+                  className="text-gray-600 hover:text-orange-500 transition-colors duration-300"
                 >
                   Forgot Password?
                 </Link>
@@ -140,7 +149,7 @@ export default function Login() {
 
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r bg-black hover:bg-black/80 text-white py-6 text-lg"
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 text-lg rounded-xl transition-all duration-300 font-medium"
               >
                 Log In
               </Button>
@@ -150,9 +159,10 @@ export default function Login() {
               Don't have an account?{" "}
               <Link
                 href="/auth/signup"
-                className="text-black hover:font-semibold"
+                className="text-orange-500 hover:text-orange-600 font-medium relative group"
               >
                 Sign Up
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-orange-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
               </Link>
             </p>
           </>

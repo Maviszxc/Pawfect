@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="100" viewBox="0 0 600 100">
+  <!-- Animal Rescue Icon -->
+  <g transform="translate(0, 0)">
+    <rect width="100" height="100" rx="10" fill="#f8f9fa"/>
+    <path d="M35,40 C35,30 45,25 50,35 C55,25 65,30 65,40 C65,60 50,70 50,70 C50,70 35,60 35,40 Z" fill="#ff8787"/>
+    <circle cx="43" cy="40" r="3" fill="#f8f9fa"/>
+    <circle cx="57" cy="40" r="3" fill="#f8f9fa"/>
+    <path d="M45,50 C45,53 55,53 55,50" fill="none" stroke="#f8f9fa" stroke-width="2" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Veterinary Services Icon -->
+  <g transform="translate(100, 0)">
+    <rect width="100" height="100" rx="10" fill="#f8f9fa"/>
+    <rect x="45" y="25" width="10" height="50" rx="2" fill="#4dabf7"/>
+    <rect x="25" y="45" width="50" height="10" rx="2" fill="#4dabf7"/>
+    <circle cx="50" cy="50" r="5" fill="#f8f9fa"/>
+  </g>
+  
+  <!-- Adoption Programs Icon -->
+  <g transform="translate(200, 0)">
+    <rect width="100" height="100" rx="10" fill="#f8f9fa"/>
+    <path d="M30,60 L70,60 L70,40 L50,25 L30,40 Z" fill="#ff922b"/>
+    <rect x="45" y="60" width="10" height="15" fill="#ff922b"/>
+    <circle cx="40" cy="50" r="5" fill="#f8f9fa"/>
+    <circle cx="60" cy="50" r="5" fill="#f8f9fa"/>
+  </g>
+  
+  <!-- Animal Welfare Education Icon -->
+  <g transform="translate(300, 0)">
+    <rect width="100" height="100" rx="10" fill="#f8f9fa"/>
+    <path d="M30,30 L70,30 L70,70 L30,70 Z" fill="#748ffc"/>
+    <path d="M35,40 L65,40 M35,50 L65,50 M35,60 L55,60" fill="none" stroke="#f8f9fa" stroke-width="2"/>
+    <path d="M30,30 L50,20 L70,30" fill="#748ffc"/>
+  </g>
+  
+  <!-- Spay & Neuter Icon -->
+  <g transform="translate(400, 0)">
+    <rect width="100" height="100" rx="10" fill="#f8f9fa"/>
+    <path d="M40,40 L60,60 M60,40 L40,60" fill="none" stroke="#f06595" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="50" cy="50" r="20" fill="none" stroke="#f06595" stroke-width="2"/>
+  </g>
+  
+  <!-- Rabies Prevention Icon -->
+  <g transform="translate(500, 0)">
+    <rect width="100" height="100" rx="10" fill="#f8f9fa"/>
+    <circle cx="50" cy="50" r="20" fill="#51cf66" opacity="0.8"/>
+    <path d="M45,40 L55,40 M45,50 L55,50 M45,60 L55,60" fill="none" stroke="#f8f9fa" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="50" cy="50" r="15" fill="none" stroke="#f8f9fa" stroke-width="2" stroke-dasharray="2 2"/>
+  </g>
+</svg>

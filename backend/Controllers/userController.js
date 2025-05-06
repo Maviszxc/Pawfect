@@ -64,9 +64,9 @@ const createAccount = async (req, res) => {
     await sendOtp({ _id: user._id, email }); // Ensure email is passed correctly
 
     const accessToken = jwt.sign(
-      { userId: user._id },
+      { id: user._id, isAdmin: user.isAdmin },
       process.env.ACCESS_TOKEN_SECRET,
-      { expiresIn: "36000m" }
+      { expiresIn: "7d" }
     );
 
     return res.json({
@@ -224,48 +224,67 @@ const checkVerified = async (req, res) => {
 };
 
 const login = async (req, res) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res
-      .status(400)
-      .json({ error: true, message: "Email and password are required" });
-  }
-
   try {
-    const userInfo = await User.findOne({ email });
+    const { email, password } = req.body;
 
-    if (!userInfo) {
-      return res.status(400).json({ error: true, message: "User not found" });
+    // Check if user exists
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid credentials",
+      });
     }
 
-    const isMatch = await bcrypt.compare(password, userInfo.password);
-
+    // Check if password is correct
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ error: true, message: "Invalid password" });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid credentials",
+      });
     }
 
+    // Check if user is verified
+    if (!user.verified) {
+      return res.status(400).json({
+        success: false,
+        message: "Please verify your email first",
+      });
+    }
+
+    // Generate JWT token
     const accessToken = jwt.sign(
-      { userId: userInfo._id },
+      { id: user._id, isAdmin: user.isAdmin },
       process.env.ACCESS_TOKEN_SECRET,
-      { expiresIn: "36000m" }
+      {
+        expiresIn: "7d",
+      }
     );
 
-    return res.json({
-      error: false,
-      message: "Login successful",
-      email,
+    res.status(200).json({
+      success: true,
       accessToken,
+      user: {
+        _id: user._id,
+        fullname: user.fullname,
+        email: user.email,
+        isAdmin: user.isAdmin,
+        profilePicture: user.profilePicture,
+      },
     });
   } catch (error) {
     console.error("Login error:", error);
-    return res.status(500).json({ error: true, message: "Server error" });
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 };
 
 const getDashboard = async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId);
+    const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(400).json({ error: true, message: "User not found" });
     }
@@ -284,7 +303,7 @@ const updateUser = async (req, res) => {
     email: email ? "provided" : "not provided",
     password: password ? "provided" : "not provided",
     otp: otp ? "provided" : "not provided",
-    userId: req.user?.userId,
+    userId: req.user?.id,
   });
 
   if (!fullname && !email && !password) {
@@ -295,7 +314,7 @@ const updateUser = async (req, res) => {
   }
 
   try {
-    const user = await User.findById(req.user.userId);
+    const user = await User.findById(req.user.id);
     if (!user) {
       console.log("Update user error: User not found");
       return res.status(400).json({ error: true, message: "User not found" });
@@ -334,12 +353,10 @@ const updateUser = async (req, res) => {
           "Update user error: OTP record not found for email",
           user.email
         );
-        return res
-          .status(400)
-          .json({
-            error: true,
-            message: "Invalid OTP or email. OTP record not found.",
-          });
+        return res.status(400).json({
+          error: true,
+          message: "Invalid OTP or email. OTP record not found.",
+        });
       }
 
       console.log("OTP record found:", {
@@ -398,12 +415,12 @@ const updateUser = async (req, res) => {
 
 const deleteAccount = async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId);
+    const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(400).json({ error: true, message: "User not found" });
     }
 
-    await User.deleteOne({ _id: req.user.userId });
+    await User.deleteOne({ _id: req.user.id });
 
     return res.json({ success: true, message: "Account deleted successfully" });
   } catch (error) {
@@ -415,8 +432,8 @@ const deleteAccount = async (req, res) => {
 const getCurrentUser = async (req, res) => {
   try {
     const user = await User.findById(
-      req.user.userId,
-      "fullname email profilePicture"
+      req.user.id,
+      "fullname email profilePicture isAdmin"
     );
     if (!user) {
       return res.status(404).json({ error: true, message: "User not found" });
@@ -588,7 +605,7 @@ const uploadProfilePicture = async (req, res) => {
       });
     }
 
-    const user = await User.findById(req.user.userId);
+    const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(400).json({
         success: false,

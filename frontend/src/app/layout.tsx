@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import GlobalLoadingIndicator from "@/components/GlobalLoadingIndicator";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -11,7 +12,7 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Pawfect - Find Your Perfect Pet Companion",
+  title: "Biyaya Animal Care",
   description:
     "Find your perfect pet companion. Browse and adopt pets near you.",
 };
@@ -33,6 +34,7 @@ export default function RootLayout({
         className={`${poppins.variable} font-poppins antialiased`}
         suppressHydrationWarning
       >
+        <GlobalLoadingIndicator />
         {children}
         <ToastContainer
           position="top-right"

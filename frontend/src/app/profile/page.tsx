@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
@@ -12,7 +12,19 @@ import AuthNavigation from "@/components/authNavigation";
 import { BASE_URL } from "@/utils/constants";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { FaUser, FaEnvelope, FaEdit, FaLock, FaCamera } from "react-icons/fa";
+import {
+  FaUser,
+  FaEnvelope,
+  FaEdit,
+  FaLock,
+  FaCamera,
+  FaArrowLeft,
+  FaSignOutAlt,
+  FaTrash,
+  FaMapMarkerAlt,
+  FaPhone,
+  FaCog,
+} from "react-icons/fa";
 
 export default function Profile() {
   const router = useRouter();
@@ -37,6 +49,7 @@ export default function Profile() {
     | "verifyPassword"
     | "updateEmail"
     | "updatePassword"
+    | "settings"
   >("main");
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -58,12 +71,6 @@ export default function Profile() {
       });
       if (res.data.success) {
         const user = res.data.user;
-        console.log(
-          "Profile picture from server:",
-          user.profilePicture
-            ? user.profilePicture.substring(0, 50) + "..."
-            : "None"
-        );
         setFormData({
           fullname: user.fullname,
           email: user.email,
@@ -235,16 +242,11 @@ export default function Profile() {
 
     setIsLoading(true);
     try {
-      console.log("Sending email update request with:", {
-        email: formData.newEmail,
-        otp: verifiedOtp,
-      });
-
       const res = await axios.put(
         `${BASE_URL}/api/users/update-user`,
         {
           email: formData.newEmail,
-          otp: verifiedOtp, 
+          otp: verifiedOtp,
         },
         {
           headers: {
@@ -252,8 +254,6 @@ export default function Profile() {
           },
         }
       );
-
-      console.log("Email update response:", res.data);
 
       if (res.data.success) {
         toast.success("Email updated successfully.");
@@ -268,11 +268,7 @@ export default function Profile() {
         }));
       }
     } catch (err: any) {
-      console.error("Email update error:", err);
-
       if (err.response) {
-        console.error("Error response data:", err.response.data);
-        console.error("Error response status:", err.response.status);
         toast.error(
           err.response.data.message ||
             err.response.data.error ||
@@ -301,7 +297,7 @@ export default function Profile() {
         `${BASE_URL}/api/users/update-user`,
         {
           password: formData.password,
-          otp: verifiedOtp, 
+          otp: verifiedOtp,
         },
         {
           headers: {
@@ -408,337 +404,465 @@ export default function Profile() {
     }
   };
 
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
+        ease: "easeOut",
+      },
+    },
+    exit: {
+      opacity: 0,
+      y: -20,
+      transition: {
+        duration: 0.3,
+        ease: "easeIn",
+      },
+    },
+  };
+
   return (
-    <main className="min-h-screen bg-white flex pt-36 pb-40 flex-col items-center justify-center">
-      {/* <ToastContainer /> */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-        className="outline outline-1 outline-black/40 backdrop-blur-lg rounded-3xl p-8 md:p-12 w-full max-w-lg relative"
-      >
-        <h2 className="text-3xl font-bold text-black mb-2 text-center">
-          Profile
-        </h2>
-        <p className="text-black text-center mb-4">
-          Manage your account details
-        </p>
-
-        {/* Profile Picture Section */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="relative mb-4">
-            <div className="w-24 h-24 rounded-full outline outline-1 outline-black/40 overflow-hidden bg-gray-200 flex items-center justify-center">
-              {formData.profilePicture ? (
-                <img
-                  src={formData.profilePicture}
-                  alt="Profile"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    console.log(
-                      "Image failed to load:",
-                      formData.profilePicture.substring(0, 50) + "..."
-                    );
-                    e.currentTarget.src = "https://via.placeholder.com/96";
-                    e.currentTarget.onerror = null;
-                  }}
-                />
-              ) : (
-                <FaUser className="text-gray-400" size={40} />
-              )}
-            </div>
-            <button
-              onClick={triggerFileInput}
-              className="absolute bottom-0 right-0 bg-gray-600 text-white rounded-full p-2 hover:bg-orange-500 transition-colors"
-              disabled={uploadingImage}
-              aria-label="Upload profile picture"
-            >
-              {uploadingImage ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <FaCamera size={14} />
-              )}
-            </button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleImageUpload}
-              className="hidden"
-              accept="image/*"
-            />
-          </div>
-          <p className="text-sm text-gray-500">
-            {uploadingImage
-              ? "Uploading..."
-              : "Click to upload profile picture"}
-          </p>
-        </div>
-
-        {/* User Info Display Section with Icons and Edit Buttons */}
-        {formData.fullname && formData.email && (
-          <div className="mb-8 p-4 bg-gray-50 rounded-lg">
-            <div className="flex flex-col space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <FaUser className="text-orange-600 mr-3" />
-                  <div>
-                    <p className="text-sm text-gray-500 font-medium">Name</p>
-                    <p className="text-black font-medium">
-                      {formData.fullname}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setView("account")}
-                  className="p-2 text-gray-600 hover:text-orange-500"
-                  aria-label="Edit name"
-                >
-                  <FaEdit size={18} />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <FaEnvelope className="text-orange-500 mr-3" />
-                  <div>
-                    <p className="text-sm text-gray-500 font-medium">Email</p>
-                    <p className="text-black font-medium">{formData.email}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleSendOtpForEmail}
-                  className="p-2 text-gray-600 hover:text-orange-500"
-                  aria-label="Edit email"
-                >
-                  <FaEdit size={18} />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <FaLock className="text-orange-500 mr-3" />
-                  <div>
-                    <p className="text-sm text-gray-500 font-medium">
-                      Password
-                    </p>
-                    <p className="text-black font-medium">••••••••</p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleSendOtpForPassword}
-                  className="p-2 text-gray-600 hover:text-orange-500"
-                  aria-label="Edit password"
-                >
-                  <FaEdit size={18} />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-8">
-            <Loader />
-            <p className="text-black mt-4">Processing your request...</p>
-          </div>
-        ) : view === "main" ? (
-          <div className="space-y-6">
-            <Button
-              onClick={handleLogout}
-              className="w-full bg-gray-500 hover:bg-gray-700 text-white py-6 text-lg"
-            >
-              Logout
-            </Button>
-          </div>
-        ) : view === "account" ? (
-          <form className="space-y-6" onSubmit={handleUpdateName}>
-            <Input
-              type="text"
-              name="fullname"
-              value={formData.fullname}
-              onChange={handleChange}
-              placeholder="Full Name"
-              required
-            />
-            <Button
-              type="submit"
-              className="w-full bg-black hover:bg-black/80 text-white py-6 text-lg"
-            >
-              Update Name
-            </Button>
-            <Button
-              onClick={() => setView("main")}
-              className="w-full bg-gray-500 hover:bg-gray-700 text-white py-6 text-lg"
-            >
-              Back
-            </Button>
-          </form>
-        ) : view === "verifyEmail" ? (
-          <form className="space-y-6" onSubmit={handleVerifyOtpForEmail}>
-            <p className="text-black text-center mb-4">
-              Enter the OTP sent to your email to verify your identity
-            </p>
-            <Input
-              type="text"
-              name="otp"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              placeholder="Enter OTP"
-              maxLength={6}
-              className="text-center tracking-widest"
-              required
-            />
-            <Button
-              type="submit"
-              className="w-full bg-black hover:bg-black/80 text-white py-6 text-lg"
-            >
-              Verify OTP
-            </Button>
-            <p className="text-center mt-4 text-sm">
-              <button
-                type="button"
-                className="text-black/70 hover:text-black"
-                onClick={handleResendOtp}
-                disabled={isLoading}
-              >
-                Didn't receive the OTP? Resend
-              </button>
-            </p>
-            <Button
-              type="button"
-              onClick={() => setView("main")}
-              className="w-full bg-gray-500 hover:bg-gray-700 text-white py-6 text-lg"
-            >
-              Back
-            </Button>
-          </form>
-        ) : view === "verifyPassword" ? (
-          <form className="space-y-6" onSubmit={handleVerifyOtpForPassword}>
-            <p className="text-black text-center mb-4">
-              Enter the OTP sent to your email to verify your identity
-            </p>
-            <Input
-              type="text"
-              name="otp"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              placeholder="Enter OTP"
-              maxLength={6}
-              className="text-center tracking-widest"
-              required
-            />
-            <Button
-              type="submit"
-              className="w-full bg-black hover:bg-black/80 text-white py-6 text-lg"
-            >
-              Verify OTP
-            </Button>
-            <p className="text-center mt-4 text-sm">
-              <button
-                type="button"
-                className="text-black/70 hover:text-black"
-                onClick={handleResendOtp}
-                disabled={isLoading}
-              >
-                Didn't receive the OTP? Resend
-              </button>
-            </p>
-            <Button
-              type="button"
-              onClick={() => setView("main")}
-              className="w-full bg-gray-500 hover:bg-gray-700 text-white py-6 text-lg"
-            >
-              Back
-            </Button>
-          </form>
-        ) : view === "updateEmail" ? (
-          <form className="space-y-6" onSubmit={handleUpdateEmail}>
-            <p className="text-black text-center mb-4">
-              Enter your new email address
-            </p>
-            <Input
-              type="email"
-              name="newEmail"
-              value={formData.newEmail}
-              onChange={handleChange}
-              placeholder="New Email Address"
-              required
-            />
-            <Button
-              type="submit"
-              className="w-full bg-black hover:bg-black/80 text-white py-6 text-lg"
-            >
-              Update Email
-            </Button>
-            <Button
-              type="button"
-              onClick={() => setView("main")}
-              className="w-full bg-gray-500 hover:bg-gray-700 text-white py-6 text-lg"
-            >
-              Cancel
-            </Button>
-          </form>
-        ) : view === "updatePassword" ? (
-          <form className="space-y-6" onSubmit={handleUpdatePassword}>
-            <p className="text-black text-center mb-4">
-              Enter your new password
-            </p>
-            <Input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="New Password"
-              required
-            />
-            <Button
-              type="submit"
-              className="w-full bg-black hover:bg-black/80 text-white py-6 text-lg"
-            >
-              Update Password
-            </Button>
-            <Button
-              type="button"
-              onClick={() => setView("main")}
-              className="w-full bg-gray-500 hover:bg-gray-700 text-white py-6 text-lg"
-            >
-              Cancel
-            </Button>
-          </form>
-        ) : null}
-        <Button
-          onClick={() => setShowDeleteConfirmation(true)}
-          className="mt-4 bg-red-500 hover:bg-red-700 text-white py-4 w-full"
+    <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex pt-28 pb-32 flex-col items-center justify-center px-4">
+      <ToastContainer position="top-center" autoClose={3000} />
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={view}
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+          className="bg-white shadow-lg rounded-2xl p-0 w-full max-w-5xl relative overflow-hidden"
         >
-          Delete Account
-        </Button>
-      </motion.div>
+          {view !== "main" ? (
+            <div className="p-6">
+              {/* Header with back button for sub-views */}
+              <div className="flex items-center justify-between mb-6">
+                <button
+                  onClick={() => setView("main")}
+                  className="text-gray-500 hover:text-orange-500 transition-colors"
+                  aria-label="Back to profile"
+                >
+                  <FaArrowLeft size={18} />
+                </button>
+                <h2 className="text-2xl font-semibold text-gray-800 mx-auto">
+                  {view === "account"
+                    ? "Edit Name"
+                    : view === "verifyEmail"
+                    ? "Verify Email"
+                    : view === "verifyPassword"
+                    ? "Verify Password"
+                    : view === "updateEmail"
+                    ? "Update Email"
+                    : view === "settings"
+                    ? "Settings"
+                    : "Update Password"}
+                </h2>
+                <div className="w-5"></div>
+              </div>
+
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <Loader />
+                  <p className="text-gray-600 mt-4">
+                    Processing your request...
+                  </p>
+                </div>
+              ) : view === "account" ? (
+                <form className="space-y-6" onSubmit={handleUpdateName}>
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="fullname"
+                      className="text-sm text-gray-600 font-medium"
+                    >
+                      Full Name
+                    </label>
+                    <Input
+                      id="fullname"
+                      type="text"
+                      name="fullname"
+                      value={formData.fullname}
+                      onChange={handleChange}
+                      placeholder="Enter your full name"
+                      className="rounded-xl py-6 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                      required
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 rounded-xl transition-colors"
+                  >
+                    Update Name
+                  </Button>
+                </form>
+              ) : view === "settings" ? (
+                <div className="space-y-6">
+                  <p className="text-gray-600 mb-6">
+                    Manage your account settings and preferences.
+                  </p>
+
+                  <div className="space-y-4">
+                    <div className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                      <h3 className="text-lg font-medium text-gray-800 mb-2">
+                        Account
+                      </h3>
+                      <p className="text-gray-600 mb-4">
+                        Delete your account and all associated data.
+                      </p>
+                      <Button
+                        onClick={() => setShowDeleteConfirmation(true)}
+                        className="bg-red-50 hover:bg-red-100 text-red-600 py-3 px-4 flex items-center gap-2 rounded-xl transition-all"
+                      >
+                        <FaTrash size={16} />
+                        <span>Delete Account</span>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : view === "verifyEmail" || view === "verifyPassword" ? (
+                <form
+                  className="space-y-6"
+                  onSubmit={
+                    view === "verifyEmail"
+                      ? handleVerifyOtpForEmail
+                      : handleVerifyOtpForPassword
+                  }
+                >
+                  <div className="text-center mb-6">
+                    <p className="text-gray-600 mb-2">
+                      Enter the 6-digit code sent to
+                    </p>
+                    <p className="text-gray-800 font-medium">
+                      {formData.email}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Input
+                      type="text"
+                      name="otp"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      placeholder="000000"
+                      maxLength={6}
+                      className="text-center tracking-widest text-lg py-6 rounded-xl bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                      required
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 rounded-xl transition-colors"
+                  >
+                    Verify Code
+                  </Button>
+
+                  <p className="text-center text-sm">
+                    <button
+                      type="button"
+                      className="text-orange-500 hover:text-orange-700 transition-colors"
+                      onClick={handleResendOtp}
+                      disabled={isLoading}
+                    >
+                      Didn't receive the code? Resend
+                    </button>
+                  </p>
+                </form>
+              ) : view === "updateEmail" ? (
+                <form className="space-y-6" onSubmit={handleUpdateEmail}>
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="newEmail"
+                      className="text-sm text-gray-600 font-medium"
+                    >
+                      New Email Address
+                    </label>
+                    <Input
+                      id="newEmail"
+                      type="email"
+                      name="newEmail"
+                      value={formData.newEmail}
+                      onChange={handleChange}
+                      placeholder="Enter your new email"
+                      className="rounded-xl py-6 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                      required
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 rounded-xl transition-colors"
+                  >
+                    Update Email
+                  </Button>
+                </form>
+              ) : view === "updatePassword" ? (
+                <form className="space-y-6" onSubmit={handleUpdatePassword}>
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="password"
+                      className="text-sm text-gray-600 font-medium"
+                    >
+                      New Password
+                    </label>
+                    <Input
+                      id="password"
+                      type="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="Enter your new password"
+                      className="rounded-xl py-6 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                      required
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 rounded-xl transition-colors"
+                  >
+                    Update Password
+                  </Button>
+                </form>
+              ) : null}
+            </div>
+          ) : formData.fullname && formData.email ? (
+            <div className="flex flex-col md:flex-row">
+              {/* Left Column - Profile Picture */}
+              <div className="md:w-1/4 bg-gray-50 p-6 rounded-l-2xl">
+                <div className="sticky bottom-0 flex flex-col h-full">
+                  {/* Profile Picture */}
+                  <div className="flex flex-col items-center mb-8">
+                    <div className="relative mb-4">
+                      <div className="w-28 h-28 rounded-full shadow-md overflow-hidden bg-white flex items-center justify-center border-2 border-white">
+                        {formData.profilePicture ? (
+                          <img
+                            src={formData.profilePicture}
+                            alt="Profile"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.src =
+                                "https://via.placeholder.com/150";
+                              e.currentTarget.onerror = null;
+                            }}
+                          />
+                        ) : (
+                          <FaUser className="text-gray-300" size={48} />
+                        )}
+                      </div>
+                      <button
+                        onClick={triggerFileInput}
+                        className="absolute bottom-0 right-0 bg-white shadow-md text-orange-500 rounded-full p-2 hover:bg-orange-50 transition-colors"
+                        disabled={uploadingImage}
+                        aria-label="Upload profile picture"
+                      >
+                        {uploadingImage ? (
+                          <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <FaCamera size={14} />
+                        )}
+                      </button>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImageUpload}
+                        className="hidden"
+                        accept="image/*"
+                      />
+                    </div>
+                    <h3 className="font-semibold text-gray-800 text-lg">
+                      {formData.fullname}
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-2">
+                      {formData.email}
+                    </p>
+                    <p className="text-xs text-gray-400 mb-6">
+                      {uploadingImage
+                        ? "Uploading..."
+                        : "Change profile picture"}
+                    </p>
+
+                    {/* Navigation Menu - At bottom of left column */}
+                    <div className="mt-auto pt-24">
+                      <div className="bg-gray-50 p-4 rounded-xl">
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3">
+                            Account Settings
+                          </h4>
+                          <button
+                            onClick={() => setView("settings")}
+                            className="w-full flex items-center gap-3 p-3 text-left rounded-xl hover:bg-white hover:shadow-sm transition-all text-gray-700 font-medium"
+                          >
+                            <FaCog className="text-orange-500" size={16} />
+                            <span>Settings</span>
+                          </button>
+                          <div className="pt-4 mt-4 border-t border-gray-200">
+                            <button
+                              onClick={handleLogout}
+                              className="w-full flex items-center gap-3 p-3 text-left rounded-xl hover:bg-white hover:shadow-sm transition-all text-gray-700 font-medium"
+                            >
+                              <FaSignOutAlt
+                                className="text-gray-500"
+                                size={16}
+                              />
+                              <span>Logout</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column - Profile Information */}
+              <div className="md:w-3/4 p-8">
+                <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                  My Profile
+                </h2>
+
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                  {/* Profile Information Card */}
+                  <div className="p-6 border-b border-gray-100">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                      Personal Information
+                    </h3>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                        <div className="flex items-center">
+                          <div className="bg-orange-50 p-2.5 rounded-full mr-4">
+                            <FaUser className="text-orange-500" size={18} />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500 font-medium">
+                              Full Name
+                            </p>
+                            <p className="text-gray-800 font-medium">
+                              {formData.fullname}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setView("account")}
+                          className="p-2 text-gray-500 hover:text-orange-500 transition-colors"
+                          aria-label="Edit name"
+                        >
+                          <FaEdit size={16} />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                        <div className="flex items-center">
+                          <div className="bg-orange-50 p-2.5 rounded-full mr-4">
+                            <FaEnvelope className="text-orange-500" size={18} />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500 font-medium">
+                              Email Address
+                            </p>
+                            <p className="text-gray-800 font-medium">
+                              {formData.email}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleSendOtpForEmail}
+                          className="p-2 text-gray-500 hover:text-orange-500 transition-colors"
+                          aria-label="Edit email"
+                        >
+                          <FaEdit size={16} />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                        <div className="flex items-center">
+                          <div className="bg-orange-50 p-2.5 rounded-full mr-4">
+                            <FaLock className="text-orange-500" size={18} />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500 font-medium">
+                              Password
+                            </p>
+                            <p className="text-gray-800 font-medium">
+                              ••••••••
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleSendOtpForPassword}
+                          className="p-2 text-gray-500 hover:text-orange-500 transition-colors"
+                          aria-label="Edit password"
+                        >
+                          <FaEdit size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Additional Information Section - Can be expanded in the future */}
+                  <div className="p-6">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                      Account Information
+                    </h3>
+                    <p className="text-gray-600 text-sm">
+                      Your account is active and in good standing.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </motion.div>
+      </AnimatePresence>
+
       {isAuthenticated ? <AuthNavigation /> : <Navigation />}
 
-      {showDeleteConfirmation && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-8 rounded-lg shadow-lg">
-            <h3 className="text-xl font-bold mb-4">Confirm Delete</h3>
-            <p className="mb-4">
-              Are you sure you want to delete your account? This action cannot
-              be undone.
-            </p>
-            <div className="flex justify-end space-x-4">
-              <Button
-                onClick={() => setShowDeleteConfirmation(false)}
-                className="bg-gray-500 hover:bg-gray-700 text-white py-2 px-4 rounded"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleDeleteAccount}
-                className="bg-red-500 hover:bg-red-700 text-white py-2 px-4 rounded"
-              >
-                Delete
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Delete Account Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteConfirmation && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 px-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 25 }}
+              className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl"
+            >
+              <h3 className="text-xl font-semibold text-gray-800 mb-3">
+                Delete Account
+              </h3>
+              <p className="text-gray-600 mb-6">
+                This action cannot be undone. All your data will be permanently
+                removed.
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => setShowDeleteConfirmation(false)}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-5 rounded-xl transition-colors"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleDeleteAccount}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-5 rounded-xl transition-colors"
+                >
+                  Delete
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }
