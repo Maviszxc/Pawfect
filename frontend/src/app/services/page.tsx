@@ -5,6 +5,15 @@ import Navigation from "@/components/Navigation";
 import AuthNavigation from "@/components/authNavigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faPaw,
+  faSyringe,
+  faHome,
+  faBook,
+  faCut,
+  faVirus,
+} from "@fortawesome/free-solid-svg-icons";
 
 export default function Services() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -18,37 +27,37 @@ export default function Services() {
     {
       title: "Animal Rescue & Rehabilitation",
       description:
-        "Rescue, medical care, and rehabilitation for abused, neglected, and homeless animals.",
+        "Rescue, medical care, and rehabilitation<br/>for abused, neglected, and homeless animals.",
       icon: "🐾",
     },
     {
       title: "Veterinary Services",
       description:
-        "Complete veterinary care including check-ups, vaccinations, spay/neuter, and emergency treatments.",
+        "Complete veterinary care including check-ups<br/>vaccinations, spay/neuter, and emergency treatments.",
       icon: "💉",
     },
     {
       title: "Adoption Programs",
       description:
-        "Finding loving forever homes for rescued animals through our thorough adoption process.",
+        "Finding loving forever homes for rescued animals<br/>through our thorough adoption process.",
       icon: "🏠",
     },
     {
       title: "Animal Welfare Education",
       description:
-        "Community education programs promoting responsible pet ownership and animal welfare.",
+        "Community education programs promoting<br/>responsible pet ownership and animal welfare.",
       icon: "📚",
     },
     {
       title: "Spay & Neuter Campaigns",
       description:
-        "Affordable spay/neuter services to control pet population and prevent strays.",
+        "Affordable spay/neuter services to control<br/>pet population and prevent strays.",
       icon: "✂️",
     },
     {
       title: "Rabies Prevention",
       description:
-        "Vaccination drives and education to support a #StrayFreeRabiesFreePhilippines by 2030.",
+        "Vaccination drives and education to support<br/>#StrayFreeRabiesFreePhilippines by 2030.",
       icon: "🦠",
     },
   ];
@@ -113,9 +122,217 @@ export default function Services() {
     },
   ];
 
+  // Map service icons to FontAwesome icons
+  const getServiceIcon = (icon: string) => {
+    switch (icon) {
+      case "🐾":
+        return faPaw;
+      case "💉":
+        return faSyringe;
+      case "🏠":
+        return faHome;
+      case "📚":
+        return faBook;
+      case "✂️":
+        return faCut;
+      case "🦠":
+        return faVirus;
+      default:
+        return faPaw;
+    }
+  };
+
+  // Service background images
+  const serviceImages = [
+    "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2069&q=80",
+    "https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+    "https://images.unsplash.com/photo-1601758174114-e711c0cbaa69?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+    "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2064&q=80",
+    "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2060&q=80",
+    "https://images.unsplash.com/photo-1450778869180-41d0601e046e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1886&q=80",
+  ];
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-white-50 to-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-40 pb-20">
+      <style jsx global>{`
+        .options {
+          display: flex;
+          flex-direction: row;
+          align-items: stretch;
+          min-width: 700px;
+          max-width: 1100px;
+          width: calc(100% - 80px);
+          height: 500px;
+          margin: 0 auto;
+        }
+
+        @media screen and (max-width: 818px) {
+          .options {
+            min-width: 620px;
+          }
+          .options .option:nth-child(5) {
+            display: none;
+          }
+        }
+
+        @media screen and (max-width: 738px) {
+          .options {
+            min-width: 540px;
+          }
+          .options .option:nth-child(4) {
+            display: none;
+          }
+        }
+
+        @media screen and (max-width: 658px) {
+          .options {
+            min-width: 460px;
+          }
+          .options .option:nth-child(3) {
+            display: none;
+          }
+        }
+
+        @media screen and (max-width: 578px) {
+          .options {
+            min-width: 380px;
+          }
+          .options .option:nth-child(2) {
+            display: none;
+          }
+        }
+
+        .option {
+          position: relative;
+          overflow: hidden;
+          min-width: 60px;
+          margin: 10px;
+          background-size: cover;
+          background-position: center;
+          cursor: pointer;
+          transition: 0.5s cubic-bezier(0.05, 0.61, 0.41, 0.95);
+          flex-grow: 1;
+          border-radius: 16px;
+          box-shadow: 0px 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .option.active {
+          flex-grow: 10;
+          transform: scale(1);
+          max-width: 600px;
+          margin: 0px;
+          border-radius: 16px;
+          background-size: cover;
+          background-position: center;
+        }
+
+        .option.active .shadow {
+          box-shadow: inset 0 -120px 120px -120px black,
+            inset 0 -120px 120px -100px black;
+        }
+
+        .option.active .label {
+          bottom: 20px;
+          left: 20px;
+        }
+
+        .option.active .label .info > div {
+          left: 0px;
+          opacity: 1;
+        }
+
+        .option:not(.active) {
+          flex-grow: 1;
+          border-radius: 16px;
+        }
+
+        .option:not(.active) .shadow {
+          bottom: -40px;
+          box-shadow: inset 0 -120px 0px -120px black,
+            inset 0 -120px 0px -100px black;
+        }
+
+        .option:not(.active) .label {
+          bottom: 10px;
+          left: 10px;
+        }
+
+        .option:not(.active) .label .info > div {
+          left: 20px;
+          opacity: 0;
+        }
+
+        .option .shadow {
+          position: absolute;
+          bottom: 0px;
+          left: 0px;
+          right: 0px;
+          height: 500px;
+          transition: 0.5s cubic-bezier(0.05, 0.61, 0.41, 0.95);
+        }
+
+        .option .label {
+          display: flex;
+          position: absolute;
+          right: 0px;
+          height: 40px;
+          transition: 0.5s cubic-bezier(0.05, 0.61, 0.41, 0.95);
+        }
+
+        .option .label .icon {
+          display: flex;
+          flex-direction: row;
+          justify-content: center;
+          align-items: center;
+          min-width: 40px;
+          max-width: 40px;
+          height: 40px;
+          border-radius: 100%;
+          background-color: white;
+          color: var(--defaultBackground);
+        }
+
+        .option .label .info {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          margin-left: 10px;
+          color: white;
+          white-space: pre;
+        }
+
+        .option .label .info > div {
+          position: relative;
+          transition: 0.5s cubic-bezier(0.05, 0.61, 0.41, 0.95),
+            opacity 0.5s ease-out;
+        }
+
+        .option .label .info .main {
+          font-weight: bold;
+          font-size: 1.2rem;
+        }
+
+        .option .label .info .sub {
+          transition-delay: 0.1s;
+          max-width: 300px;
+          line-height: 1.4;
+          margin-top: 5px;
+          white-space: normal;
+        }
+
+        .option.active .shadow {
+          box-shadow: inset 0 -150px 150px -120px rgba(0, 0, 0, 0.9),
+            inset 0 -150px 150px -100px rgba(0, 0, 0, 0.8);
+        }
+
+        .option.active .label {
+          bottom: 40px;
+          left: 20px;
+          height: auto;
+        }
+      `}</style>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -124,41 +341,54 @@ export default function Services() {
           <div className="inline-block relative">
             <span className="absolute -top-3 -left-6 w-12 h-12 rounded-full bg-orange-100 opacity-70"></span>
             <span className="absolute -bottom-3 -right-6 w-10 h-10 rounded-full bg-blue-100 opacity-70"></span>
-            <h1 className="relative text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-orange-500 to-blue-600 mb-2">
+            <h1 className="relative text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-orange-500 to-blue-600 mb-2">
               Our Services
             </h1>
           </div>
-          <p className="text-gray-500 max-w-md mx-auto">
-            At our animal care center, we're committed to the welfare of all
-            animals through these comprehensive services.
-          </p>
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          className="mb-16"
         >
-          {services.map((service, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 + index * 0.1 }}
-              className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300"
-            >
-              <div className="p-6">
-                <div className="flex items-center mb-4">
-                  <div className="text-4xl">{service.icon}</div>
+          <div className="options">
+            {services.map((service, index) => (
+              <div
+                key={index}
+                className={`option ${index === 0 ? "active" : ""}`}
+                style={
+                  {
+                    backgroundImage: `url(${serviceImages[index]})`,
+                    "--defaultBackground": index === 0 ? "#ED5565" : "#ED5565",
+                  } as React.CSSProperties
+                }
+                onClick={(e) => {
+                  // Remove active class from all options
+                  document.querySelectorAll(".option").forEach((option) => {
+                    option.classList.remove("active");
+                  });
+                  // Add active class to clicked option
+                  e.currentTarget.classList.add("active");
+                }}
+              >
+                <div className="shadow"></div>
+                <div className="label">
+                  <div className="icon">
+                    <FontAwesomeIcon icon={getServiceIcon(service.icon)} />
+                  </div>
+                  <div className="info">
+                    <div className="main">{service.title}</div>
+                    <div
+                      className="sub"
+                      dangerouslySetInnerHTML={{ __html: service.description }}
+                    ></div>
+                  </div>
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  {service.title}
-                </h3>
-                <p className="text-gray-600">{service.description}</p>
               </div>
-            </motion.div>
-          ))}
+            ))}
+          </div>
         </motion.div>
 
         <motion.div

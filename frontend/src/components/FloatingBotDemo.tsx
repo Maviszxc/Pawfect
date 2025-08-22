@@ -6,6 +6,8 @@ import { Button } from "./ui/button";
 
 // Dynamically import FloatingBot with SSR disabled
 const FloatingBot = dynamic(() => import("./FloatingBot"), { ssr: false });
+// Dynamically import ChatInterface with SSR disabled
+const ChatInterface = dynamic(() => import("./ChatInterface"), { ssr: false });
 
 interface FloatingBotDemoProps {
   count?: number;
@@ -23,6 +25,7 @@ const FloatingBotDemo: React.FC<FloatingBotDemoProps> = ({
   const [animationData, setAnimationData] = useState<any>(null);
   const [showAnimation, setShowAnimation] = useState(autoLoad);
   const [isMounted, setIsMounted] = useState(false);
+  const [showChat, setShowChat] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -38,6 +41,18 @@ const FloatingBotDemo: React.FC<FloatingBotDemoProps> = ({
       });
   }, []);
 
+  // Handle bot click to open chat
+  const handleBotClick = () => {
+    setShowChat(true);
+    setShowAnimation(false);
+  };
+
+  // Handle chat close
+  const handleChatClose = () => {
+    setShowChat(false);
+    setShowAnimation(true);
+  };
+
   // Create a single floating bot with custom movement
   const renderBot = () => {
     if (!isMounted || !showAnimation || !animationData) return null;
@@ -49,8 +64,10 @@ const FloatingBotDemo: React.FC<FloatingBotDemoProps> = ({
         width={width}
         height={height}
         style={{
-          opacity: 0.85,
+          opacity: 100,
+          cursor: 'pointer'
         }}
+        onClick={handleBotClick}
       />
     );
   };
@@ -61,6 +78,11 @@ const FloatingBotDemo: React.FC<FloatingBotDemoProps> = ({
   return (
     <div className="floating-bot-container">
       {renderBot()}
+      {showChat && (
+        <div className="fixed inset-0 z-[9999]" style={{ pointerEvents: 'auto' }}>
+          <ChatInterface onClose={handleChatClose} />
+        </div>
+      )}
       {!autoLoad && (
         <Button
           onClick={() => setShowAnimation(!showAnimation)}

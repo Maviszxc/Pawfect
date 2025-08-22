@@ -2,13 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/dynamic-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 import axiosInstance from "@/lib/axiosInstance";
 import { BASE_URL } from "@/utils/constants";
 import Loader from "@/components/Loader";
@@ -60,7 +58,7 @@ export default function EditPetPage({ params }: EditPetPageProps) {
         if (response.data.success) {
           const user = response.data.user;
           if (!user.isAdmin) {
-            toast.error("You don't have admin privileges");
+            console.error("You don't have admin privileges");
             router.push("/dashboard");
             return;
           }
@@ -94,12 +92,12 @@ export default function EditPetPage({ params }: EditPetPageProps) {
         });
         setImagePreview(pet.image);
       } else {
-        toast.error("Failed to fetch pet details");
+        console.error("Failed to fetch pet details");
         router.push("/admin/pets");
       }
     } catch (error) {
       console.error("Error fetching pet details:", error);
-      toast.error("Something went wrong. Please try again.");
+      console.error("Something went wrong. Please try again.");
       router.push("/admin/pets");
     } finally {
       setIsLoading(false);
@@ -138,7 +136,7 @@ export default function EditPetPage({ params }: EditPetPageProps) {
         !formData.age ||
         !formData.gender
       ) {
-        toast.error("Please fill all required fields");
+        console.error("Please fill all required fields");
         setIsSubmitting(false);
         return;
       }
@@ -164,7 +162,7 @@ export default function EditPetPage({ params }: EditPetPageProps) {
         );
 
         if (!imageResponse.data.success) {
-          toast.error("Failed to upload image");
+          console.error("Failed to upload image");
           setIsSubmitting(false);
           return;
         }
@@ -179,14 +177,14 @@ export default function EditPetPage({ params }: EditPetPageProps) {
       );
 
       if (response.data.success) {
-        toast.success("Pet updated successfully!");
+        console.log("Pet updated successfully!");
         router.push("/admin/pets");
       } else {
-        toast.error(response.data.message || "Failed to update pet");
+        console.error(response.data.message || "Failed to update pet");
       }
     } catch (error) {
       console.error("Error updating pet:", error);
-      toast.error("Something went wrong. Please try again.");
+      console.error("Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -206,7 +204,6 @@ export default function EditPetPage({ params }: EditPetPageProps) {
 
   return (
     <div className="container mx-auto p-4 pt-24">
-      <ToastContainer />
       <div className="flex flex-col space-y-6 max-w-3xl mx-auto">
         <div className="flex justify-between items-center">
           <div>

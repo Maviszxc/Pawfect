@@ -3,18 +3,42 @@
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/dynamic-card";
+import { Skeleton } from "@/components/ui/dynamic-skeleton";
 import Link from "next/link";
 import Navigation from "@/components/Navigation";
 import AuthNavigation from "@/components/authNavigation";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import dynamic from "next/dynamic";
+
+// Dynamically import Tabs components
+const Tabs = dynamic(
+  () => import("@/components/ui/tabs").then((mod) => mod.Tabs),
+  { ssr: true }
+);
+const TabsContent = dynamic(
+  () => import("@/components/ui/tabs").then((mod) => mod.TabsContent),
+  { ssr: true }
+);
+const TabsList = dynamic(
+  () => import("@/components/ui/tabs").then((mod) => mod.TabsList),
+  { ssr: true }
+);
+const TabsTrigger = dynamic(
+  () => import("@/components/ui/tabs").then((mod) => mod.TabsTrigger),
+  { ssr: true }
+);
 import { Input } from "@/components/ui/input";
-import { Send, Video, Image as ImageIcon, Play } from "lucide-react";
+import {
+  Send,
+  Video,
+  Image as ImageIcon,
+  Play,
+  Pause,
+  Camera,
+  CameraOff,
+} from "lucide-react";
 import axios from "axios";
 import { BASE_URL } from "@/utils/constants";
-// Remove duplicate import
-// import { Video, Send, Image } from "lucide-react";
 
 interface Pet {
   _id: string;
@@ -51,8 +75,107 @@ export default function PetDetailsPage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [activeTab, setActiveTab] = useState("live");
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Removed hardcoded petGallery array as we're using dynamic data from pet object
+  // Camera state
+  const [hasCamera, setHasCamera] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState("");
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const cameraVideoRef = useRef<HTMLVideoElement>(null);
+
+  const togglePlayPause = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  // Check if browser supports media devices
+  useEffect(() => {
+    if (
+      navigator.mediaDevices &&
+      typeof navigator.mediaDevices.getUserMedia === "function"
+    ) {
+      setHasCamera(true);
+    } else {
+      setCameraError("Your browser does not support camera access");
+    }
+  }, []);
+
+  // Start camera
+  const startCamera = async () => {
+    try {
+      setCameraError("");
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" }, // Prefer rear camera on mobile
+      });
+
+      setCameraStream(mediaStream);
+      setIsCameraActive(true);
+
+      // Set the stream directly to the video element
+      if (cameraVideoRef.current) {
+        cameraVideoRef.current.srcObject = mediaStream;
+        // Wait for the video to load and play
+        cameraVideoRef.current.onloadedmetadata = () => {
+          cameraVideoRef.current?.play().catch((e) => {
+            console.error("Error playing camera stream:", e);
+          });
+        };
+      }
+    } catch (err) {
+      console.error("Camera access error:", err);
+      setCameraError("Unable to access camera: " + (err as Error).message);
+      setIsCameraActive(false);
+    }
+  };
+
+  // Stop camera
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => {
+        track.stop();
+      });
+      setCameraStream(null);
+      setIsCameraActive(false);
+
+      // Clear the video element
+      if (cameraVideoRef.current) {
+        cameraVideoRef.current.srcObject = null;
+      }
+    }
+  };
+
+  // Toggle camera
+  const toggleCamera = () => {
+    if (isCameraActive) {
+      stopCamera();
+    } else {
+      startCamera();
+    }
+  };
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [cameraStream]);
+
+  // Update video element when camera stream changes
+  useEffect(() => {
+    if (cameraVideoRef.current && cameraStream) {
+      cameraVideoRef.current.srcObject = cameraStream;
+    }
+  }, [cameraStream]);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -148,7 +271,7 @@ export default function PetDetailsPage() {
     }
 
     // Here you would implement the adoption logic
-    alert(
+    console.log(
       `Thank you for your interest in adopting ${pet?.name}! We'll contact you soon.`
     );
   };
@@ -197,24 +320,37 @@ export default function PetDetailsPage() {
           <div className="w-full lg:w-8/12">
             <div className="rounded-xl overflow-hidden shadow-lg bg-black">
               <div className="aspect-video relative">
-                {/* Placeholder for livestream - in a real app, this would be a video component */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center text-white">
-                    <Video className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                    <p className="text-lg font-medium">
-                      Live stream of {pet?.name}
-                    </p>
-                    <p className="text-sm opacity-70">
-                      Stream starts at 10:00 AM daily
-                    </p>
+                {/* Camera view or placeholder */}
+                {isCameraActive ? (
+                  <video
+                    ref={cameraVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-black absolute inset-0 flex items-center justify-center">
+                    <div className="text-center text-white">
+                      <Video className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg font-medium">
+                        Live stream of {pet?.name}
+                      </p>
+                      <p className="text-sm opacity-70">
+                        {hasCamera
+                          ? "Click Start Camera to begin streaming"
+                          : "Camera not supported in your browser"}
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
-              <div className="p-4 bg-black text-white">
-                <h1 className="text-xl font-bold mb-2">
-                  {pet?.name} - Live Stream
-                </h1>
-                <div className="flex items-center justify-between">
+              <div className="p-4 bg-black text-white flex justify-between items-center">
+                <div>
+                  <h1 className="text-xl font-bold mb-2">
+                    {pet?.name} -{" "}
+                    {isCameraActive ? "Live Camera" : "Live Stream"}
+                  </h1>
                   <div className="flex items-center">
                     <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold mr-3">
                       {pet?.name?.charAt(0)}
@@ -224,11 +360,30 @@ export default function PetDetailsPage() {
                       <p className="text-xs text-gray-400">1.2K followers</p>
                     </div>
                   </div>
-                  <Button className="bg-orange-600 hover:bg-orange-700 text-white">
-                    Follow
-                  </Button>
                 </div>
+                {hasCamera && (
+                  <Button
+                    onClick={toggleCamera}
+                    className={
+                      isCameraActive
+                        ? "bg-red-600 hover:bg-red-700"
+                        : "bg-orange-600 hover:bg-orange-700"
+                    }
+                  >
+                    {isCameraActive ? (
+                      <CameraOff className="mr-2 h-4 w-4" />
+                    ) : (
+                      <Camera className="mr-2 h-4 w-4" />
+                    )}
+                    {isCameraActive ? "Stop Camera" : "Start Camera"}
+                  </Button>
+                )}
               </div>
+              {cameraError && (
+                <div className="px-4 py-2 bg-red-100 text-red-700 text-sm">
+                  {cameraError}
+                </div>
+              )}
             </div>
 
             {/* Pet Basic Info Card - Below video like YouTube description */}
@@ -344,7 +499,11 @@ export default function PetDetailsPage() {
             <Card className="shadow-lg rounded-xl overflow-hidden border-none">
               <CardContent className="p-0">
                 <img
-                  src={pet?.images && pet.images.length > 0 ? pet.images[0] : pet?.image}
+                  src={
+                    pet?.images && pet.images.length > 0
+                      ? pet.images[0]
+                      : pet?.image
+                  }
                   alt={pet?.name}
                   className="w-full h-[250px] object-cover"
                 />
@@ -358,7 +517,6 @@ export default function PetDetailsPage() {
             </Card>
           </div>
         </div>
-        
         {/* Pet Gallery Section - Modern grid with dynamic images from pet data */}
         <Card className="w-full max-w-7xl mx-auto mb-8 shadow-lg rounded-xl overflow-hidden border-none">
           <CardContent className="p-6">
@@ -388,13 +546,24 @@ export default function PetDetailsPage() {
               {/* Pet video from database */}
               {pet?.video && pet.video.trim() !== "" && (
                 <div className="relative group overflow-hidden rounded-lg">
-                  <div className="absolute inset-0 flex items-center justify-center z-10">
-                    <Play className="w-12 h-12 text-white" />
+                  <div
+                    className="absolute inset-0 flex items-center justify-center z-10 cursor-pointer"
+                    onClick={togglePlayPause}
+                  >
+                    {isPlaying ? (
+                      <Pause className="w-12 h-12 text-white" fill="white" />
+                    ) : (
+                      <Play className="w-12 h-12 text-white" fill="white" />
+                    )}
                   </div>
                   <video
+                    ref={videoRef}
                     src={pet.video}
                     className="w-full h-full object-cover aspect-square"
-                    poster={pet?.image} /* Use pet image as video thumbnail */
+                    poster={pet?.image}
+                    loop
+                    muted
+                    onClick={togglePlayPause}
                   />
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
                     <p className="text-white text-sm font-medium">

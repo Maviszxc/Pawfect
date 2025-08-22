@@ -19,6 +19,7 @@ const upload = multer({ storage: storage });
 // Public routes
 router.get("/", petController.getAllPets);
 router.get("/filter", petController.filterPets);
+router.get("/match", petController.matchPets);
 router.get("/:id", petController.getPetById);
 
 // Protected routes (admin only)

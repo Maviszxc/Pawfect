@@ -18,8 +18,10 @@ dbConnect();
 app.use(express.json());
 app.use(cors({ origin: "*" }));
 
-// Routes
+// Serve static files from uploads directory
+app.use('/uploads', express.static('uploads'));
 
+// Routes
 app.use("/api/users", userRoutes);
 app.use("/api/pets", petRoutes);
 app.use("/api/admin", adminRoutes);
@@ -29,4 +31,7 @@ app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
-app.listen(5000);
+const PORT = process.env.PORT || 5003;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});

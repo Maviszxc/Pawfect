@@ -2,13 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/dynamic-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 import axiosInstance from "@/lib/axiosInstance";
 import { BASE_URL } from "@/utils/constants";
 import Loader from "@/components/Loader";
@@ -53,7 +51,7 @@ export default function AddPetPage() {
         if (response.data.success) {
           const user = response.data.user;
           if (!user.isAdmin) {
-            toast.error("You don't have admin privileges");
+            console.error("You don't have admin privileges");
             router.push("/dashboard");
             return;
           }
@@ -104,7 +102,7 @@ export default function AddPetPage() {
         !formData.gender ||
         !imageFile
       ) {
-        toast.error("Please fill all required fields and upload an image");
+        console.error("Please fill all required fields and upload an image");
         setIsSubmitting(false);
         return;
       }
@@ -132,14 +130,14 @@ export default function AddPetPage() {
       );
 
       if (response.data.success) {
-        toast.success("Pet added successfully!");
+        console.log("Pet added successfully!");
         router.push("/admin/pets");
       } else {
-        toast.error(response.data.message || "Failed to add pet");
+        console.error(response.data.message || "Failed to add pet");
       }
     } catch (error) {
       console.error("Error adding pet:", error);
-      toast.error("Something went wrong. Please try again.");
+      console.error("Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -159,7 +157,6 @@ export default function AddPetPage() {
 
   return (
     <div className="container mx-auto p-4 pt-24">
-      <ToastContainer />
       <div className="flex flex-col space-y-6 max-w-3xl mx-auto">
         <div className="flex justify-between items-center">
           <div>

@@ -4,16 +4,17 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Loader from "@/components/Loader";
 import axiosInstance from "@/lib/axiosInstance";
 import { BASE_URL } from "@/utils/constants";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+// console imports removed
 
 export default function SignUp() {
   const router = useRouter();
+  // Using react-consoleify directly
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     fullname: "",
@@ -29,7 +30,7 @@ export default function SignUp() {
           `${BASE_URL}/api/users/check-verified?email=${formData.email}`
         );
         if (!response.data.error) {
-          toast.success("Email is already used. Please login.");
+          console.log("Email is already used. Please login.");
           setIsLoading(true);
 
           setTimeout(() => {
@@ -75,13 +76,13 @@ export default function SignUp() {
 
       const data = await res.json();
       if (res.ok) {
-        toast.success("OTP sent to your email. Please verify your account.");
+        console.log("OTP sent to your email. Please verify your account.");
         router.push(`/auth/verify-otp?email=${formData.email}`);
       } else {
-        toast.error(data.message || "Sign-up failed. Try again.");
+        console.error(data.message || "Sign-up failed. Try again.");
       }
     } catch (err) {
-      toast.error("Something went wrong. Please try again.");
+      console.error("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -89,7 +90,6 @@ export default function SignUp() {
 
   return (
     <main className="min-h-screen bg-white flex items-center justify-center p-4 pt-24">
-      <ToastContainer />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -144,8 +144,7 @@ export default function SignUp() {
                 className="bg-white/10 border-gray-300 focus:border-orange-500 text-black placeholder:text-gray-500 rounded-xl py-6"
                 required
               />
-              <Input
-                type="password"
+              <PasswordInput
                 name="password"
                 value={formData.password}
                 onChange={handleChange}

@@ -4,14 +4,14 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useRouter } from "next/navigation";
 import Loader from "@/components/Loader";
 import axios from "axios";
 import Navigation from "@/components/Navigation";
 import AuthNavigation from "@/components/authNavigation";
 import { BASE_URL } from "@/utils/constants";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "react-toastify";
 import {
   FaUser,
   FaEnvelope,
@@ -80,8 +80,7 @@ export default function Profile() {
         });
       }
     } catch (err) {
-      console.error("Error fetching user data:", err);
-      toast.error("Something went wrong. Please try again.");
+      toast.error("Error fetching user data. Please try again.");
     }
   };
 
@@ -125,9 +124,7 @@ export default function Profile() {
         setIsOtpSent(true);
         setIsOtpVerified(false);
         setOtp("");
-        toast.success(
-          "OTP sent to your email. Please enter the OTP to proceed."
-        );
+        toast.info("OTP sent to your email. Please enter the OTP to proceed.");
         setView("verifyEmail");
       }
     } catch (err) {
@@ -150,9 +147,7 @@ export default function Profile() {
         setIsOtpSent(true);
         setIsOtpVerified(false);
         setOtp("");
-        toast.success(
-          "OTP sent to your email. Please enter the OTP to proceed."
-        );
+        toast.info("OTP sent to your email. Please enter the OTP to proceed.");
         setView("verifyPassword");
       }
     } catch (err) {
@@ -187,7 +182,6 @@ export default function Profile() {
         toast.error(res.data.message || "Invalid OTP. Please try again.");
       }
     } catch (err) {
-      console.error("OTP verification error:", err);
       toast.error("Invalid OTP or verification failed. Please try again.");
     } finally {
       setIsLoading(false);
@@ -219,7 +213,6 @@ export default function Profile() {
         toast.error(res.data.message || "Invalid OTP. Please try again.");
       }
     } catch (err) {
-      console.error("OTP verification error:", err);
       toast.error("Invalid OTP or verification failed. Please try again.");
     } finally {
       setIsLoading(false);
@@ -380,7 +373,7 @@ export default function Profile() {
         toast.success("Account deleted successfully.");
       }
     } catch (err) {
-      toast.error("Something went wrong. Please try again.");
+      console.error("Something went wrong. Please try again.");
     }
   };
 
@@ -427,7 +420,7 @@ export default function Profile() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex pt-28 pb-32 flex-col items-center justify-center px-4">
-      <ToastContainer position="top-center" autoClose={3000} />
+
       <AnimatePresence mode="wait">
         <motion.div
           key={view}
@@ -609,9 +602,8 @@ export default function Profile() {
                     >
                       New Password
                     </label>
-                    <Input
+                    <PasswordInput
                       id="password"
-                      type="password"
                       name="password"
                       value={formData.password}
                       onChange={handleChange}

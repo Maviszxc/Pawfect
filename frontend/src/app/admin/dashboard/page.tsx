@@ -4,10 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/dynamic-card";
 import { Button } from "@/components/ui/button";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+// Toast imports removed
 import axiosInstance from "@/lib/axiosInstance";
 import { BASE_URL } from "@/utils/constants";
 import Loader from "@/components/Loader";
@@ -84,7 +83,6 @@ export default function AdminDashboardPage() {
   return (
     <AdminAuthWrapper>
       <div className="container mx-auto p-4 pt-20">
-        <ToastContainer />
         <div className="flex flex-col space-y-6">
           <div className="flex flex-col space-y-2">
             <h1 className="text-3xl font-bold">Dashboard</h1>

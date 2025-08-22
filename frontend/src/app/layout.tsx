@@ -1,9 +1,9 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
+import ClientLoadingIndicator from "@/components/ClientLoadingIndicator";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import GlobalLoadingIndicator from "@/components/GlobalLoadingIndicator";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -12,7 +12,10 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Biyaya Animal Care",
+  title: "Biyaya Animal Sanctuary",
+  icons: {
+    icon: "/logow.png",
+  },
   description:
     "Find your perfect pet companion. Browse and adopt pets near you.",
 };
@@ -34,10 +37,9 @@ export default function RootLayout({
         className={`${poppins.variable} font-poppins antialiased`}
         suppressHydrationWarning
       >
-        <GlobalLoadingIndicator />
-        {children}
+        <ClientLoadingIndicator />
         <ToastContainer
-          position="top-right"
+          position="bottom-right"
           autoClose={5000}
           hideProgressBar={false}
           newestOnTop
@@ -46,7 +48,9 @@ export default function RootLayout({
           pauseOnFocusLoss
           draggable
           pauseOnHover
+          theme="dark"
         />
+        {children}
       </body>
     </html>
   );

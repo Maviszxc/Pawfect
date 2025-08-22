@@ -15,10 +15,6 @@ const petSchema = new Schema(
         "cat",
         "Dog",
         "Cat",
-        "Bird",
-        "Fish",
-        "Small Animal",
-        "Other",
       ],
     },
     breed: {

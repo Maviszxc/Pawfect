@@ -3,12 +3,10 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/dynamic-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 import axiosInstance from "@/lib/axiosInstance";
 import { BASE_URL } from "@/utils/constants";
 import Loader from "@/components/Loader";
@@ -71,7 +69,7 @@ export default function AdminUsersPage() {
       }
     } catch (error) {
       console.error("Error fetching users:", error);
-      toast.error("Failed to load users");
+      console.error("Failed to load users");
     } finally {
       setIsLoading(false);
     }
@@ -87,7 +85,7 @@ export default function AdminUsersPage() {
       );
 
       if (response.data.success) {
-        toast.success(
+        console.log(
           `User admin status ${!currentStatus ? "granted" : "revoked"}`
         );
         // Update the local state
@@ -97,11 +95,11 @@ export default function AdminUsersPage() {
           )
         );
       } else {
-        toast.error(response.data.message || "Failed to update admin status");
+        console.error(response.data.message || "Failed to update admin status");
       }
     } catch (error) {
       console.error("Error updating admin status:", error);
-      toast.error("Something went wrong. Please try again.");
+      console.error("Something went wrong. Please try again.");
     }
   };
 
@@ -112,15 +110,15 @@ export default function AdminUsersPage() {
         `${BASE_URL}/api/admin/users/${userId}`
       );
       if (response.data.success) {
-        toast.success("User deleted successfully");
+        console.log("User deleted successfully");
         // Update the local state
         setUsers(users.filter((user) => user._id !== userId));
       } else {
-        toast.error(response.data.message || "Failed to delete user");
+        console.error(response.data.message || "Failed to delete user");
       }
     } catch (error) {
       console.error("Error deleting user:", error);
-      toast.error("Something went wrong. Please try again.");
+      console.error("Something went wrong. Please try again.");
     } finally {
       setIsDeleting(false);
     }
@@ -137,7 +135,7 @@ export default function AdminUsersPage() {
   return (
     <AdminAuthWrapper>
       <div className="container mx-auto p-4 pt-24">
-        <ToastContainer />
+       
         <div className="flex flex-col space-y-6">
           <div className="flex justify-between items-center">
             <div className="flex flex-col space-y-2">

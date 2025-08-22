@@ -15,6 +15,7 @@ interface FloatingBotProps {
   autoplay?: boolean;
   className?: string;
   style?: React.CSSProperties;
+  onClick?: () => void;
 }
 
 const FloatingBot: React.FC<FloatingBotProps> = ({
@@ -25,6 +26,7 @@ const FloatingBot: React.FC<FloatingBotProps> = ({
   autoplay = true,
   className = "",
   style = {},
+  onClick,
 }) => {
   const controls = useAnimation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -32,6 +34,13 @@ const FloatingBot: React.FC<FloatingBotProps> = ({
 
   // Handle click on the bot
   const handleBotClick = () => {
+    // If custom onClick is provided, use it
+    if (onClick) {
+      onClick();
+      return;
+    }
+    
+    // Default behavior - show message
     setMessage("Hello! Do you need help finding your pet?");
 
     // Hide message after 3 seconds

@@ -5,8 +5,8 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import Navigation from "@/components/Navigation";
 import AuthNavigation from "@/components/authNavigation";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/dynamic-button";
+import { Skeleton } from "@/components/ui/dynamic-skeleton";
 import { motion } from "framer-motion";
 import axios from "axios";
 import { BASE_URL } from "@/utils/constants";
@@ -183,6 +183,145 @@ export default function Home() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Stats Section */}
+        <style jsx global>{`
+          :root {
+            --d: 700ms;
+            --e: cubic-bezier(0.19, 1, 0.22, 1);
+          }
+
+          .card-hover {
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            overflow: hidden;
+            padding: 1rem;
+            width: 100%;
+            min-height: 350px;
+            text-align: center;
+            color: whitesmoke;
+            background-color: whitesmoke;
+            box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1),
+              0 2px 2px rgba(0, 0, 0, 0.1), 0 4px 4px rgba(0, 0, 0, 0.1),
+              0 8px 8px rgba(0, 0, 0, 0.1), 0 16px 16px rgba(0, 0, 0, 0.1);
+            border-radius: 1rem;
+          }
+
+          .card-hover:before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 110%;
+            background-size: cover;
+            background-position: center;
+            transition: transform calc(var(--d) * 1.5) var(--e);
+            pointer-events: none;
+          }
+
+          .card-hover:after {
+            content: "";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 200%;
+            pointer-events: none;
+            background-image: linear-gradient(
+              to bottom,
+              hsla(0, 0%, 0%, 0) 0%,
+              hsla(0, 0%, 0%, 0.009) 11.7%,
+              hsla(0, 0%, 0%, 0.034) 22.1%,
+              hsla(0, 0%, 0%, 0.072) 31.2%,
+              hsla(0, 0%, 0%, 0.123) 39.4%,
+              hsla(0, 0%, 0%, 0.182) 46.6%,
+              hsla(0, 0%, 0%, 0.249) 53.1%,
+              hsla(0, 0%, 0%, 0.32) 58.9%,
+              hsla(0, 0%, 0%, 0.394) 64.3%,
+              hsla(0, 0%, 0%, 0.468) 69.3%,
+              hsla(0, 0%, 0%, 0.54) 74.1%,
+              hsla(0, 0%, 0%, 0.607) 78.8%,
+              hsla(0, 0%, 0%, 0.668) 83.6%,
+              hsla(0, 0%, 0%, 0.721) 88.7%,
+              hsla(0, 0%, 0%, 0.762) 94.1%,
+              hsla(0, 0%, 0%, 0.79) 100%
+            );
+            transform: translateY(-50%);
+            transition: transform calc(var(--d) * 2) var(--e);
+          }
+
+          .card-hover:nth-of-type(1):before {
+            background-image: url(https://images.unsplash.com/photo-1548199973-03cce0bbc87b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1169&q=80);
+          }
+
+          .card-hover:nth-of-type(2):before {
+            background-image: url(https://images.unsplash.com/photo-1601758177266-bc599de87707?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80);
+          }
+
+          .card-hover:nth-of-type(3):before {
+            background-image: url(https://media.post.rvohealth.io/wp-content/uploads/sites/3/2020/02/322868_1100-732x549.jpg);
+          }
+
+          .card-content {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            padding: 1rem;
+            transition: transform var(--d) var(--e);
+            z-index: 1;
+          }
+
+          .card-hover:hover .card-content {
+            transform: translateY(0);
+          }
+
+          .card-hover .card-content > * + * {
+            margin-top: 1rem;
+          }
+
+          .card-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            line-height: 1.2;
+          }
+
+          .card-copy {
+            font-size: 1.125rem;
+            font-style: italic;
+            line-height: 1.35;
+          }
+
+          .card-icon-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 4rem;
+            height: 4rem;
+            margin-bottom: 1rem;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.2);
+          }
+
+          .card-icon {
+            font-size: 2rem;
+            color: white;
+          }
+
+          .card-hover .card-content {
+            transform: translateY(calc(100% - 4.5rem));
+          }
+
+          .card-hover:hover:before {
+            transform: scale(1.1);
+          }
+
+          .card-hover:hover:after {
+            transform: translateY(0);
+          }
+        `}</style>
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -216,19 +355,18 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: index * 0.2 }}
-              className="bg-white shadow-lg p-8 rounded-xl border border-orange-500/10 hover:border-orange-500/30 transition-all duration-300 group relative overflow-hidden"
+              className="card-hover"
             >
-              <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-orange-500/5 group-hover:bg-orange-500/10 transition-colors duration-300"></div>
-              <div className="h-16 w-16 rounded-xl bg-orange-500/10 flex items-center justify-center mb-6 group-hover:bg-orange-500/20 transition-colors duration-300">
-                <i className={`${stat.icon} text-2xl text-orange-500`}></i>
+              <div className="card-content">
+                <div className="card-icon-wrapper">
+                  <i className={`${stat.icon} card-icon`}></i>
+                </div>
+                <h3 className="card-title text-white">{stat.number}</h3>
+                <p className="text-lg font-semibold text-white mb-2">
+                  {stat.label}
+                </p>
+                <p className="card-copy text-white/80">{stat.description}</p>
               </div>
-              <h3 className="text-4xl font-bold text-foreground mb-3">
-                {stat.number}
-              </h3>
-              <p className="text-lg font-semibold text-foreground/90 mb-2">
-                {stat.label}
-              </p>
-              <p className="text-muted-foreground">{stat.description}</p>
             </motion.div>
           ))}
         </motion.section>

@@ -26,10 +26,10 @@ export default function GlobalLoadingIndicator() {
   if (!isLoading) return null;
 
   return (
-    <div className="fixed top-0 left-0 w-full h-full flex items-center justify-center bg-white z-[9999]">
-      <div className="flex flex-col items-center">
+    <div className="fixed top-0 left-0 w-full h-full flex items-center justify-center bg-white z-[999999]" suppressHydrationWarning>
+      <div className="flex flex-col items-center" suppressHydrationWarning>
         <Loader />
-        <h2 className="mt-4 text-xl font-semibold text-orange-500">
+        <h2 className="mt-4 text-xl font-semibold text-orange-500" suppressHydrationWarning>
           Compiling...
         </h2>
       </div>

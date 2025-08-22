@@ -3,15 +3,16 @@ import styled from "styled-components";
 
 const Loader = () => {
   return (
-    <StyledWrapper>
+    <StyledWrapper suppressHydrationWarning>
       <div
         aria-label="Orange and tan hamster running in a metal wheel"
         role="img"
         className="wheel-and-hamster"
+        suppressHydrationWarning
       >
-        <div className="wheel" />
-        <div className="hamster">
-          <div className="hamster__body">
+        <div className="wheel" suppressHydrationWarning />
+        <div className="hamster" suppressHydrationWarning>
+          <div className="hamster__body" suppressHydrationWarning>
             <div className="hamster__head">
               <div className="hamster__ear" />
               <div className="hamster__eye" />
@@ -24,7 +25,7 @@ const Loader = () => {
             <div className="hamster__tail" />
           </div>
         </div>
-        <div className="spoke" />
+        <div className="spoke" suppressHydrationWarning />
       </div>
     </StyledWrapper>
   );

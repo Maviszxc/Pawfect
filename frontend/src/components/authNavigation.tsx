@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+// Toast imports removed
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import axios from "axios";
 import { BASE_URL } from "@/utils/constants";
-import { motion } from "framer-motion";
 
 const navItems = [
   { label: "Home", href: "/" },
@@ -20,6 +19,12 @@ const navItems = [
 export default function AuthNavigation() {
   const pathname = usePathname();
   const [profilePicture, setProfilePicture] = useState("");
+  const [activeTab, setActiveTab] = useState("");
+  
+  // Set active tab based on pathname when component mounts
+  useEffect(() => {
+    setActiveTab(pathname);
+  }, [pathname]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -47,7 +52,7 @@ export default function AuthNavigation() {
 
   return (
     <nav className="fixed py-6 px-10 top-0 left-0 right-0 bg-white/90 backdrop-blur-md z-50 border-b border-gray-100">
-      <ToastContainer />
+
       <div className="container mx-auto flex justify-between items-center">
         <motion.div
           initial={{ opacity: 0 }}
@@ -56,26 +61,39 @@ export default function AuthNavigation() {
           key="logo"
         >
           <Link href="/" className="flex items-center gap-2">
-            <img src="/logors.png" alt="Pawfect" className="h-8" />
+            <img src="/biyaya.png" alt="Pawfect" className="h-12" />
           </Link>
         </motion.div>
 
         <ul className="hidden md:flex items-center space-x-8">
-          {navItems.map((item) => (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                className="relative px-1 py-2 text-gray-800 hover:text-gray-600 transition-colors duration-200 group"
-              >
-                <span
-                  className={`${pathname === item.href ? "font-medium" : ""}`}
+          {navItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <motion.li 
+                  key={item.href}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ duration: 0.1 }}
                 >
-                  {item.label}
-                </span>
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-orange-500 transform scale-x-0 transition-transform duration-300 ease-in-out group-hover:scale-x-100 origin-left"></span>
-              </Link>
-            </li>
-          ))}
+                  <Link
+                    href={item.href}
+                    className="relative px-1 py-2 text-gray-800 hover:text-gray-600 transition-colors duration-200 group"
+                    onClick={() => setActiveTab(item.href)}
+                  >
+                    <span
+                      className={`${isActive ? "font-medium text-orange-500" : ""}`}
+                    >
+                      {item.label}
+                    </span>
+                    <motion.span 
+                      className="absolute bottom-0 left-0 w-full h-0.5 bg-orange-500"
+                      initial={false}
+                      animate={{ scaleX: isActive ? 1 : 0 }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  </Link>
+                </motion.li>
+              );
+            })}
         </ul>
 
         <div className="flex items-center gap-5">

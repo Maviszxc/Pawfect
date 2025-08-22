@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const navItems = [
   {
@@ -41,12 +41,18 @@ const profileItem = {
 export default function Navigation() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("");
+  
+  // Set active tab based on pathname when component mounts
+  useEffect(() => {
+    setActiveTab(pathname);
+  }, [pathname]);
 
   return (
     <nav className="fixed py-6 px-10 top-0 left-0 right-0 bg-white/90 backdrop-blur-md z-50 border-b border-gray-100">
       <div className="container mx-auto flex items-center justify-between">
         <Link href={logoItem.href} className="flex items-center gap-2">
-          <img src="/logors.png" alt="Pawfect" className="h-8" />
+          <img src="/biyaya.png" alt="Pawfect" className="h-12" />
         </Link>
 
         {/* Desktop Navigation */}
@@ -54,17 +60,27 @@ export default function Navigation() {
           {navItems.map((item) => {
             const isActive = pathname === item.href;
             return (
-              <li key={item.href}>
+              <motion.li 
+                key={item.href}
+                whileTap={{ scale: 0.95 }}
+                transition={{ duration: 0.1 }}
+              >
                 <Link
                   href={item.href}
                   className="relative px-1 py-2 text-gray-800 hover:text-gray-600 transition-colors duration-200 group"
+                  onClick={() => setActiveTab(item.href)}
                 >
-                  <span className={`${isActive ? "font-medium" : ""}`}>
+                  <span className={`${isActive ? "font-medium text-orange-500" : ""}`}>
                     {item.label}
                   </span>
-                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-orange-500 transform scale-x-0 transition-transform duration-300 ease-in-out group-hover:scale-x-100 origin-left"></span>
+                  <motion.span 
+                    className="absolute bottom-0 left-0 w-full h-0.5 bg-orange-500"
+                    initial={false}
+                    animate={{ scaleX: isActive ? 1 : 0 }}
+                    transition={{ duration: 0.3 }}
+                  />
                 </Link>
-              </li>
+              </motion.li>
             );
           })}
         </ul>
@@ -86,22 +102,34 @@ export default function Navigation() {
               {navItems.map((item) => {
                 const isActive = pathname === item.href;
                 return (
-                  <li key={item.href}>
+                  <motion.li 
+                    key={item.href}
+                    whileTap={{ scale: 0.95 }}
+                    transition={{ duration: 0.1 }}
+                  >
                     <Link
                       href={item.href}
                       className="block py-2 relative group"
-                      onClick={() => setMobileMenuOpen(false)}
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setActiveTab(item.href);
+                      }}
                     >
                       <span
                         className={`${
-                          isActive ? "font-medium" : "text-gray-800"
+                          isActive ? "font-medium text-orange-500" : "text-gray-800"
                         }`}
                       >
                         {item.label}
                       </span>
-                      <span className="absolute bottom-0 left-0 w-full h-0.5 bg-orange-500 transform scale-x-0 transition-transform duration-300 ease-in-out group-hover:scale-x-100 origin-left"></span>
+                      <motion.span 
+                        className="absolute bottom-0 left-0 w-full h-0.5 bg-orange-500"
+                        initial={false}
+                        animate={{ scaleX: isActive ? 1 : 0 }}
+                        transition={{ duration: 0.3 }}
+                      />
                     </Link>
-                  </li>
+                  </motion.li>
                 );
               })}
               <li className="pt-2">

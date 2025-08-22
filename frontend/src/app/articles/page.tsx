@@ -16,7 +16,7 @@ export default function Favorites() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-white-50 to-white">
-      <div className="max-w-7xl mx-auto text-center px-4 sm:px-6 lg:px-8 pt-40">
+      <div className="max-w-7xl mx-auto text-center px-4 sm:px-6 lg:px-8 pt-32">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}

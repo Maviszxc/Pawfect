@@ -2,8 +2,7 @@
 
 import { useState, useEffect, ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+// Toast imports removed
 import axiosInstance from "@/lib/axiosInstance";
 import { BASE_URL } from "@/utils/constants";
 import Loader from "@/components/Loader";
@@ -37,7 +36,7 @@ export default function AdminAuthWrapper({ children }: AdminAuthWrapperProps) {
         if (response.data.success) {
           const user = response.data.user;
           if (!user.isAdmin) {
-            toast.error("You don't have admin privileges");
+            console.error("You don't have admin privileges");
             router.push("/dashboard");
             return;
           }

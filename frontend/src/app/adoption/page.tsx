@@ -165,7 +165,7 @@ export default function Adopt() {
         <FloatingBotDemo count={1} width={180} height={180} />
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-40">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -174,13 +174,10 @@ export default function Adopt() {
           <div className="inline-block relative">
             <span className="absolute -top-3 -left-6 w-12 h-12 rounded-full bg-orange-100 opacity-70"></span>
             <span className="absolute -bottom-3 -right-6 w-10 h-10 rounded-full bg-blue-100 opacity-70"></span>
-            <h1 className="relative text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-orange-500 to-blue-600 mb-2">
+            <h1 className="relative text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-orange-500 to-blue-600 mb-2">
               Available Pets
             </h1>
           </div>
-          <p className="text-gray-500 max-w-md mx-auto">
-            Find your perfect companion from our selection of loving animals
-          </p>
         </motion.div>
 
         <motion.div

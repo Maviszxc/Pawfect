@@ -3,13 +3,13 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Loader from "@/components/Loader";
 import { BASE_URL } from "@/utils/constants";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "react-toastify";
 
 export default function Login() {
   const router = useRouter();
@@ -59,7 +59,6 @@ export default function Login() {
 
   return (
     <main className="min-h-screen bg-white flex items-center justify-center p-4 pt-24">
-      <ToastContainer />
       <div className="absolute inset-0">
         <motion.div
           initial={{ opacity: 0 }}
@@ -120,8 +119,7 @@ export default function Login() {
                 />
               </div>
               <div>
-                <Input
-                  type="password"
+                <PasswordInput
                   name="password"
                   value={formData.password}
                   onChange={handleChange}

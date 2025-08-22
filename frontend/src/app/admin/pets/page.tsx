@@ -3,12 +3,10 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/dynamic-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 import axiosInstance from "@/lib/axiosInstance";
 import { BASE_URL } from "@/utils/constants";
 import Loader from "@/components/Loader";
@@ -78,7 +76,7 @@ export default function AdminPetsPage() {
       }
     } catch (error) {
       console.error("Error fetching pets:", error);
-      toast.error("Failed to load pets");
+      console.error("Failed to load pets");
     } finally {
       setIsLoading(false);
     }
@@ -91,12 +89,12 @@ export default function AdminPetsPage() {
         `${BASE_URL}/api/admin/pets/${petId}`
       );
       if (response.data.success) {
-        toast.success("Pet deleted successfully");
+        console.log("Pet deleted successfully");
         fetchPets(); // Refresh the list
       }
     } catch (error) {
       console.error("Error deleting pet:", error);
-      toast.error("Failed to delete pet");
+      console.error("Failed to delete pet");
     } finally {
       setIsDeleting(false);
     }
@@ -114,7 +112,6 @@ export default function AdminPetsPage() {
   return (
     <AdminAuthWrapper>
       <div className="container mx-auto p-4 pt-24">
-        <ToastContainer />
         <div className="flex flex-col space-y-6">
           <div className="flex justify-between items-center">
             <div className="flex flex-col space-y-2">

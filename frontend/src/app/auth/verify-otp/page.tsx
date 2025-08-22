@@ -6,8 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter, useSearchParams } from "next/navigation";
 import axiosInstance from "@/lib/axiosInstance";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 import Loader from "@/components/Loader";
 import Navigation from "@/components/Navigation";
 import AuthNavigation from "@/components/authNavigation";
@@ -16,6 +14,7 @@ import Link from "next/link";
 
 const OtpPage: React.FC = () => {
   const router = useRouter();
+  // Using react-consoleify directly
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
   const [otp, setOtp] = useState("");
@@ -42,7 +41,7 @@ const OtpPage: React.FC = () => {
         console.log("Verification status:", response.data);
 
         if (response.data.success) {
-          toast.success("Account already verified. Logging you in...");
+          console.log("Account already verified. Logging you in...");
 
           try {
             const signupToken = localStorage.getItem("signupToken");
@@ -71,7 +70,7 @@ const OtpPage: React.FC = () => {
                   router.push("/dashboard");
                 }, 1500);
               } else {
-                toast.info("Please log in with your credentials");
+                console.info("Please log in with your credentials");
                 setTimeout(() => {
                   router.push("/auth/login");
                 }, 1500);
@@ -79,7 +78,7 @@ const OtpPage: React.FC = () => {
             }
           } catch (loginError) {
             console.error("Auto-login error:", loginError);
-            toast.info("Please log in with your credentials");
+            console.info("Please log in with your credentials");
             setTimeout(() => {
               router.push("/auth/login");
             }, 1500);
@@ -109,7 +108,7 @@ const OtpPage: React.FC = () => {
   const handleVerify = async () => {
     if (loading || otp.length !== 6) {
       if (otp.length !== 6) {
-        toast.error("Please enter a valid 6-digit OTP");
+        console.error("Please enter a valid 6-digit OTP");
       }
       return;
     }
@@ -125,14 +124,14 @@ const OtpPage: React.FC = () => {
       console.log("Server response:", response.data);
 
       if (response.data.success) {
-        toast.success("Account verified successfully!");
+        console.log("Account verified successfully!");
 
         const signupToken = localStorage.getItem("signupToken");
 
         if (signupToken) {
           localStorage.setItem("accessToken", signupToken);
           setIsAuthenticated(true);
-          toast.success("Logged in successfully!");
+          console.log("Logged in successfully!");
           setTimeout(() => {
             router.push("/dashboard");
           }, 1500);
@@ -153,33 +152,33 @@ const OtpPage: React.FC = () => {
             if (loginResponse.ok) {
               localStorage.setItem("accessToken", loginData.accessToken);
               setIsAuthenticated(true);
-              toast.success("Logged in successfully!");
+              console.log("Logged in successfully!");
 
               setTimeout(() => {
                 router.push("/dashboard");
               }, 1500);
             } else {
-              toast.info("Please log in with your credentials");
+              console.info("Please log in with your credentials");
               setTimeout(() => {
                 router.push("/auth/login");
               }, 1500);
             }
           } catch (loginError) {
             console.error("Error logging in:", loginError);
-            toast.info("Please log in with your credentials");
+            console.info("Please log in with your credentials");
             setTimeout(() => {
               router.push("/auth/login");
             }, 1500);
           }
         }
       } else {
-        toast.error(response.data.message || "Failed to verify OTP");
+        console.error(response.data.message || "Failed to verify OTP");
       }
     } catch (error: any) {
       console.error("Error:", error);
       const errorData = error.response?.data || {};
       console.log("Error details:", errorData);
-      toast.error(errorData.message || "Something went wrong. Try again.");
+      console.error(errorData.message || "Something went wrong. Try again.");
     } finally {
       setLoading(false);
     }
@@ -194,12 +193,12 @@ const OtpPage: React.FC = () => {
         email,
       });
       if (response.data.success) {
-        toast.success("A new OTP has been sent to your email.");
+        console.log("A new OTP has been sent to your email.");
       } else {
-        toast.error(response.data.message);
+        console.error(response.data.message);
       }
     } catch {
-      toast.error("Failed to resend OTP. Try again later.");
+      console.error("Failed to resend OTP. Try again later.");
       setResendTimer(0);
     }
   };
@@ -215,7 +214,6 @@ const OtpPage: React.FC = () => {
 
   return (
     <main className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
-      <ToastContainer />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

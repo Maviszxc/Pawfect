@@ -4,11 +4,11 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import axiosInstance from "@/lib/axiosInstance";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+// console imports removed
 
 const handleApiError = (error: unknown): string => {
   if (error && typeof error === "object" && "response" in error) {
@@ -22,6 +22,7 @@ const handleApiError = (error: unknown): string => {
 
 export default function ForgotPassword() {
   const router = useRouter();
+  // Using react-consoleify directly
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [verifiedOtp, setVerifiedOtp] = useState("");
@@ -32,7 +33,7 @@ export default function ForgotPassword() {
 
   const handleSendOtp = async () => {
     if (!email) {
-      toast.error("Please enter your email address");
+      console.error("Please enter your email address");
       return;
     }
 
@@ -43,14 +44,14 @@ export default function ForgotPassword() {
         { email }
       );
       if (response.data.success) {
-        toast.success("OTP sent to your email.");
+        console.log("OTP sent to your email.");
         setStep(2);
       } else {
-        toast.error(response.data.message || "Failed to send OTP. Try again.");
+        console.error(response.data.message || "Failed to send OTP. Try again.");
       }
     } catch (error) {
       console.error("Send OTP error:", error);
-      toast.error(handleApiError(error));
+      console.error(handleApiError(error));
     } finally {
       setIsLoading(false);
     }
@@ -58,7 +59,7 @@ export default function ForgotPassword() {
 
   const handleVerifyOtp = async () => {
     if (!otp) {
-      toast.error("Please enter the OTP");
+      console.error("Please enter the OTP");
       return;
     }
 
@@ -70,16 +71,16 @@ export default function ForgotPassword() {
         otp,
       });
       if (response.data.success) {
-        toast.success("OTP verified successfully.");
+        console.log("OTP verified successfully.");
         setVerifiedOtp(otp);
         setIsOtpVerified(true);
         setStep(3);
       } else {
-        toast.error(response.data.message || "Invalid OTP. Try again.");
+        console.error(response.data.message || "Invalid OTP. Try again.");
       }
     } catch (error) {
       console.error("Verify OTP error:", error);
-      toast.error(handleApiError(error));
+      console.error(handleApiError(error));
     } finally {
       setIsLoading(false);
     }
@@ -87,12 +88,12 @@ export default function ForgotPassword() {
 
   const handleResetPassword = async () => {
     if (!newPassword) {
-      toast.error("Please enter a new password");
+      console.error("Please enter a new password");
       return;
     }
 
     if (!isOtpVerified) {
-      toast.error("Please verify your OTP first");
+      console.error("Please verify your OTP first");
       setStep(2);
       return;
     }
@@ -106,16 +107,14 @@ export default function ForgotPassword() {
       });
 
       if (response.data.success) {
-        toast.success("Password reset successfully. Please log in.");
+        console.log("Password reset successfully. Please log in.");
         router.push("/auth/login");
       } else {
-        toast.error(
-          response.data.message || "Failed to reset password. Try again."
-        );
+        console.error(response.data.message || "Failed to reset password. Try again.");
       }
     } catch (error) {
       console.error("Reset password error:", error);
-      toast.error(handleApiError(error));
+      console.error(handleApiError(error));
     } finally {
       setIsLoading(false);
     }
@@ -131,7 +130,6 @@ export default function ForgotPassword() {
 
   return (
     <main className="min-h-screen bg-white flex items-center justify-center p-4 pt-24">
-      <ToastContainer />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -247,8 +245,7 @@ export default function ForgotPassword() {
             <p className="text-black mb-6">
               Create a new password for your account
             </p>
-            <Input
-              type="password"
+            <PasswordInput
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="New Password"
