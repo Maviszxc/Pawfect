@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/dynamic-card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +10,7 @@ import axiosInstance from "@/lib/axiosInstance";
 import { BASE_URL } from "@/utils/constants";
 import Loader from "@/components/Loader";
 import AdminAuthWrapper from "@/components/AdminAuthWrapper";
-import { Search, RefreshCw, Shield, Trash2 } from "lucide-react";
+import { Search, RefreshCw, Shield, Trash2, Pencil, Plus } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -51,8 +50,22 @@ export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Modal state for Add/Edit
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editUser, setEditUser] = useState<User | null>(null);
+  const [form, setForm] = useState({
+    fullname: "",
+    email: "",
+    password: "",
+    isAdmin: false,
+  });
+
+  // Current user profile
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
   useEffect(() => {
     fetchUsers();
+    fetchCurrentUser();
   }, []);
 
   const fetchUsers = async () => {
@@ -69,9 +82,24 @@ export default function AdminUsersPage() {
       }
     } catch (error) {
       console.error("Error fetching users:", error);
-      console.error("Failed to load users");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchCurrentUser = async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) return;
+      const response = await axiosInstance.get(
+        `${BASE_URL}/api/users/current-user`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setCurrentUser(response.data);
+    } catch (error) {
+      setCurrentUser(null);
     }
   };
 
@@ -83,23 +111,15 @@ export default function AdminUsersPage() {
           isAdmin: !currentStatus,
         }
       );
-
       if (response.data.success) {
-        console.log(
-          `User admin status ${!currentStatus ? "granted" : "revoked"}`
-        );
-        // Update the local state
         setUsers(
           users.map((user) =>
             user._id === userId ? { ...user, isAdmin: !currentStatus } : user
           )
         );
-      } else {
-        console.error(response.data.message || "Failed to update admin status");
       }
     } catch (error) {
       console.error("Error updating admin status:", error);
-      console.error("Something went wrong. Please try again.");
     }
   };
 
@@ -110,17 +130,47 @@ export default function AdminUsersPage() {
         `${BASE_URL}/api/admin/users/${userId}`
       );
       if (response.data.success) {
-        console.log("User deleted successfully");
-        // Update the local state
         setUsers(users.filter((user) => user._id !== userId));
-      } else {
-        console.error(response.data.message || "Failed to delete user");
       }
     } catch (error) {
       console.error("Error deleting user:", error);
-      console.error("Something went wrong. Please try again.");
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleEdit = (user: User) => {
+    setEditUser(user);
+    setForm({
+      fullname: user.fullname,
+      email: user.email,
+      password: "",
+      isAdmin: user.isAdmin,
+    });
+    setModalOpen(true);
+  };
+
+  const handleAdd = () => {
+    setEditUser(null);
+    setForm({ fullname: "", email: "", password: "", isAdmin: false });
+    setModalOpen(true);
+  };
+
+  const handleSubmit = async (e: any) => {
+    e.preventDefault();
+    try {
+      if (editUser) {
+        await axiosInstance.put(
+          `${BASE_URL}/api/admin/users/${editUser._id}`,
+          form
+        );
+      } else {
+        await axiosInstance.post(`${BASE_URL}/api/admin/users`, form);
+      }
+      setModalOpen(false);
+      fetchUsers();
+    } catch (error) {
+      alert("Failed to save user.");
     }
   };
 
@@ -134,187 +184,286 @@ export default function AdminUsersPage() {
 
   return (
     <AdminAuthWrapper>
-      <div className="container mx-auto p-4 pt-24">
-       
-        <div className="flex flex-col space-y-6">
-          <div className="flex justify-between items-center">
-            <div className="flex flex-col space-y-2">
-              <h1 className="text-3xl font-bold">User Management</h1>
-              <p className="text-muted-foreground">
-                Manage user accounts and permissions
-              </p>
-            </div>
-            <div className="flex space-x-2">
-              <Button
-                variant="outline"
-                onClick={fetchUsers}
-                disabled={isLoading}
-                className="flex items-center gap-2"
-              >
-                <RefreshCw
-                  className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
-                />
-                Refresh
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <div className="relative w-full max-w-sm">
-              <Input
-                type="text"
-                placeholder="Search users..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <Search className="w-5 h-5 text-gray-500" />
-              </div>
-            </div>
-          </div>
-
-          <Card className="overflow-hidden">
-            <CardHeader className="bg-slate-50 dark:bg-gray-100">
-              <CardTitle className="flex items-center justify-between">
-                <span>User List</span>
-                <Badge variant="outline" className="ml-2">
-                  {filteredUsers.length} users
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {isLoading ? (
-                <div className="flex justify-center items-center py-20">
-                  <Loader />
+      <div className="min-h-screen bg-[#f8fafc] pb-8">
+        <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
+          <Card className="rounded-2xl shadow bg-white px-0 py-0">
+            <CardContent className="p-8">
+              <div className="flex flex-col gap-6">
+                <div className="flex flex-row items-center justify-between">
+                  <div>
+                    <div className="text-2xl font-bold text-[#0a1629]">
+                      User Management
+                    </div>
+                    <div className="text-gray-500 text-base mt-1">
+                      <span className="font-semibold text-[#0a1629]">
+                        {users.length} total
+                      </span>
+                      , manage all users in the system
+                    </div>
+                  </div>
+                  <div className="flex flex-row gap-4">
+                    <Button
+                      variant="outline"
+                      onClick={fetchUsers}
+                      disabled={isLoading}
+                      className="flex items-center gap-2"
+                    >
+                      <RefreshCw
+                        className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+                      />
+                      Refresh
+                    </Button>
+                    <Button
+                      className="bg-orange-500 hover:bg-orange-600 text-white"
+                      onClick={handleAdd}
+                    >
+                      <Plus className="h-4 w-4 mr-2" /> Add User
+                    </Button>
+                  </div>
                 </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Admin</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredUsers.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={5}
-                          className="text-center py-10 text-muted-foreground"
-                        >
-                          No users found
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredUsers.map((user) => (
-                        <TableRow key={user._id}>
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <Avatar>
-                                <AvatarImage src={user.profilePicture || ""} />
-                                <AvatarFallback>
-                                  {user.fullname.charAt(0)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <p className="font-medium">{user.fullname}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  Joined{" "}
-                                  {new Date(
-                                    user.createdAt
-                                  ).toLocaleDateString()}
-                                </p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell>
-                            {user.verified ? (
-                              <Badge
-                                variant="default"
-                                className="bg-green-100 text-green-800 hover:bg-green-100"
-                              >
-                                Verified
-                              </Badge>
-                            ) : (
-                              <Badge
-                                variant="destructive"
-                                className="bg-red-100 text-red-800 hover:bg-red-100"
-                              >
-                                Unverified
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Switch
-                              checked={user.isAdmin}
-                              onCheckedChange={() =>
-                                handleToggleAdmin(user._id, user.isAdmin)
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() =>
-                                  handleToggleAdmin(user._id, user.isAdmin)
-                                }
-                                title="Toggle admin status"
-                              >
-                                <Shield className="h-4 w-4" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
+
+                {/* Search and filter */}
+                <div className="flex justify-between items-center">
+                  <div className="relative w-full max-w-sm">
+                    <Input
+                      type="text"
+                      placeholder="Search users..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <Search className="w-5 h-5 text-gray-500" />
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="ml-2">
+                    {filteredUsers.length} users
+                  </Badge>
+                </div>
+
+                {/* Table */}
+                {isLoading ? (
+                  <div className="flex justify-center items-center py-20">
+                    <Loader />
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full mt-4 text-left">
+                      <thead>
+                        <tr className="text-gray-400 text-sm">
+                          <th className="py-2 font-medium">User</th>
+                          <th className="py-2 font-medium">Email</th>
+                          <th className="py-2 font-medium">Status</th>
+                          <th className="py-2 font-medium">Admin</th>
+                          <th className="py-2 font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredUsers.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={5}
+                              className="text-center py-10 text-gray-500"
+                            >
+                              No users found
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredUsers.map((user) => (
+                            <tr
+                              key={user._id}
+                              className="border-t border-gray-100 hover:bg-gray-50 transition"
+                            >
+                              <td className="py-3">
+                                <div className="flex items-center gap-3">
+                                  <Avatar>
+                                    <AvatarImage
+                                      src={user.profilePicture || ""}
+                                    />
+                                    <AvatarFallback>
+                                      {user.fullname.charAt(0)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <p className="font-medium text-[#0a1629]">
+                                      {user.fullname}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      Joined{" "}
+                                      {new Date(
+                                        user.createdAt
+                                      ).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 text-gray-700 text-sm">
+                                {user.email}
+                              </td>
+                              <td className="py-3">
+                                {user.verified ? (
+                                  <Badge className="bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-full text-xs font-semibold">
+                                    Verified
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-red-50 text-red-700 border border-red-200 px-3 py-1 rounded-full text-xs font-semibold">
+                                    Unverified
+                                  </Badge>
+                                )}
+                              </td>
+                              <td className="py-3">
+                                <span
+                                  className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                                    user.isAdmin
+                                      ? "bg-orange-50 text-orange-700 border-orange-200"
+                                      : "bg-gray-50 text-gray-700 border-green-200"
+                                  }`}
+                                >
+                                  {user.isAdmin ? "Admin" : "User"}
+                                </span>
+                              </td>
+                              <td className="py-3">
+                                <div className="flex items-center gap-2">
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                    disabled={isDeleting}
-                                    title="Delete user"
+                                    onClick={() => handleEdit(user)}
+                                    title="Edit user"
+                                    className="h-8 w-8"
                                   >
-                                    <Trash2 className="h-4 w-4" />
+                                    <Pencil className="h-4 w-4" />
                                   </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>
-                                      Are you sure you want to delete this user?
-                                    </AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      This action cannot be undone. This will
-                                      permanently delete the user account and
-                                      all associated data.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>
-                                      Cancel
-                                    </AlertDialogCancel>
-                                    <AlertDialogAction
-                                      className="bg-red-500 hover:bg-red-600"
-                                      onClick={() => handleDeleteUser(user._id)}
-                                    >
-                                      Delete
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              )}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() =>
+                                      handleToggleAdmin(user._id, user.isAdmin)
+                                    }
+                                    title="Toggle admin status"
+                                    className="h-8 w-8"
+                                  >
+                                    <Shield className="h-4 w-4" />
+                                  </Button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                        disabled={isDeleting}
+                                        title="Delete user"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>
+                                          Are you sure you want to delete this
+                                          user?
+                                        </AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          This action cannot be undone. This
+                                          will permanently delete the user
+                                          account and all associated data.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>
+                                          Cancel
+                                        </AlertDialogCancel>
+                                        <AlertDialogAction
+                                          className="bg-red-500 hover:bg-red-600"
+                                          onClick={() =>
+                                            handleDeleteUser(user._id)
+                                          }
+                                        >
+                                          Delete
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
+
+          {/* Modal for Add/Edit */}
+          {modalOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
+                <h3 className="font-bold text-lg mb-4 text-[#0a1629]">
+                  {editUser ? "Edit User" : "Add User"}
+                </h3>
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                  <input
+                    className="border rounded px-3 py-2"
+                    placeholder="Full Name"
+                    value={form.fullname}
+                    onChange={(e) =>
+                      setForm({ ...form, fullname: e.target.value })
+                    }
+                    required
+                  />
+                  <input
+                    className="border rounded px-3 py-2"
+                    placeholder="Email"
+                    type="email"
+                    value={form.email}
+                    onChange={(e) =>
+                      setForm({ ...form, email: e.target.value })
+                    }
+                    required
+                  />
+                  {!editUser && (
+                    <input
+                      className="border rounded px-3 py-2"
+                      placeholder="Password"
+                      type="password"
+                      value={form.password}
+                      onChange={(e) =>
+                        setForm({ ...form, password: e.target.value })
+                      }
+                      required
+                    />
+                  )}
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={form.isAdmin}
+                      onChange={(e) =>
+                        setForm({ ...form, isAdmin: e.target.checked })
+                      }
+                    />
+                    Is Admin
+                  </label>
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setModalOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="bg-orange-500 hover:bg-orange-600 text-white"
+                    >
+                      {editUser ? "Save" : "Add"}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </AdminAuthWrapper>

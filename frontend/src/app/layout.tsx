@@ -4,6 +4,7 @@ import { Poppins } from "next/font/google";
 import ClientLoadingIndicator from "@/components/ClientLoadingIndicator";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { VideoStreamProvider } from "@/context/VideoStreamContext";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -37,21 +38,23 @@ export default function RootLayout({
         className={`${poppins.variable} font-poppins antialiased`}
         suppressHydrationWarning
       >
-        <ClientLoadingIndicator />
-        <ToastContainer
-          position="bottom-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
+        <VideoStreamProvider>
+          <ClientLoadingIndicator />
+          <ToastContainer
+            position="bottom-right"
+            autoClose={5000}
+            hideProgressBar={false}
+            newestOnTop
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
           theme="dark"
         />
-        {children}
-      </body>
-    </html>
-  );
-}
+          {children}
+        </VideoStreamProvider>
+        </body>
+      </html>
+    );
+  }

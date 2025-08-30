@@ -90,6 +90,21 @@
   }
 }
 
+/* Responsive utilities */
+@layer utilities {
+  .container-responsive {
+    @apply w-full px-4 sm:px-6 md:px-8 mx-auto max-w-7xl;
+  }
+  
+  .text-responsive {
+    @apply text-sm sm:text-base md:text-lg;
+  }
+  
+  .flex-responsive {
+    @apply flex flex-col sm:flex-row;
+  }
+}
+
 @keyframes modalFadeIn {
   from {
     opacity: 0;

@@ -28,6 +28,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import Loader from "@/components/Loader";
 
 // Dynamically import FloatingBotDemo with SSR disabled
 const FloatingBotDemo = dynamic(() => import("@/components/FloatingBotDemo"), {
@@ -160,6 +161,13 @@ export default function Adopt() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-white-50 to-white pb-20">
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70">
+          <Loader />
+        </div>
+      )}
+
       {/* Floating Bot Animation */}
       <div className="fixed top-0 left-0 w-full h-full z-10 pointer-events-none">
         <FloatingBotDemo count={1} width={180} height={180} />

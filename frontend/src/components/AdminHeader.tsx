@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Bell, Search } from "lucide-react";
+import {
+  ChevronDown,
+  Search,
+  LayoutGrid,
+  List,
+  LogOut,
+  User,
+} from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,21 +20,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Card } from "@/components/ui/card";
 import axios from "axios";
 import { BASE_URL } from "@/utils/constants";
 
-interface User {
+interface UserType {
   _id: string;
-  name: string;
+  fullname?: string;
+  name?: string;
   email: string;
-  role: string;
+  role?: string;
   profilePicture?: string;
 }
 
 const AdminHeader = () => {
-  const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [user, setUser] = useState<UserType | null>(null);
+  const [dateString, setDateString] = useState<string>("");
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
@@ -42,147 +49,94 @@ const AdminHeader = () => {
           },
         });
 
-        setUser(response.data);
+        setUser(response.data.user || response.data);
       } catch (error) {
         console.error("Error fetching current user:", error);
       }
     };
 
     fetchCurrentUser();
+
+    // Fix hydration error: only set date on client
+    const now = new Date();
+    setDateString(
+      now.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      })
+    );
   }, []);
 
+  const handleLogout = () => {
+    localStorage.removeItem("accessToken");
+    window.location.href = "/auth/login";
+  };
+
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-      <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
-        <div className="flex-1">
-          <h1 className="text-xl font-semibold">Dashboard</h1>
+    <div className="w-full px-4 py-6 flex justify-center">
+      <div className="w-full max-w-6xl flex flex-wrap md:flex-nowrap items-center bg-white rounded-2xl shadow px-4 sm:px-6 py-4 gap-4 md:space-x-6">
+        {/* Search */}
+        <div className="w-full md:flex-1 md:max-w-xs relative">
+          <Input
+            className="w-full pl-10 pr-3 py-2 rounded-full border border-gray-200 text-sm bg-[#f8fafc] focus-visible:ring-0 focus:border-black"
+            placeholder="Search"
+            type="search"
+          />
+          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-gray-400" />
+          </div>
         </div>
-
-        <div className="flex items-center space-x-4">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400" />
-            </div>
-            <Input
-              className="w-64 pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50"
-              placeholder="Search here..."
-              type="search"
-            />
+        {/* Date at the very right */}
+        <div className="w-full md:flex-1 flex justify-between md:justify-end items-center gap-2 md:gap-8">
+          <div className="flex items-center text-gray-600 text-sm md:text-base font-medium">
+            {dateString}
           </div>
-
-          <div className="relative">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative text-gray-400 hover:text-gray-500 focus:outline-none"
-            >
-              <span className="sr-only">View notifications</span>
-              <Bell className="h-6 w-6" />
-              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-purple-600 text-[10px] text-white">
-                2
-              </span>
-            </Button>
-          </div>
-
-          <div className="relative">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative text-gray-400 hover:text-gray-500 focus:outline-none"
-            >
-              <span className="sr-only">Messages</span>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+          {/* Profile dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="p-0 h-10 w-10 rounded-full border border-orange-500 hover:bg-orange-100 transition-colors duration-150"
+                style={{ transition: "background 0.15s" }}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                />
-              </svg>
-              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-purple-600 text-[10px] text-white">
-                5
-              </span>
-            </Button>
-          </div>
-
-          <Button className="bg-purple-600 hover:bg-purple-700 text-white rounded-md px-4 py-2 text-sm font-medium flex items-center">
-            <svg
-              className="mr-2 h-4 w-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M12 4V20M4 12H20"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-            Generate Report
-          </Button>
-
-          <div className="ml-3 relative">
-            <div>
-              <button
-                type="button"
-                className="flex items-center max-w-xs rounded-full bg-white text-sm focus:outline-none"
-                id="user-menu-button"
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                <Avatar className="h-9 w-9">
+                  <AvatarImage
+                    src={user?.profilePicture || "/placeholder-user.png"}
+                  />
+                  <AvatarFallback>
+                    {user?.fullname?.[0] || user?.name?.[0] || "U"}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 bg-white">
+              <DropdownMenuLabel>
+                {user?.fullname || user?.name || "User"}
+                <div className="text-xs text-gray-500 truncate">
+                  {user?.email}
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => (window.location.href = "/admin/profile")}
+                className="flex items-center gap-2"
               >
-                <span className="sr-only">Open user menu</span>
-                <img
-                  className="h-8 w-8 rounded-full"
-                  src={user?.profilePicture || "/placeholder-user.png"}
-                  alt=""
-                />
-              </button>
-            </div>
-
-            {isDropdownOpen && (
-              <div
-                className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none"
-                role="menu"
-                aria-orientation="vertical"
-                aria-labelledby="user-menu-button"
+                <User className="h-4 w-4" />
+                View Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="flex items-center gap-2 text-red-600"
               >
-                <a
-                  href="#"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  role="menuitem"
-                >
-                  Your Profile
-                </a>
-                <a
-                  href="#"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  role="menuitem"
-                >
-                  Settings
-                </a>
-                <a
-                  href="#"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  role="menuitem"
-                  onClick={() => {
-                    localStorage.removeItem("accessToken");
-                    window.location.href = "/auth/login";
-                  }}
-                >
-                  Sign out
-                </a>
-              </div>
-            )}
-          </div>
+                <LogOut className="h-4 w-4" />
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
-    </header>
+    </div>
   );
 };
 

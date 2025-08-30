@@ -1,451 +1,446 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/dynamic-card";
-import { Button } from "@/components/ui/button";
-// Toast imports removed
-import axiosInstance from "@/lib/axiosInstance";
-import { BASE_URL } from "@/utils/constants";
-import Loader from "@/components/Loader";
+import {
+  CheckCircle,
+  Circle,
+  Calendar,
+  MoreHorizontal,
+  Users,
+  PawPrint,
+  Heart,
+} from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import AdminAuthWrapper from "@/components/AdminAuthWrapper";
 import {
-  PieChart,
-  Pie,
-  Cell,
   ResponsiveContainer,
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
 } from "recharts";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import axiosInstance from "@/lib/axiosInstance";
+import { BASE_URL } from "@/utils/constants";
+import Loader from "@/components/Loader";
+
+interface Pet {
+  _id: string;
+  name: string;
+  type: string;
+  breed: string;
+  age: number;
+  gender: string;
+  image: string;
+  description: string;
+  adoptionStatus: string;
+  owner?: string;
+  createdAt?: string;
+  images?: string[];
+}
+
+interface User {
+  _id: string;
+  fullname: string;
+  email: string;
+  profilePicture?: string;
+  verified: boolean;
+  isAdmin: boolean;
+  createdAt: string;
+}
+
+interface Adoption {
+  _id: string;
+  adopterName: string;
+  adopterEmail: string;
+  petName: string;
+  petImage?: string;
+  status: string;
+  createdAt: string;
+}
+
+// Sample data for productivity chart
+const productivityData = [
+  { name: "Mon", Adoptions: 2, Applications: 5 },
+  { name: "Tue", Adoptions: 3, Applications: 7 },
+  { name: "Wed", Adoptions: 2, Applications: 4 },
+  { name: "Thu", Adoptions: 4, Applications: 6 },
+  { name: "Fri", Adoptions: 3, Applications: 8 },
+  { name: "Sat", Adoptions: 5, Applications: 9 },
+  { name: "Sun", Adoptions: 4, Applications: 7 },
+];
 
 export default function AdminDashboardPage() {
-  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [adoptions, setAdoptions] = useState<Adoption[]>([]);
   const [stats, setStats] = useState({
     totalPets: 0,
     totalUsers: 0,
-    adoptedPets: 0,
+    totalAdoptions: 0,
+    availablePets: 0,
     pendingAdoptions: 0,
   });
-  const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
-    fetchStats();
+    fetchDashboardData();
   }, []);
 
-  const fetchStats = async () => {
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
     try {
-      // Using the correct endpoint with authentication
+      // Fetch pets
+      const petsResponse = await axiosInstance.get(
+        `${BASE_URL}/api/admin/pets`
+      );
+      if (petsResponse.data.success) {
+        setPets(petsResponse.data.pets);
+        const availablePets = petsResponse.data.pets.filter(
+          (pet: Pet) => pet.adoptionStatus === "available"
+        ).length;
+        setStats((prev) => ({
+          ...prev,
+          totalPets: petsResponse.data.pets.length,
+          availablePets,
+        }));
+      }
+
+      // Fetch users
       const token = localStorage.getItem("accessToken");
-      const response = await axiosInstance.get(`${BASE_URL}/api/admin/stats`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.data.success) {
-        setStats(response.data.stats);
+      const usersResponse = await axiosInstance.get(
+        `${BASE_URL}/api/admin/users`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (usersResponse.data.success) {
+        setUsers(usersResponse.data.users);
+        setStats((prev) => ({
+          ...prev,
+          totalUsers: usersResponse.data.users.length,
+        }));
+      }
+
+      // Fetch adoptions
+      const adoptionsResponse = await axiosInstance.get(
+        `${BASE_URL}/api/admin/adoptions`
+      );
+      if (adoptionsResponse.data.success) {
+        setAdoptions(adoptionsResponse.data.adoptions);
+        const pendingAdoptions = adoptionsResponse.data.adoptions.filter(
+          (adoption: Adoption) => adoption.status === "pending"
+        ).length;
+        setStats((prev) => ({
+          ...prev,
+          totalAdoptions: adoptionsResponse.data.adoptions.length,
+          pendingAdoptions,
+        }));
       }
     } catch (error) {
-      console.error("Error fetching stats:", error);
-      // Use mock data for demonstration if API fails
-      setStats({
-        totalPets: 2478,
-        totalUsers: 983,
-        adoptedPets: 1256,
-        pendingAdoptions: 652,
-      });
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Sample data for charts
-  const petTypeData = [
-    { name: "Dogs", value: 12 },
-    { name: "Cats", value: 8 },
-    { name: "Birds", value: 2 },
-    { name: "Others", value: 2 },
-  ];
+  // Get recent pets (last 4)
+  const recentPets = pets.slice(0, 4);
 
-  const adoptionData = [
-    { name: "Jan", adoptions: 2 },
-    { name: "Feb", adoptions: 3 },
-    { name: "Mar", adoptions: 1 },
-    { name: "Apr", adoptions: 4 },
-    { name: "May", adoptions: 2 },
-  ];
+  // Get recent users (last 4)
+  const recentUsers = users.slice(0, 4);
 
-  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
+  // Get recent adoptions (last 4)
+  const recentAdoptions = adoptions.slice(0, 4);
+
+  if (isLoading) {
+    return (
+      <AdminAuthWrapper>
+        <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+          <Loader />
+        </div>
+      </AdminAuthWrapper>
+    );
+  }
 
   return (
     <AdminAuthWrapper>
-      <div className="container mx-auto p-4 pt-20">
-        <div className="flex flex-col space-y-6">
-          <div className="flex flex-col space-y-2">
-            <h1 className="text-3xl font-bold">Dashboard</h1>
-            <p className="text-muted-foreground">
-              Manage pets, users, and adoption requests
-            </p>
+      <div className="min-h-screen bg-[#f8fafc] pb-8">
+        <div className="w-full max-w-6xl mx-auto flex flex-col gap-4 sm:gap-6">
+          {/* Stats Overview */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+            <Card className="rounded-2xl shadow bg-white">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-2xl font-bold text-[#0a1629]">
+                      {stats.totalPets}
+                    </div>
+                    <div className="text-gray-500 text-sm">Total Pets</div>
+                  </div>
+                  <div className="bg-blue-100 p-3 rounded-full">
+                    <PawPrint className="h-6 w-6 text-blue-600" />
+                  </div>
+                </div>
+                <div className="mt-2 text-sm text-green-600">
+                  {stats.availablePets} available for adoption
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl shadow bg-white">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-2xl font-bold text-[#0a1629]">
+                      {stats.totalUsers}
+                    </div>
+                    <div className="text-gray-500 text-sm">Total Users</div>
+                  </div>
+                  <div className="bg-green-100 p-3 rounded-full">
+                    <Users className="h-6 w-6 text-green-600" />
+                  </div>
+                </div>
+                <div className="mt-2 text-sm text-blue-600">
+                  {users.filter((u) => u.isAdmin).length} admin users
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl shadow bg-white">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-2xl font-bold text-[#0a1629]">
+                      {stats.totalAdoptions}
+                    </div>
+                    <div className="text-gray-500 text-sm">Total Adoptions</div>
+                  </div>
+                  <div className="bg-orange-100 p-3 rounded-full">
+                    <Heart className="h-6 w-6 text-orange-600" />
+                  </div>
+                </div>
+                <div className="mt-2 text-sm text-yellow-600">
+                  {stats.pendingAdoptions} pending requests
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          <Tabs
-            defaultValue="overview"
-            className="space-y-4"
-            onValueChange={setActiveTab}
-          >
-            <TabsContent value="overview" className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card className="bg-purple-600 text-white overflow-hidden">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Total Invoices
-                    </CardTitle>
-                    <div className="rounded-full bg-white/20 p-1">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        className="h-4 w-4"
-                      >
-                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-                        <path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1Z" />
-                      </svg>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stats.totalPets}</div>
-                    <p className="text-xs text-white/70">Total Invoices</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-purple-500 text-white overflow-hidden">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Paid Invoices
-                    </CardTitle>
-                    <div className="rounded-full bg-white/20 p-1">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        className="h-4 w-4"
-                      >
-                        <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-                        <path d="m9 12 2 2 4-4" />
-                      </svg>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stats.totalUsers}</div>
-                    <p className="text-xs text-white/70">Paid Invoices</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-blue-500 text-white overflow-hidden">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Unpaid Invoices
-                    </CardTitle>
-                    <div className="rounded-full bg-white/20 p-1">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        className="h-4 w-4"
-                      >
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M8 12h.01M12 12h.01M16 12h.01" />
-                      </svg>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {stats.adoptedPets}
-                    </div>
-                    <p className="text-xs text-white/70">Unpaid Invoices</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-gradient-to-r from-purple-600 to-pink-500 text-white overflow-hidden">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Total Invoices Sent
-                    </CardTitle>
-                    <div className="rounded-full bg-white/20 p-1">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        className="h-4 w-4"
-                      >
-                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-                        <path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1Z" />
-                      </svg>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {stats.pendingAdoptions}
-                    </div>
-                    <p className="text-xs text-white/70">Total Invoices Sent</p>
-                  </CardContent>
-                </Card>
+          {/* Adoption Activity Chart */}
+          <Card className="rounded-2xl shadow bg-white">
+            <CardContent className="p-8">
+              <div className="font-bold text-lg text-[#0a1629] mb-2">
+                Adoption Activity
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Card's Overview</CardTitle>
-                  </CardHeader>
-                  <CardContent className="h-80">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <p className="text-sm text-gray-500">
-                          Lorem ipsum dolor sit amet, consectetur adipiscing
-                          elit prius olor
-                        </p>
-                      </div>
-                      <div className="flex items-center justify-center h-10 w-10 rounded-full bg-gray-200">
-                        <svg
-                          className="h-6 w-6 text-gray-500"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            d="M12 5v14M5 12h14"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="flex-1">
-                        <ResponsiveContainer width="100%" height={200}>
-                          <PieChart>
-                            <Pie
-                              data={[
-                                { name: "Account", value: 20 },
-                                { name: "Services", value: 40 },
-                                { name: "Restaurant", value: 15 },
-                                { name: "Others", value: 15 },
-                              ]}
-                              cx="50%"
-                              cy="50%"
-                              outerRadius={80}
-                              fill="#8884d8"
-                              dataKey="value"
-                            >
-                              <Cell fill="#8884d8" />
-                              <Cell fill="#82ca9d" />
-                              <Cell fill="#FFBB28" />
-                              <Cell fill="#FF8042" />
-                            </Pie>
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center">
-                          <div className="h-3 w-3 rounded-full bg-purple-600 mr-2"></div>
-                          <span className="text-sm">Account</span>
-                          <span className="ml-auto text-sm font-medium">
-                            20%
-                          </span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="h-3 w-3 rounded-full bg-green-500 mr-2"></div>
-                          <span className="text-sm">Services</span>
-                          <span className="ml-auto text-sm font-medium">
-                            40%
-                          </span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="h-3 w-3 rounded-full bg-yellow-500 mr-2"></div>
-                          <span className="text-sm">Restaurant</span>
-                          <span className="ml-auto text-sm font-medium">
-                            15%
-                          </span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="h-3 w-3 rounded-full bg-orange-500 mr-2"></div>
-                          <span className="text-sm">Others</span>
-                          <span className="ml-auto text-sm font-medium">
-                            15%
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <div className="grid grid-cols-1 gap-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Wallet Balance</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="bg-purple-600 text-white p-4 rounded-lg relative">
-                        <div className="absolute right-4 top-4 bottom-4 flex flex-col justify-between items-center bg-white bg-opacity-20 rounded-md px-2">
-                          <button className="text-white p-1">↑</button>
-                          <span className="text-xs font-medium transform -rotate-90">
-                            Change
-                          </span>
-                          <button className="text-white p-1">↓</button>
-                        </div>
-                        <div className="flex items-center mb-2">
-                          <div className="flex space-x-1">
-                            <div className="h-6 w-6 rounded-full bg-gray-300"></div>
-                            <div className="h-6 w-6 rounded-full bg-gray-400 -ml-2"></div>
-                          </div>
-                        </div>
-                        <div className="text-3xl font-bold mb-2">
-                          $824,571.93
-                        </div>
-                        <div className="text-sm">Wallet Balance</div>
-                        <div className="text-xs mt-4">+0.8% than last week</div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <div className="flex justify-between items-center">
-                        <CardTitle>Activity</CardTitle>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm">Income</span>
-                          <div className="h-3 w-3 rounded-full bg-purple-600"></div>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <div className="text-sm">Quick Transfer</div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+              <div className="flex flex-row items-center gap-8">
+                <div className="flex-1 min-w-0">
+                  <ResponsiveContainer width="100%" height={180}>
+                    <LineChart data={productivityData}>
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                      <YAxis axisLine={false} tickLine={false} />
+                      <Tooltip />
+                      <Line
+                        type="monotone"
+                        dataKey="Adoptions"
+                        stroke="#2563eb"
+                        strokeWidth={3}
+                        dot={false}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="Applications"
+                        stroke="#7c3aed"
+                        strokeWidth={3}
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block w-3 h-3 rounded-full bg-[#2563eb]" />
+                    <span className="text-sm text-gray-700">Adoptions</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block w-3 h-3 rounded-full bg-[#7c3aed]" />
+                    <span className="text-sm text-gray-700">Applications</span>
+                  </div>
                 </div>
               </div>
-
-              <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Activity</CardTitle>
-                    <div className="flex items-center space-x-2">
-                      <div className="h-2 w-2 rounded-full bg-purple-600"></div>
-                      <span className="text-sm font-medium">Income</span>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-10">
-                      <p className="text-muted-foreground">
-                        Activity data will be displayed here
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Quick Transfer</CardTitle>
-                    <Button variant="ghost" size="icon">
-                      <svg
-                        className="h-4 w-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                        ></path>
-                      </svg>
-                    </Button>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-10">
-                      <p className="text-muted-foreground">
-                        Quick transfer interface will be implemented here
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
+              <div className="text-xs text-gray-400 mt-2">
+                Data updates every 3 hours
               </div>
-            </TabsContent>
+            </CardContent>
+          </Card>
 
-            <TabsContent value="pets" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Pet Management</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-10">
-                    <p className="text-muted-foreground mb-4">
-                      Pet management interface will be implemented here
-                    </p>
-                    <Button
-                      onClick={() => router.push("/admin/pets/add")}
-                      className="bg-orange-500 hover:bg-orange-600"
+          {/* Bottom row: Recent Pets, Users, and Adoptions */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Recent Pets */}
+            <Card className="rounded-2xl shadow bg-white">
+              <CardContent className="p-6">
+                <div className="font-bold text-lg text-[#0a1629] mb-4 flex items-center gap-2">
+                  Recent Pets
+                </div>
+                {recentPets.length === 0 ? (
+                  <div className="text-gray-500 text-center py-4">
+                    No pets found
+                  </div>
+                ) : (
+                  recentPets.map((pet) => (
+                    <div
+                      key={pet._id}
+                      className="border-t border-gray-100 pt-3 pb-3 first:border-0"
                     >
-                      Add New Pet
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-9 w-9">
+                          <AvatarImage
+                            src={pet.images?.[0] || "/placeholder-pet.jpg"}
+                          />
+                          <AvatarFallback>{pet.name[0]}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="font-medium text-[#0a1629]">
+                            {pet.name}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {pet.breed}
+                          </div>
+                        </div>
+                        <Badge
+                          className={
+                            pet.adoptionStatus === "available"
+                              ? "bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full text-xs font-semibold"
+                              : pet.adoptionStatus === "pending"
+                              ? "bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded-full text-xs font-semibold"
+                              : "bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full text-xs font-semibold"
+                          }
+                        >
+                          {pet.adoptionStatus}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))
+                )}
+                <div className="flex justify-end mt-4">
+                  <button className="text-orange-500 text-sm font-medium hover:text-orange-600">
+                    View all pets →
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
 
-            <TabsContent value="users" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>User Management</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-10">
-                    <p className="text-muted-foreground">
-                      User management interface will be implemented here
-                    </p>
+            {/* Recent Users */}
+            <Card className="rounded-2xl shadow bg-white">
+              <CardContent className="p-6">
+                <div className="font-bold text-lg text-[#0a1629] mb-4 flex items-center gap-2">
+                  Recent Users
+                </div>
+                {recentUsers.length === 0 ? (
+                  <div className="text-gray-500 text-center py-4">
+                    No users found
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                ) : (
+                  recentUsers.map((user) => (
+                    <div
+                      key={user._id}
+                      className="border-t border-gray-100 pt-3 pb-3 first:border-0"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-9 w-9">
+                          <AvatarImage
+                            src={user.profilePicture || "/placeholder-user.png"}
+                          />
+                          <AvatarFallback>{user.fullname[0]}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="font-medium text-[#0a1629]">
+                            {user.fullname}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {user.email}
+                          </div>
+                        </div>
+                        {user.isAdmin ? (
+                          <Badge className="bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full text-xs font-semibold">
+                            Admin
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-gray-50 text-gray-700 border border-gray-200 px-2 py-0.5 rounded-full text-xs font-semibold">
+                            User
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+                <div className="flex justify-end mt-4">
+                  <button className="text-orange-500 text-sm font-medium hover:text-orange-600">
+                    View all users →
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
 
-            <TabsContent value="adoptions" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Adoption Requests</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-10">
-                    <p className="text-muted-foreground">
-                      Adoption management interface will be implemented here
-                    </p>
+            {/* Recent Adoptions */}
+            <Card className="rounded-2xl shadow bg-orange-500 text-white">
+              <CardContent className="p-6 flex flex-col h-full">
+                <div className="font-bold text-black text-lg mb-4 flex items-center gap-2">
+                  Recent Adoptions
+                </div>
+                {recentAdoptions.length === 0 ? (
+                  <div className="text-black text-center py-4">
+                    No adoptions found
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+                ) : (
+                  recentAdoptions.map((adoption) => (
+                    <div
+                      key={adoption._id}
+                      className="bg-white rounded-xl p-4 text-[#0a1629] shadow mb-3"
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage
+                            src={adoption.petImage || "/placeholder-pet.jpg"}
+                          />
+                          <AvatarFallback>{adoption.petName[0]}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="font-semibold text-sm">
+                            {adoption.petName}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            by {adoption.adopterName}
+                          </div>
+                        </div>
+                        <Badge
+                          className={
+                            adoption.status === "approved"
+                              ? "bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full text-xs font-semibold"
+                              : adoption.status === "pending"
+                              ? "bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded-full text-xs font-semibold"
+                              : "bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-full text-xs font-semibold"
+                          }
+                        >
+                          {adoption.status}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {new Date(adoption.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ))
+                )}
+                <div className="flex justify-end mt-auto pt-4">
+                  <button className="text-black text-sm font-medium hover:text-orange-200">
+                    View all adoptions →
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </AdminAuthWrapper>

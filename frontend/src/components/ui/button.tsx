@@ -42,11 +42,20 @@ export interface ButtonProps
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button';
+    
+    // Use useEffect to handle client-side only attributes
+    // This prevents hydration mismatches from auto-generated attributes like fdprocessedid
+    const [isMounted, setIsMounted] = React.useState(false);
+    
+    React.useEffect(() => {
+      setIsMounted(true);
+    }, []);
+    
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
-        {...props}
+        {...(isMounted ? props : {})}
       />
     );
   }

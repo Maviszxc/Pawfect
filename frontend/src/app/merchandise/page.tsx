@@ -5,9 +5,11 @@ import Navigation from "@/components/Navigation";
 import AuthNavigation from "@/components/authNavigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import Loader from "@/components/Loader";
 
 export default function Messages() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
@@ -16,6 +18,12 @@ export default function Messages() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-white-50 to-white">
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70">
+          <Loader />
+        </div>
+      )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-32">
         <motion.div
           initial={{ opacity: 0, y: -20 }}

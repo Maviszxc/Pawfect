@@ -2,11 +2,14 @@
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
+ "scripts": {
     "dev": "next dev --turbopack",
     "build": "echo \"🔄 Building application...\" && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "dev:server": "node server/websocket-server.js",
+    "dev:all": "concurrently \"npm run dev:server\" \"npm run dev\"",
+    "serve": "concurrently \"npm run dev:server\" \"npm run start\""
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.7.2",
@@ -79,7 +82,9 @@
     "tailwindcss": "3.3.3",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "5.2.2",
+    "uuid": "^11.1.0",
     "vaul": "^0.9.9",
+    "ws": "^8.18.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -87,6 +92,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.1.7",
     "postcss": "^8",

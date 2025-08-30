@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/dynamic-skeleton";
 import { motion } from "framer-motion";
 import axios from "axios";
 import { BASE_URL } from "@/utils/constants";
+import Loader from "@/components/Loader";
 
 // Dynamically import FloatingBotDemo with SSR disabled
 const FloatingBotDemo = dynamic(() => import("@/components/FloatingBotDemo"), {
@@ -58,6 +59,13 @@ export default function Home() {
 
   return (
     <main className="min-h-screen pt-5 bg-white">
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70">
+          <Loader />
+        </div>
+      )}
+
       {/* Hero Section */}
       <div className="relative min-h-screen bg-gradient-to-b from-background to-background/95">
         {/* Background Pattern */}

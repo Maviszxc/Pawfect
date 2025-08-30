@@ -420,6 +420,12 @@ export default function Profile() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex pt-28 pb-32 flex-col items-center justify-center px-4">
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70">
+          <Loader />
+        </div>
+      )}
 
       <AnimatePresence mode="wait">
         <motion.div

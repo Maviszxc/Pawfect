@@ -9,6 +9,7 @@ import Link from "next/link";
 import Navigation from "@/components/Navigation";
 import AuthNavigation from "@/components/authNavigation";
 import dynamic from "next/dynamic";
+import Loader from "@/components/Loader";
 
 // Dynamically import Tabs components
 const Tabs = dynamic(
@@ -310,213 +311,174 @@ export default function PetDetailsPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white pb-20">
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70">
+          <Loader />
+        </div>
+      )}
       {isAuthenticated ? <AuthNavigation /> : <Navigation />}
       <div className="container mx-auto pt-28 px-4">
-        {" "}
-        {/* Added top padding to prevent navbar overlap */}
-        {/* Live Stream and Chat Section */}
-        <div className="w-full max-w-7xl mx-auto mb-8 flex flex-col lg:flex-row gap-6">
-          {/* Live Stream Section - YouTube style */}
-          <div className="w-full lg:w-8/12">
-            <div className="rounded-xl overflow-hidden shadow-lg bg-black">
-              <div className="aspect-video relative">
-                {/* Camera view or placeholder */}
-                {isCameraActive ? (
-                  <video
-                    ref={cameraVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-black absolute inset-0 flex items-center justify-center">
-                    <div className="text-center text-white">
-                      <Video className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                      <p className="text-lg font-medium">
-                        Live stream of {pet?.name}
-                      </p>
-                      <p className="text-sm opacity-70">
-                        {hasCamera
-                          ? "Click Start Camera to begin streaming"
-                          : "Camera not supported in your browser"}
-                      </p>
-                    </div>
-                  </div>
-                )}
+        {/* Pet Details Header */}
+        <div className="w-full max-w-7xl mx-auto mb-8">
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* Main Content */}
+            <div className="w-full lg:w-8/12">
+              {/* Hero Image */}
+              <div className="rounded-xl overflow-hidden shadow-lg mb-6">
+                <img
+                  src={pet?.images && pet.images.length > 0 ? pet.images[0] : pet?.image}
+                  alt={pet?.name}
+                  className="w-full h-[400px] object-cover"
+                />
               </div>
-              <div className="p-4 bg-black text-white flex justify-between items-center">
-                <div>
-                  <h1 className="text-xl font-bold mb-2">
-                    {pet?.name} -{" "}
-                    {isCameraActive ? "Live Camera" : "Live Stream"}
-                  </h1>
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold mr-3">
-                      {pet?.name?.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="font-medium">Pet Shelter</p>
-                      <p className="text-xs text-gray-400">1.2K followers</p>
-                    </div>
-                  </div>
-                </div>
-                {hasCamera && (
-                  <Button
-                    onClick={toggleCamera}
-                    className={
-                      isCameraActive
-                        ? "bg-red-600 hover:bg-red-700"
-                        : "bg-orange-600 hover:bg-orange-700"
-                    }
-                  >
-                    {isCameraActive ? (
-                      <CameraOff className="mr-2 h-4 w-4" />
-                    ) : (
-                      <Camera className="mr-2 h-4 w-4" />
-                    )}
-                    {isCameraActive ? "Stop Camera" : "Start Camera"}
-                  </Button>
-                )}
-              </div>
-              {cameraError && (
-                <div className="px-4 py-2 bg-red-100 text-red-700 text-sm">
-                  {cameraError}
-                </div>
-              )}
-            </div>
 
-            {/* Pet Basic Info Card - Below video like YouTube description */}
-            <Card className="mt-4 py-7 border-none shadow-lg rounded-xl overflow-hidden">
-              <CardContent className="p-6">
-                <div className="flex flex-col gap-4">
-                  <div>
-                    <h2 className="text-xl font-semibold mb-2">
-                      About {pet?.name}
-                    </h2>
-                    <p className="text-gray-700">{pet?.description}</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                      {pet?.type}
-                    </span>
-                    <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">
-                      {pet?.breed}
-                    </span>
-                    <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                      {pet?.gender}
-                    </span>
-                    <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-medium">
-                      {pet?.age} years old
-                    </span>
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        pet?.adoptionStatus === "available"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {pet?.adoptionStatus === "available"
-                        ? "Available for Adoption"
-                        : "Not Available"}
-                    </span>
-                  </div>
-                  <div className="flex gap-4">
+              {/* Navigation Tabs */}
+              {/* <div className="mb-6 flex items-center justify-between">
+                <div className="flex gap-2">
+                  <Link href={`/pet?id=${petId}`}>
+                    <Button variant="outline" className="bg-white hover:bg-gray-50">
+                      Details
+                    </Button>
+                  </Link>
+                  <Link href={`/pet/live?id=${petId}`}>
+                    <Button variant="outline" className="bg-white hover:bg-gray-50 flex items-center gap-2">
+                      <Video className="h-4 w-4" /> Live
+                    </Button>
+                  </Link>
+                </div>
+                <Link href="/adoption">
+                  <Button
+                    variant="outline"
+                    className="text-black border-gray-400 hover:bg-white/10"
+                  >
+                    Back to Adoption
+                  </Button>
+                </Link>
+              </div> */}
+
+              {/* Pet Basic Info Card */}
+              <Card className="mb-6 border-none shadow-lg rounded-xl overflow-hidden">
+                <CardContent className="p-6">
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <h1 className="text-2xl font-bold mb-2">{pet?.name}</h1>
+                      <h2 className="text-xl font-semibold mb-2">
+                        About {pet?.name}
+                      </h2>
+                      <p className="text-gray-700">{pet?.description}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                        {pet?.type}
+                      </span>
+                      <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">
+                        {pet?.breed}
+                      </span>
+                      <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                        {pet?.gender}
+                      </span>
+                      <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-medium">
+                        {pet?.age} years old
+                      </span>
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          pet?.adoptionStatus === "available"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {pet?.adoptionStatus === "available"
+                          ? "Available for Adoption"
+                          : "Not Available"}
+                      </span>
+                    </div>
                     {pet?.adoptionStatus === "available" && (
                       <Button
                         onClick={handleAdoptClick}
-                        className="bg-orange-600 hover:bg-orange-700 text-white"
+                        className="bg-orange-600 hover:bg-orange-700 text-white w-full md:w-auto"
                       >
                         {isAuthenticated ? "Adopt Me" : "Login to Adopt"}
                       </Button>
                     )}
-                    <Link href="/adoption">
-                      <Button
-                        variant="outline"
-                        className="text-black border-gray-400 hover:bg-white/10"
-                      >
-                        Back to Adoption
-                      </Button>
-                    </Link>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                </CardContent>
+              </Card>
 
-          {/* Right Sidebar - Chat and Info */}
-          <div className="w-full lg:w-4/12 space-y-4">
-            {/* Live Chat Section */}
-            <Card className="shadow-lg rounded-xl overflow-hidden border-none">
-              <CardContent className="p-0 flex flex-col">
-                <div className="border-b border-gray-200 px-4 py-3 bg-gray-50">
-                  <h3 className="font-semibold">Live Chat</h3>
-                </div>
-                <div
-                  className="h-[465px] overflow-y-auto p-4"
-                  ref={chatContainerRef}
-                >
-                  {chatMessages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`mb-3 ${msg.isStaff ? "" : "text-right"}`}
-                    >
+              {/* Pet Video Section */}
+              {pet?.video && pet.video.trim() !== "" && (
+                <Card className="mb-6 border-none shadow-lg rounded-xl overflow-hidden">
+                  <CardContent className="p-6">
+                    <h2 className="text-xl font-semibold mb-4">Video</h2>
+                    <div className="relative aspect-video rounded-lg overflow-hidden">
                       <div
-                        className={`inline-block rounded-lg px-4 py-2 max-w-[80%] ${
-                          msg.isStaff
-                            ? "bg-gray-100 text-gray-800"
-                            : "bg-orange-100 text-orange-800"
-                        }`}
+                        className="absolute inset-0 flex items-center justify-center z-10 cursor-pointer"
+                        onClick={togglePlayPause}
                       >
-                        <p className="font-semibold text-xs">{msg.sender}</p>
-                        <p>{msg.message}</p>
-                        <p className="text-xs opacity-70">
-                          {msg.timestamp.toLocaleTimeString()}
-                        </p>
+                        {isPlaying ? (
+                          <Pause className="w-16 h-16 text-white" fill="white" />
+                        ) : (
+                          <Play className="w-16 h-16 text-white" fill="white" />
+                        )}
+                      </div>
+                      <video
+                        ref={videoRef}
+                        src={pet.video}
+                        className="w-full h-full object-cover"
+                        poster={pet?.image}
+                        loop
+                        muted
+                        onClick={togglePlayPause}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Right Sidebar - Pet Info */}
+            <div className="w-full lg:w-4/12">
+              <Card className="shadow-lg rounded-xl overflow-hidden border-none sticky top-28">
+                <CardContent className="p-0">
+                  <img
+                    src={
+                      pet?.images && pet.images.length > 0
+                        ? pet.images[0]
+                        : pet?.image
+                    }
+                    alt={pet?.name}
+                    className="w-full h-[250px] object-cover"
+                  />
+                  <div className="p-6">
+                    <h3 className="font-semibold text-lg">Meet {pet?.name}</h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Looking for a forever home
+                    </p>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Type:</span>
+                        <span className="font-medium">{pet?.type}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Breed:</span>
+                        <span className="font-medium">{pet?.breed}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Age:</span>
+                        <span className="font-medium">{pet?.age} years</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Gender:</span>
+                        <span className="font-medium">{pet?.gender}</span>
                       </div>
                     </div>
-                  ))}
-                </div>
-                <div className="p-3 border-t border-gray-200 flex">
-                  <Input
-                    ref={chatInputRef}
-                    placeholder="Type your message..."
-                    className="flex-1 border-gray-200"
-                    onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                  />
-                  <Button
-                    onClick={handleSendMessage}
-                    className="ml-2 bg-orange-600 hover:bg-orange-700"
-                    size="icon"
-                  >
-                    <Send className="h-4 w-4 text-white" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Pet Image */}
-            <Card className="shadow-lg rounded-xl overflow-hidden border-none">
-              <CardContent className="p-0">
-                <img
-                  src={
-                    pet?.images && pet.images.length > 0
-                      ? pet.images[0]
-                      : pet?.image
-                  }
-                  alt={pet?.name}
-                  className="w-full h-[250px] object-cover"
-                />
-                <div className="p-4">
-                  <h3 className="font-semibold text-lg">Meet {pet?.name}</h3>
-                  <p className="text-sm text-gray-600">
-                    Looking for a forever home
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
+
         {/* Pet Gallery Section - Modern grid with dynamic images from pet data */}
         <Card className="w-full max-w-7xl mx-auto mb-8 shadow-lg rounded-xl overflow-hidden border-none">
           <CardContent className="p-6">
@@ -543,45 +505,14 @@ export default function PetDetailsPage() {
                   </div>
                 ))}
 
-              {/* Pet video from database */}
-              {pet?.video && pet.video.trim() !== "" && (
-                <div className="relative group overflow-hidden rounded-lg">
-                  <div
-                    className="absolute inset-0 flex items-center justify-center z-10 cursor-pointer"
-                    onClick={togglePlayPause}
-                  >
-                    {isPlaying ? (
-                      <Pause className="w-12 h-12 text-white" fill="white" />
-                    ) : (
-                      <Play className="w-12 h-12 text-white" fill="white" />
-                    )}
-                  </div>
-                  <video
-                    ref={videoRef}
-                    src={pet.video}
-                    className="w-full h-full object-cover aspect-square"
-                    poster={pet?.image}
-                    loop
-                    muted
-                    onClick={togglePlayPause}
-                  />
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
-                    <p className="text-white text-sm font-medium">
-                      {pet?.name} video
-                    </p>
-                  </div>
+              {/* If no additional images, show placeholder message */}
+              {(!pet?.images || pet.images.length === 0) && (
+                <div className="col-span-3 flex items-center justify-center p-8 bg-gray-100 rounded-lg">
+                  <p className="text-gray-500">
+                    No additional photos available
+                  </p>
                 </div>
               )}
-
-              {/* If no additional images/videos, show placeholder message */}
-              {(!pet?.images || pet.images.length === 0) &&
-                (!pet?.video || pet.video.trim() === "") && (
-                  <div className="col-span-2 flex items-center justify-center p-8 bg-gray-100 rounded-lg">
-                    <p className="text-gray-500">
-                      No additional photos or videos available
-                    </p>
-                  </div>
-                )}
             </div>
           </CardContent>
         </Card>

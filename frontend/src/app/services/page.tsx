@@ -14,13 +14,16 @@ import {
   faCut,
   faVirus,
 } from "@fortawesome/free-solid-svg-icons";
+import Loader from "@/components/Loader";
 
 export default function Services() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(false); // Add loading state
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
     setIsAuthenticated(!!token);
+    // If you have async data fetching, set loading true/false accordingly
   }, []);
 
   const services = [
@@ -154,6 +157,13 @@ export default function Services() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-white-50 to-white">
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70">
+          <Loader />
+        </div>
+      )}
+
       <style jsx global>{`
         .options {
           display: flex;
