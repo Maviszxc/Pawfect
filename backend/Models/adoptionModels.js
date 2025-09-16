@@ -42,6 +42,10 @@ const adoptionSchema = new Schema(
       type: String,
       default: "",
     },
+    profilePicture: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: true,

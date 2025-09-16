@@ -363,6 +363,7 @@ export default function PetDetailsPage() {
           phone: adoptForm.phone,
           address: adoptForm.address,
           message: adoptForm.message,
+          profilePicture: userDetails.profilePicture || "", // <-- send profile picture
         },
         token
           ? {

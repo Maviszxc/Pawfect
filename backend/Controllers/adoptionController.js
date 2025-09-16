@@ -5,7 +5,8 @@ const User = require("../Models/userModels");
 // Create adoption request (user or guest)
 exports.createAdoption = async (req, res) => {
   try {
-    const { pet, message, fullname, email, phone, address } = req.body;
+    const { pet, message, fullname, email, phone, address, profilePicture } =
+      req.body;
 
     if (!pet || !fullname || !email || !phone || !address || !message) {
       return res.status(400).json({
@@ -40,6 +41,7 @@ exports.createAdoption = async (req, res) => {
       address,
       message,
       adminMessage: "",
+      profilePicture: profilePicture || "", // <-- add this field
     });
 
     await adoption.save();

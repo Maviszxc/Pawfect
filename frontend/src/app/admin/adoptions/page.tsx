@@ -33,6 +33,7 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface Adoption {
+  profilePicture?: string;
   _id: string;
   adopterName: string;
   adopterEmail: string;
@@ -214,6 +215,27 @@ export default function AdminAdoptionsPage() {
     }${profilePicture}`;
   };
 
+  // Helper function to get Cloudinary profile picture URL
+  const getCloudinaryProfilePictureUrl = (
+    profilePicture: string | undefined | null
+  ): string | null => {
+    if (
+      !profilePicture ||
+      profilePicture === "undefined" ||
+      profilePicture.trim() === ""
+    ) {
+      return null;
+    }
+    // If it's a Cloudinary URL
+    if (
+      profilePicture.startsWith("https://res.cloudinary.com") ||
+      profilePicture.startsWith("//res.cloudinary.com")
+    ) {
+      return profilePicture;
+    }
+    return null;
+  };
+
   const filteredAdoptions = searchQuery
     ? adoptions.filter(
         (a) =>
@@ -365,188 +387,218 @@ export default function AdminAdoptionsPage() {
                             </TableCell>
                           </TableRow>
                         ) : (
-                          filteredAdoptions.map((adoption) => (
-                            <TableRow key={adoption._id} className="hover:bg-gray-50 transition">
-                              {/* Pet column: show pet image and name */}
-                              <TableCell>
-                                <div className="flex items-center gap-3">
-                                  <Avatar>
-                                    <AvatarImage
-                                      src={
-                                        // Prefer pet.images[0] if available, then petImage, else placeholder
-                                        adoption.pet?.images?.[0]
-                                          ? adoption.pet.images[0]
-                                          : adoption.petImage
-                                          ? adoption.petImage
-                                          : "/placeholder-pet.jpg"
-                                      }
-                                      alt={
-                                        // Prefer pet.name if available, else adoption.petName
-                                        adoption.pet?.name
+                          filteredAdoptions.map((adoption) => {
+                            // Get adopter profile picture (prefer user.profilePicture, fallback to adoption.profilePicture)
+                            const adopterProfilePicture =
+                              typeof adoption.user?.profilePicture ===
+                                "string" &&
+                              adoption.user.profilePicture.trim() !== ""
+                                ? adoption.user.profilePicture
+                                : typeof adoption.profilePicture === "string" &&
+                                  adoption.profilePicture.trim() !== ""
+                                ? adoption.profilePicture
+                                : "/placeholder-user.png";
+                            const cloudinaryUrl =
+                              getCloudinaryProfilePictureUrl(
+                                adopterProfilePicture
+                              );
+
+                            return (
+                              <TableRow
+                                key={adoption._id}
+                                className="hover:bg-gray-50 transition"
+                              >
+                                {/* Pet column: show pet image and name */}
+                                <TableCell>
+                                  <div className="flex items-center gap-3">
+                                    <Avatar>
+                                      <AvatarImage
+                                        src={
+                                          // FIX: Use Cloudinary image url like dashboard page
+                                          adoption.pet?.images &&
+                                          Array.isArray(adoption.pet.images) &&
+                                          adoption.pet.images.length > 0
+                                            ? typeof adoption.pet.images[0] ===
+                                                "object" &&
+                                              "url" in adoption.pet.images[0]
+                                              ? (
+                                                  adoption.pet.images[0] as {
+                                                    url: string;
+                                                  }
+                                                ).url
+                                              : typeof adoption.pet
+                                                  .images[0] === "string"
+                                              ? (adoption.pet
+                                                  .images[0] as string)
+                                              : adoption.petImage
+                                            : adoption.petImage
+                                            ? adoption.petImage
+                                            : "/placeholder-pet.jpg"
+                                        }
+                                        alt={
+                                          adoption.pet?.name
+                                            ? adoption.pet.name
+                                            : adoption.petName
+                                        }
+                                      />
+                                      <AvatarFallback>
+                                        {(adoption.pet?.name
                                           ? adoption.pet.name
                                           : adoption.petName
-                                      }
-                                    />
-                                    <AvatarFallback>
-                                      {(adoption.pet?.name
+                                        )
+                                          ?.charAt(0)
+                                          ?.toUpperCase() || "P"}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="font-medium text-[#0a1629]">
+                                      {adoption.pet?.name
                                         ? adoption.pet.name
-                                        : adoption.petName
-                                      )
-                                        ?.charAt(0)
-                                        ?.toUpperCase() || "P"}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span className="font-medium text-[#0a1629]">
-                                    {adoption.pet?.name
-                                      ? adoption.pet.name
-                                      : adoption.petName}
-                                  </span>
-                                </div>
-                              </TableCell>
-                              {/* Adopter column: show user profile image and name */}
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <Avatar className="h-8 w-8">
-                                    <AvatarImage
-                                      src={
-                                        adoption.user?.profilePicture &&
-                                        adoption.user.profilePicture.trim() !== ""
-                                          ? adoption.user.profilePicture
-                                          : "/placeholder-user.png"
-                                      }
-                                      alt={
-                                        adoption.user?.fullname ||
-                                        adoption.fullname ||
-                                        adoption.adopterName ||
-                                        "Unknown User"
-                                      }
-                                    />
-                                    <AvatarFallback>
-                                      {
-                                        (adoption.user?.fullname ||
+                                        : adoption.petName}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                {/* Adopter column: show user profile image and name */}
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <Avatar className="h-8 w-8">
+                                      <AvatarImage
+                                        src={adopterProfilePicture}
+                                        alt={
+                                          adoption.user?.fullname ||
                                           adoption.fullname ||
                                           adoption.adopterName ||
-                                          "U")[0]
-                                      }
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div>
-                                    <div className="font-medium text-[#0a1629]">
-                                      {adoption.user?.fullname ||
-                                        adoption.fullname ||
-                                        adoption.adopterName ||
-                                        "Unknown User"}
-                                    </div>
-                                    {adoption.user && (
-                                      <div className="text-xs text-gray-500">
-                                        User ID: {adoption.user._id}
+                                          "Unknown User"
+                                        }
+                                      />
+                                      <AvatarFallback>
+                                        {
+                                          (adoption.user?.fullname ||
+                                            adoption.fullname ||
+                                            adoption.adopterName ||
+                                            "U")[0]
+                                        }
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                      <div className="font-medium text-[#0a1629]">
+                                        {adoption.user?.fullname ||
+                                          adoption.fullname ||
+                                          adoption.adopterName ||
+                                          "Unknown User"}
                                       </div>
-                                    )}
+                                      {adoption.user && (
+                                        <div className="text-xs text-gray-500">
+                                          User ID: {adoption.user._id}
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              </TableCell>
-                              {/* Email column */}
-                              <TableCell className="text-gray-700 text-sm">
-                                {adoption.user?.email ||
-                                  adoption.email ||
-                                  adoption.adopterEmail}
-                              </TableCell>
-                              {/* Status column */}
-                              <TableCell>
-                                <Badge
-                                  variant={
-                                    adoption.status === "approved"
-                                      ? "default"
-                                      : adoption.status === "pending"
-                                      ? "secondary"
-                                      : "destructive"
-                                  }
-                                  className="px-3 py-1 rounded-full text-xs font-semibold"
-                                >
-                                  {adoption.status
-                                    ? adoption.status.charAt(0).toUpperCase() +
-                                      adoption.status.slice(1)
-                                    : "Unknown"}
-                                </Badge>
-                              </TableCell>
-                              {/* Date column */}
-                              <TableCell className="text-gray-700 text-sm">
-                                {new Date(
-                                  adoption.createdAt
-                                ).toLocaleDateString()}
-                              </TableCell>
-                              {/* Actions column */}
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={async () => {
-                                      setViewAdoption(adoption);
-                                      if (adoption.user?._id) {
-                                        await fetchUserProfile(
-                                          adoption.user._id
-                                        );
-                                      } else {
-                                        setViewUser(null);
-                                      }
-                                    }}
-                                    className="px-3"
+                                </TableCell>
+                                {/* Email column */}
+                                <TableCell className="text-gray-700 text-sm">
+                                  {adoption.user?.email ||
+                                    adoption.email ||
+                                    adoption.adopterEmail}
+                                </TableCell>
+                                {/* Status column */}
+                                <TableCell>
+                                  <Badge
+                                    variant={
+                                      adoption.status === "approved"
+                                        ? "default"
+                                        : adoption.status === "pending"
+                                        ? "secondary"
+                                        : "destructive"
+                                    }
+                                    className="px-3 py-1 rounded-full text-xs font-semibold"
                                   >
-                                    View
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleEdit(adoption)}
-                                    title="Edit adoption"
-                                    className="h-8 w-8"
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                        disabled={isDeleting}
-                                        title="Delete adoption"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>
-                                          Are you sure you want to delete this
-                                          adoption request?
-                                        </AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          This action cannot be undone. This
-                                          will permanently delete the adoption
-                                          request.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>
-                                          Cancel
-                                        </AlertDialogCancel>
-                                        <AlertDialogAction
-                                          className="bg-red-500 hover:bg-red-600"
-                                          onClick={() =>
-                                            handleDeleteAdoption(adoption._id)
-                                          }
+                                    {adoption.status
+                                      ? adoption.status
+                                          .charAt(0)
+                                          .toUpperCase() +
+                                        adoption.status.slice(1)
+                                      : "Unknown"}
+                                  </Badge>
+                                </TableCell>
+                                {/* Date column */}
+                                <TableCell className="text-gray-700 text-sm">
+                                  {new Date(
+                                    adoption.createdAt
+                                  ).toLocaleDateString()}
+                                </TableCell>
+                                {/* Actions column */}
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={async () => {
+                                        setViewAdoption(adoption);
+                                        if (adoption.user?._id) {
+                                          await fetchUserProfile(
+                                            adoption.user._id
+                                          );
+                                        } else {
+                                          setViewUser(null);
+                                        }
+                                      }}
+                                      className="px-3"
+                                    >
+                                      View
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleEdit(adoption)}
+                                      title="Edit adoption"
+                                      className="h-8 w-8"
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                          disabled={isDeleting}
+                                          title="Delete adoption"
                                         >
-                                          Delete
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>
+                                            Are you sure you want to delete this
+                                            adoption request?
+                                          </AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            This action cannot be undone. This
+                                            will permanently delete the adoption
+                                            request.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>
+                                            Cancel
+                                          </AlertDialogCancel>
+                                          <AlertDialogAction
+                                            className="bg-red-500 hover:bg-red-600"
+                                            onClick={() =>
+                                              handleDeleteAdoption(adoption._id)
+                                            }
+                                          >
+                                            Delete
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
                         )}
                       </TableBody>
                     </Table>
@@ -633,48 +685,63 @@ export default function AdminAdoptionsPage() {
                   Adoption Application Details
                 </h3>
                 <div className="flex items-center gap-3 mb-4">
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage
-                      src={
-                        viewUser?.profilePicture &&
-                        viewUser.profilePicture.trim() !== ""
-                          ? viewUser.profilePicture
-                          : viewAdoption.user?.profilePicture &&
-                            viewAdoption.user.profilePicture.trim() !== ""
-                          ? viewAdoption.user.profilePicture
-                          : "/placeholder-user.png"
-                      }
-                      alt={
-                        viewUser?.fullname ||
-                        viewAdoption.user?.fullname ||
-                        "Adopter"
-                      }
-                    />
-                    <AvatarFallback>
-                      {
-                        (viewUser?.fullname ||
-                          viewAdoption.user?.fullname ||
-                          viewAdoption.fullname ||
-                          viewAdoption.adopterName ||
-                          "U")[0]
-                      }
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="font-semibold text-lg">
-                      {viewUser?.fullname ||
-                        viewAdoption.user?.fullname ||
-                        viewAdoption.fullname ||
-                        viewAdoption.adopterName ||
-                        "Unknown User"}
-                    </div>
-                    <div className="text-gray-500 text-sm">
-                      {viewUser?.email ||
-                        viewAdoption.user?.email ||
-                        viewAdoption.email ||
-                        viewAdoption.adopterEmail}
-                    </div>
-                  </div>
+                  {(() => {
+                    // Get profile picture for view modal
+                    const viewProfilePicture =
+                      viewUser?.profilePicture &&
+                      viewUser.profilePicture.trim() !== ""
+                        ? viewUser.profilePicture
+                        : viewAdoption.user?.profilePicture &&
+                          viewAdoption.user.profilePicture.trim() !== ""
+                        ? viewAdoption.user.profilePicture
+                        : "/placeholder-user.png";
+                    const viewCloudinaryUrl =
+                      getCloudinaryProfilePictureUrl(viewProfilePicture);
+
+                    return (
+                      <>
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage
+                            src={viewProfilePicture}
+                            alt={
+                              viewUser?.fullname ||
+                              viewAdoption.user?.fullname ||
+                              "Adopter"
+                            }
+                          />
+                          <AvatarFallback>
+                            {
+                              (viewUser?.fullname ||
+                                viewAdoption.user?.fullname ||
+                                viewAdoption.fullname ||
+                                viewAdoption.adopterName ||
+                                "U")[0]
+                            }
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-semibold text-lg">
+                            {viewUser?.fullname ||
+                              viewAdoption.user?.fullname ||
+                              viewAdoption.fullname ||
+                              viewAdoption.adopterName ||
+                              "Unknown User"}
+                          </div>
+                          <div className="text-gray-500 text-sm">
+                            {viewUser?.email ||
+                              viewAdoption.user?.email ||
+                              viewAdoption.email ||
+                              viewAdoption.adopterEmail}
+                          </div>
+                          {viewCloudinaryUrl && (
+                            <div className="text-[10px] text-blue-500 break-all">
+                              {viewCloudinaryUrl}
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
                 <div className="mb-2">
                   <span className="font-medium">Phone:</span>{" "}
@@ -710,4 +777,3 @@ export default function AdminAdoptionsPage() {
     </AdminAuthWrapper>
   );
 }
-  
