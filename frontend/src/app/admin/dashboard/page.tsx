@@ -52,6 +52,7 @@ interface User {
 }
 
 interface Adoption {
+  fullname: string | undefined;
   _id: string;
   adopterName: string;
   adopterEmail: string;
@@ -411,7 +412,7 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
                   ))
-                )}
+                 ) }
 
                 <div className="flex justify-end mt-4">
                   <button className="text-orange-500 text-sm font-medium hover:text-orange-600">
@@ -460,20 +461,19 @@ export default function AdminDashboardPage() {
                           <div className="font-semibold text-sm">
                             {adoption.pet?.name || adoption.petName}
                           </div>
-                          <div className="text-xs text-gray-500">
-                            by{" "}
-                            {
-                              // Show adopter's name: prefer user.fullname, fallback to adopterName, then adopterEmail
-                              adoption.user?.fullname?.trim()
-                                ? adoption.user.fullname
-                                : adoption.adopterName?.trim()
-                                ? adoption.adopterName
-                                : adoption.user?.email?.trim()
-                                ? adoption.user.email
-                                : adoption.adopterEmail?.trim()
-                                ? adoption.adopterEmail
-                                : "Unknown"
-                            }
+                          <div>
+                            <div className="font-light text-xs text-gray-600">
+                              by:&nbsp;
+                              {adoption.user?.fullname ||
+                                adoption.fullname ||
+                                adoption.adopterName ||
+                                "Unknown User"}
+                            </div>
+                            {adoption.user && (
+                              <div className="text-xs text-gray-500">
+                                User ID: {adoption.user._id}
+                              </div>
+                            )}
                           </div>
                         </div>
                         <Badge
