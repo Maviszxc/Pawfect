@@ -11,12 +11,28 @@ const adoptionSchema = new Schema(
     user: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false, // allow guest adoption requests
     },
     status: {
       type: String,
       enum: ["Pending", "Approved", "Rejected", "Completed"],
       default: "Pending",
+    },
+    fullname: {
+      type: String,
+      required: true,
+    },
+    email: {
+      type: String,
+      required: true,
+    },
+    phone: {
+      type: String,
+      required: true,
+    },
+    address: {
+      type: String,
+      required: true,
     },
     message: {
       type: String,

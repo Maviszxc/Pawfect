@@ -3,7 +3,10 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const User = require("../Models/userModels");
 const OtpVerification = require("../Models/otpVerificationModels");
-const cloudinary = require("../Utilities/cloudinaryConfig");
+const {
+  cloudinary,
+  uploadToCloudinary,
+} = require("../Utilities/cloudinaryConfig");
 const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
@@ -61,7 +64,8 @@ const createAccount = async (req, res) => {
     const user = new User({ fullname, email, password: hashedPassword });
     await user.save();
 
-    await sendOtp({ _id: user._id, email }); // Ensure email is passed correctly
+    // FIX: Only pass email to sendOtp for consistency
+    await sendOtp(email);
 
     const accessToken = jwt.sign(
       { id: user._id, isAdmin: user.isAdmin },
@@ -81,13 +85,16 @@ const createAccount = async (req, res) => {
   }
 };
 
-const sendOtp = async ({ _id, email }) => {
+// FIX: Update sendOtp to accept only email and store OTP with userEmail
+const sendOtp = async (email) => {
   try {
+    // Remove any existing OTP for this email
+    await OtpVerification.deleteOne({ userEmail: email });
+
     const otp = `${Math.floor(100000 + Math.random() * 900000)}`;
     const hashedOtp = await bcrypt.hash(otp, 10);
     const newOtpVerification = new OtpVerification({
-      userId: _id,
-      userEmail: email, // Ensure this field is correctly set
+      userEmail: email,
       otp: hashedOtp,
       createdAt: Date.now(),
       expiresAt: Date.now() + 3600000,
@@ -122,7 +129,11 @@ const verifyOtp = async (req, res) => {
   }
 
   try {
-    const otpRecord = await OtpVerification.findOne({ userEmail: email });
+    // FIX: Always get the latest OTP for this email
+    const otpRecord = await OtpVerification.findOne({ userEmail: email }).sort({
+      createdAt: -1,
+    });
+
     if (!otpRecord) {
       console.log("No OTP record found for email:", email);
       return res
@@ -613,23 +624,24 @@ const uploadProfilePicture = async (req, res) => {
       });
     }
 
-    const fileData = fs.readFileSync(req.file.path);
-    const base64Image = `data:${req.file.mimetype};base64,${fileData.toString(
-      "base64"
-    )}`;
-    console.log("Base64 image created:", base64Image.substring(0, 50) + "...");
-
-    user.profilePicture = base64Image;
+    // Upload to Cloudinary
+    const result = await uploadToCloudinary(req.file.path, "image");
+    user.profilePicture = result.secure_url;
     await user.save();
 
-    console.log("User saved with profile picture");
-
-    fs.unlinkSync(req.file.path);
+    // Remove local file after upload
+    if (req.file && req.file.path) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (unlinkError) {
+        console.error("Error deleting file:", unlinkError);
+      }
+    }
 
     return res.json({
       success: true,
       message: "Profile picture updated successfully",
-      profilePicture: base64Image,
+      profilePicture: result.secure_url,
     });
   } catch (error) {
     console.error("Error uploading profile picture:", error);

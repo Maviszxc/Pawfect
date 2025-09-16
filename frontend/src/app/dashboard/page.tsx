@@ -45,7 +45,7 @@ export default function Home() {
       try {
         const response = await axios.get(`${BASE_URL}/api/pets?limit=3`);
         if (response.data.success) {
-          setFeaturedPets(response.data.pets || []);
+          setFeaturedPets((response.data.pets || []).slice(0, 3)); // Only 3 pets
         }
       } catch (error) {
         console.error("Error fetching pets:", error);
@@ -59,13 +59,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen pt-5 bg-white">
-      {/* Loading Overlay */}
-      {loading && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70">
-          <Loader />
-        </div>
-      )}
-
+   
       {/* Hero Section */}
       <div className="relative min-h-screen bg-gradient-to-b from-background to-background/95">
         {/* Background Pattern */}
@@ -427,7 +421,7 @@ export default function Home() {
                   </div>
                 ))
               ) : featuredPets.length > 0 ? (
-                featuredPets.map((pet, index) => (
+                featuredPets.slice(0, 3).map((pet, index) => (
                   <motion.div
                     key={String(index)}
                     initial={{ opacity: 0, y: 20 }}
@@ -491,6 +485,7 @@ export default function Home() {
               )}
             </div>
 
+            {/* Show "View all available pets" button below the grid */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}

@@ -1,69 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const Adoption = require("../Models/adoptionModels");
-const Pet = require("../Models/petModels");
-const User = require("../Models/userModels");
-const { verifyToken } = require("../Utilities/authUtil");
+const adoptionController = require("../Controllers/adoptionController");
+const { verifyToken, verifyAdmin } = require("../Utilities/authUtil");
 
-// Create a new adoption request
-router.post("/", verifyToken, async (req, res) => {
-  try {
-    const { petId, message } = req.body;
-    const userId = req.user.id;
-
-    // Check if pet exists and is available
-    const pet = await Pet.findById(petId);
-    if (!pet) {
-      return res.status(404).json({ success: false, message: "Pet not found" });
-    }
-
-    if (pet.adoptionStatus !== "available") {
-      return res.status(400).json({
-        success: false,
-        message: "This pet is not available for adoption",
-      });
-    }
-
-    // Check if user already has a pending request for this pet
-    const existingRequest = await Adoption.findOne({
-      pet: petId,
-      user: userId,
-      status: "Pending",
-    });
-
-    if (existingRequest) {
-      return res.status(400).json({
-        success: false,
-        message: "You already have a pending request for this pet",
-      });
-    }
-
-    // Create new adoption request
-    const newAdoption = new Adoption({
-      pet: petId,
-      user: userId,
-      message,
-    });
-
-    await newAdoption.save();
-
-    // Update pet status to pending
-    pet.adoptionStatus = "pending";
-    await pet.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Adoption request submitted successfully",
-      adoption: newAdoption,
-    });
-  } catch (error) {
-    console.error("Error creating adoption request:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to submit adoption request",
-    });
-  }
-});
+// User or guest can submit adoption request
+router.post("/", adoptionController.createAdoption);
 
 // Get all adoption requests for a user
 router.get("/user", verifyToken, async (req, res) => {
@@ -160,6 +101,38 @@ router.patch("/:id/status", verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to update adoption status",
+    });
+  }
+});
+
+// Get a specific adoption request
+router.get("/:id", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const adoption = await Adoption.findById(id)
+      .populate("pet")
+      .populate("user", "fullname email profilePicture");
+
+    if (!adoption) {
+      return res.status(404).json({
+        success: false,
+        message: "Adoption request not found",
+      });
+    }
+
+    // Check if the user is the owner of the request or an admin
+    // In a real app, you would implement proper authorization here
+
+    res.status(200).json({
+      success: true,
+      adoption,
+    });
+  } catch (error) {
+    console.error("Error fetching adoption details:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch adoption details",
     });
   }
 });

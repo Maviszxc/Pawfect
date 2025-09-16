@@ -1,24 +1,34 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import axiosInstance from "@/lib/axiosInstance";
 import { BASE_URL } from "@/utils/constants";
 import Loader from "@/components/Loader";
 import AdminAuthWrapper from "@/components/AdminAuthWrapper";
-import { Search, Edit, Trash2, Plus, RefreshCw } from "lucide-react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Search,
+  Edit,
+  Trash2,
+  Plus,
+  RefreshCw,
+  Archive,
+  RotateCcw,
+  Upload,
+  X,
+  Grid,
+  List,
+  Eye,
+  Video,
+  ChevronLeft,
+  ChevronRight,
+  Maximize2,
+} from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,28 +41,51 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "react-toastify";
 
 interface Pet {
   _id: string;
   name: string;
   type: string;
   breed: string;
-  age: number;
+  age: string;
   gender: string;
-  image: string;
+  images: { url: string }[];
+  videos: { url: string }[];
   description: string;
   adoptionStatus: string;
+  isArchived: boolean;
   owner?: string;
   createdAt?: string;
-  images?: string[];
 }
-
 export default function AdminPetsPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [pets, setPets] = useState<Pet[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [activeTab, setActiveTab] = useState("active");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Modal state for Add/Edit
   const [modalOpen, setModalOpen] = useState(false);
@@ -61,44 +94,175 @@ export default function AdminPetsPage() {
     name: "",
     type: "",
     breed: "",
-    age: 0,
+    age: "",
     gender: "",
     description: "",
-    adoptionStatus: "",
-    image: "",
+    adoptionStatus: "Available",
+    images: [] as File[],
+    imagePreviews: [] as string[],
+    videos: [] as File[],
+    videoPreviews: [] as string[],
   });
+
+  // For image navigation in modal
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  // For video enlarge modal
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
+  const [videoModalSrc, setVideoModalSrc] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPets();
   }, []);
 
+  useEffect(() => {
+    // Reset image index when modal opens
+    if (viewDialogOpen) setCurrentImageIndex(0);
+  }, [viewDialogOpen]);
+
+  // Update the fetchPets function
   const fetchPets = async () => {
     setIsLoading(true);
     try {
-      const response = await axiosInstance.get(`${BASE_URL}/api/admin/pets`);
+      const token = localStorage.getItem("accessToken");
+      if (!token) throw new Error("No access token found");
+      const response = await axiosInstance.get(
+        `${BASE_URL}/api/pets/admin/all`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 30000,
+        }
+      );
       if (response.data.success) {
         setPets(response.data.pets);
       }
     } catch (error) {
+      toast.error("Error fetching pets. Please try again.");
       console.error("Error fetching pets:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDeletePet = async (petId: string) => {
-    setIsDeleting(true);
+  // Update the handleSubmit function
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsProcessing(true);
+    setUploadProgress(0);
+
     try {
-      const response = await axiosInstance.delete(
-        `${BASE_URL}/api/admin/pets/${petId}`
+      const formData = new FormData();
+      formData.append("name", form.name);
+      formData.append("type", form.type);
+      formData.append("breed", form.breed);
+      formData.append("age", form.age);
+      formData.append("gender", form.gender);
+      formData.append("description", form.description);
+      formData.append("adoptionStatus", form.adoptionStatus);
+
+      // Append images if selected
+      form.images.forEach((image) => {
+        formData.append("images", image);
+      });
+
+      // Append videos if selected
+      form.videos.forEach((video) => {
+        formData.append("videos", video);
+      });
+
+      interface UploadProgressEvent {
+        loaded: number;
+        total?: number;
+      }
+
+      interface AxiosConfig {
+        headers: {
+          "Content-Type": string;
+        };
+        timeout: number;
+        onUploadProgress: (progressEvent: UploadProgressEvent) => void;
+      }
+
+      const config: AxiosConfig = {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        timeout: 60000,
+        onUploadProgress: (progressEvent: UploadProgressEvent) => {
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / (progressEvent.total || 1)
+          );
+          setUploadProgress(percentCompleted);
+        },
+      };
+
+      if (editPet) {
+        await axiosInstance.put(
+          `${BASE_URL}/api/pets/${editPet._id}`,
+          formData,
+          config
+        );
+        toast.success("Pet updated successfully.");
+      } else {
+        await axiosInstance.post(`${BASE_URL}/api/pets`, formData, config);
+        toast.success("Pet added successfully.");
+      }
+
+      setModalOpen(false);
+      fetchPets();
+    } catch (error: any) {
+      toast.error("Failed to save pet. Please try again.");
+      console.error("Failed to save pet:", error);
+    } finally {
+      setIsProcessing(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const handleArchivePet = async (petId: string) => {
+    setIsProcessing(true);
+    try {
+      const response = await axiosInstance.patch(
+        `${BASE_URL}/api/pets/${petId}/archive`
       );
       if (response.data.success) {
-        setPets(pets.filter((pet) => pet._id !== petId));
+        setPets(
+          pets.map((pet) =>
+            pet._id === petId
+              ? { ...pet, isArchived: true, adoptionStatus: "archived" }
+              : pet
+          )
+        );
+        toast.success("Pet archived successfully.");
       }
     } catch (error) {
-      console.error("Error deleting pet:", error);
+      toast.error("Error archiving pet. Please try again.");
+      console.error("Error archiving pet:", error);
     } finally {
-      setIsDeleting(false);
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRestorePet = async (petId: string) => {
+    setIsProcessing(true);
+    try {
+      const response = await axiosInstance.patch(
+        `${BASE_URL}/api/pets/${petId}/restore`
+      );
+      if (response.data.success) {
+        setPets(
+          pets.map((pet) =>
+            pet._id === petId
+              ? { ...pet, isArchived: false, adoptionStatus: "available" }
+              : pet
+          )
+        );
+        toast.success("Pet restored successfully.");
+      }
+    } catch (error) {
+      toast.error("Error restoring pet. Please try again.");
+      console.error("Error restoring pet:", error);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -112,9 +276,17 @@ export default function AdminPetsPage() {
       gender: pet.gender,
       description: pet.description,
       adoptionStatus: pet.adoptionStatus,
-      image: pet.images?.[0] || "",
+      images: [],
+      imagePreviews: pet.images ? pet.images.map((img) => img.url) : [],
+      videos: [],
+      videoPreviews: pet.videos ? pet.videos.map((v) => v.url) : [],
     });
     setModalOpen(true);
+  };
+
+  const handleView = (pet: Pet) => {
+    setSelectedPet(pet);
+    setViewDialogOpen(true);
   };
 
   const handleAdd = () => {
@@ -123,344 +295,1136 @@ export default function AdminPetsPage() {
       name: "",
       type: "",
       breed: "",
-      age: 0,
+      age: "",
       gender: "",
       description: "",
-      adoptionStatus: "",
-      image: "",
+      adoptionStatus: "available",
+      images: [],
+      imagePreviews: [],
+      videos: [],
+      videoPreviews: [],
     });
     setModalOpen(true);
   };
 
-  const handleSubmit = async (e: any) => {
-    e.preventDefault();
-    try {
-      if (editPet) {
-        await axiosInstance.put(
-          `${BASE_URL}/api/admin/pets/${editPet._id}`,
-          form
-        );
-      } else {
-        await axiosInstance.post(`${BASE_URL}/api/admin/pets`, form);
-      }
-      setModalOpen(false);
-      fetchPets();
-    } catch (error) {
-      alert("Failed to save pet.");
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const newImages = Array.from(files);
+      const newImagePreviews = newImages.map((file) =>
+        URL.createObjectURL(file)
+      );
+
+      setForm({
+        ...form,
+        images: [...form.images, ...newImages],
+        imagePreviews: [...form.imagePreviews, ...newImagePreviews],
+      });
     }
   };
 
-  const filteredPets = searchQuery
-    ? pets.filter(
-        (pet) =>
-          pet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          pet.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          pet.breed.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : pets;
+  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const newVideos = Array.from(files);
+      const newVideoPreviews = newVideos.map((file) =>
+        URL.createObjectURL(file)
+      );
+
+      setForm({
+        ...form,
+        videos: [...form.videos, ...newVideos],
+        videoPreviews: [...form.videoPreviews, ...newVideoPreviews],
+      });
+    }
+  };
+
+  const removeImage = (index: number) => {
+    const newImages = [...form.images];
+    const newImagePreviews = [...form.imagePreviews];
+
+    newImages.splice(index, 1);
+    newImagePreviews.splice(index, 1);
+
+    setForm({
+      ...form,
+      images: newImages,
+      imagePreviews: newImagePreviews,
+    });
+  };
+
+  const removeVideo = (index: number) => {
+    const newVideos = [...form.videos];
+    const newVideoPreviews = [...form.videoPreviews];
+
+    newVideos.splice(index, 1);
+    newVideoPreviews.splice(index, 1);
+
+    setForm({
+      ...form,
+      videos: newVideos,
+      videoPreviews: newVideoPreviews,
+    });
+  };
+
+  const getAgeText = (age: string) => {
+    switch (age) {
+      case "kitten":
+        return "< 1 year";
+      case "young adult":
+        return "1-3 years";
+      case "mature adult":
+        return "4-7 years";
+      case "adult":
+        return "8+ years";
+      default:
+        return age;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "available":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "adopted":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "archived":
+        return "bg-gray-100 text-gray-800 border-gray-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case "dog":
+        return "bg-amber-100 text-amber-800 border-amber-200";
+      case "cat":
+        return "bg-purple-100 text-purple-800 border-purple-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  // Filter pets based on active tab and search query
+  const filteredPets = pets.filter((pet) => {
+    const matchesTab =
+      activeTab === "active" ? !pet.isArchived : pet.isArchived;
+    const matchesSearch = searchQuery
+      ? pet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        pet.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        pet.breed.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        pet.age.toLowerCase().includes(searchQuery.toLowerCase())
+      : true;
+
+    return matchesTab && matchesSearch;
+  });
 
   return (
-    <AdminAuthWrapper>
-      <div className="min-h-screen bg-[#f8fafc] pb-8">
-        <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
-          <Card className="rounded-2xl shadow bg-white px-0 py-0">
-            <CardContent className="p-8">
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-row items-center justify-between">
-                  <div>
-                    <div className="text-2xl font-bold text-[#0a1629]">
-                      Pet Management
-                    </div>
-                    <div className="text-gray-500 text-base mt-1">
-                      <span className="font-semibold text-[#0a1629]">
-                        {pets.length} total
-                      </span>
-                      , manage all pets in the system
-                    </div>
-                  </div>
-                  <div className="flex flex-row gap-4">
-                    <Button
-                      variant="outline"
-                      onClick={fetchPets}
-                      disabled={isLoading}
-                      className="flex items-center gap-2"
-                    >
-                      <RefreshCw
-                        className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
-                      />
-                      Refresh
-                    </Button>
-                    <Button
-                      className="bg-orange-500 hover:bg-orange-600 text-white"
-                      onClick={handleAdd}
-                    >
-                      <Plus className="h-4 w-4 mr-2" /> Add Pet
-                    </Button>
-                  </div>
+    <>
+      <AdminAuthWrapper>
+        <div className="min-h-screen bg-gray-50 pb-8 px-4 sm:px-6">
+          <div className="w-full max-w-7xl mx-auto bg-white rounded-2xl shadow-sm px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex flex-col gap-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    Pet Management
+                  </h1>
+                  <p className="text-gray-600 mt-1">
+                    Manage all pets in the system
+                  </p>
                 </div>
-
-                {/* Search and filter */}
-                <div className="flex justify-between items-center">
-                  <div className="relative w-full max-w-sm">
-                    <Input
-                      type="text"
-                      placeholder="Search pets by name, type, or breed..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
+                <div className="flex flex-row gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={fetchPets}
+                    disabled={isLoading}
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw
+                      className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
                     />
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                      <Search className="w-5 h-5 text-gray-500" />
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="ml-2">
-                    {filteredPets.length} pets
-                  </Badge>
+                    Refresh
+                  </Button>
+                  <Button
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                    onClick={handleAdd}
+                  >
+                    <Plus className="h-4 w-4 mr-2" /> Add Pet
+                  </Button>
                 </div>
+              </div>
 
-                {/* Table */}
-                {isLoading ? (
-                  <div className="flex justify-center items-center py-20">
-                    <Loader />
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full mt-4 text-left">
-                      <thead>
-                        <tr className="text-gray-400 text-sm">
-                          <th className="py-2 pr-2 pl-1 font-medium">Image</th>
-                          <th className="py-2 font-medium">Name</th>
-                          <th className="py-2 font-medium">Type</th>
-                          <th className="py-2 font-medium">Breed</th>
-                          <th className="py-2 font-medium">Age</th>
-                          <th className="py-2 font-medium">Gender</th>
-                          <th className="py-2 font-medium">Status</th>
-                          <th className="py-2 font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+              <Card className="border-0 shadow-sm">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex flex-col gap-6">
+                    {/* Tabs and controls */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <Tabs
+                        value={activeTab}
+                        onValueChange={setActiveTab}
+                        className="w-full"
+                      >
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                          <TabsList className="inline-flex p-1 bg-gray-100 rounded-lg">
+                            <TabsTrigger
+                              value="active"
+                              className="data-[state=active]:bg-orange-500 data-[state=active]:text-white rounded-md px-4 py-2 text-sm font-medium transition-all"
+                            >
+                              Active Pets
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="archived"
+                              className="data-[state=active]:bg-orange-500 data-[state=active]:text-white rounded-md px-4 py-2 text-sm font-medium transition-all"
+                            >
+                              Archive
+                            </TabsTrigger>
+                          </TabsList>
+
+                          <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <div className="relative flex-1 sm:flex-initial sm:w-64">
+                              <Input
+                                type="text"
+                                placeholder="Search pets..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-9"
+                              />
+                              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <Search className="w-4 h-4 text-gray-500" />
+                              </div>
+                            </div>
+
+                            <div className="flex border rounded-md overflow-hidden">
+                              <Button
+                                variant={
+                                  viewMode === "grid" ? "default" : "ghost"
+                                }
+                                size="icon"
+                                onClick={() => setViewMode("grid")}
+                                className="h-9 w-9 rounded-none"
+                              >
+                                <Grid className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant={
+                                  viewMode === "list" ? "default" : "ghost"
+                                }
+                                size="icon"
+                                onClick={() => setViewMode("list")}
+                                className="h-9 w-9 rounded-none"
+                              >
+                                <List className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <TabsContent value="active" className="mt-0">
+                          <div className="flex items-center justify-between m-2">
+                            <p className="text-sm text-gray-600">
+                              {filteredPets.length}{" "}
+                              {filteredPets.length === 1 ? "pet" : "pets"} found
+                            </p>
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="archived" className="mt-0">
+                          <div className="flex items-center justify-between mb-4">
+                            <p className="text-sm text-gray-600">
+                              {filteredPets.length}{" "}
+                              {filteredPets.length === 1 ? "pet" : "pets"} in
+                              archive
+                            </p>
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+                    </div>
+
+                    {/* Pet Cards/List */}
+                    {isLoading ? (
+                      <div className="flex justify-center items-center py-20">
+                        <Loader />
+                      </div>
+                    ) : (
+                      <>
                         {filteredPets.length === 0 ? (
-                          <tr>
-                            <td
-                              colSpan={8}
-                              className="text-center py-10 text-gray-500"
-                            >
-                              No pets found
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredPets.map((pet) => (
-                            <tr
-                              key={pet._id}
-                              className="border-t border-gray-100 hover:bg-gray-50 transition"
-                            >
-                              <td className="py-3 pr-2 pl-1">
-                                <Avatar>
-                                  <AvatarImage
-                                    src={
-                                      pet.images?.[0] || "/placeholder-pet.jpg"
-                                    }
-                                  />
-                                  <AvatarFallback>
-                                    {pet.name.charAt(0)}
-                                  </AvatarFallback>
-                                </Avatar>
-                              </td>
-                              <td className="py-3 font-medium text-[#0a1629]">
-                                {pet.name}
-                              </td>
-                              <td className="py-3 text-gray-700 text-sm">
-                                {pet.type}
-                              </td>
-                              <td className="py-3 text-gray-700 text-sm">
-                                {pet.breed}
-                              </td>
-                              <td className="py-3 text-gray-700 text-sm">
-                                {pet.age}
-                              </td>
-                              <td className="py-3 text-gray-700 text-sm">
-                                {pet.gender}
-                              </td>
-                              <td className="py-3">
-                                <Badge
-                                  className={
-                                    pet.adoptionStatus === "available"
-                                      ? "bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-full text-xs font-semibold"
-                                      : pet.adoptionStatus === "pending"
-                                      ? "bg-yellow-50 text-yellow-700 border border-yellow-200 px-3 py-1 rounded-full text-xs font-semibold"
-                                      : pet.adoptionStatus === "adopted"
-                                      ? "bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded-full text-xs font-semibold"
-                                      : "bg-gray-50 text-gray-700 border border-gray-200 px-3 py-1 rounded-full text-xs font-semibold"
-                                  }
-                                >
-                                  {pet.adoptionStatus.charAt(0).toUpperCase() +
-                                    pet.adoptionStatus.slice(1)}
-                                </Badge>
-                              </td>
-                              <td className="py-3">
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleEdit(pet)}
-                                    title="Edit pet"
-                                    className="h-8 w-8"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
+                          <div className="text-center py-16 border border-dashed rounded-lg">
+                            <div className="text-gray-400 mb-2">
+                              {activeTab === "active" ? (
+                                <p>No active pets found</p>
+                              ) : (
+                                <p>No archived pets found</p>
+                              )}
+                            </div>
+                            <Button onClick={handleAdd} className="mt-4">
+                              <Plus className="h-4 w-4 mr-2" /> Add Pet
+                            </Button>
+                          </div>
+                        ) : viewMode === "grid" ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {filteredPets.map((pet) => (
+                              <Card
+                                key={pet._id}
+                                className={`overflow-hidden transition-all hover:shadow-md cursor-pointer ${
+                                  pet.isArchived ? "opacity-80" : ""
+                                }`}
+                                onClick={() => handleView(pet)}
+                              >
+                                <div className="relative">
+                                  <div className="h-72 overflow-hidden">
+                                    <img
+                                      src={
+                                        pet.images && pet.images.length > 0
+                                          ? pet.images[0].url
+                                          : "/placeholder-pet.jpg"
+                                      }
+                                      alt={pet.name}
+                                      className="w-full h-full object-cover transition-transform hover:scale-105"
+                                    />
+                                  </div>
+                                  <div className="absolute top-3 right-3">
+                                    <Badge
+                                      className={`${getStatusColor(
+                                        pet.adoptionStatus
+                                      )} border`}
+                                    >
+                                      {pet.adoptionStatus
+                                        .charAt(0)
+                                        .toUpperCase() +
+                                        pet.adoptionStatus.slice(1)}
+                                    </Badge>
+                                  </div>
+                                  {pet.isArchived && (
+                                    <div className="absolute top-3 left-3">
+                                      <Badge
+                                        variant="secondary"
+                                        className="border"
+                                      >
+                                        Archived
+                                      </Badge>
+                                    </div>
+                                  )}
+                                  {pet.videos && pet.videos.length > 0 && (
+                                    <div className="absolute bottom-3 left-3">
+                                      <div className="bg-black bg-opacity-50 rounded-full p-1">
+                                        <Video className="h-4 w-4 text-white" />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                                <CardContent className="p-4">
+                                  <div className="flex justify-between items-start mb-3">
+                                    <h3 className="font-semibold text-lg text-gray-900">
+                                      {pet.name}
+                                    </h3>
+                                    <Badge
+                                      variant="outline"
+                                      className={`capitalize ${getTypeColor(
+                                        pet.type
+                                      )} border`}
+                                    >
+                                      {pet.type}
+                                    </Badge>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                                    <div>
+                                      <span className="text-gray-500 text-xs">
+                                        Breed:
+                                      </span>
+                                      <p className="font-medium truncate">
+                                        {pet.breed}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-500 text-xs">
+                                        Age:
+                                      </span>
+                                      <p className="font-medium">
+                                        {getAgeText(pet.age)}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-500 text-xs">
+                                        Gender:
+                                      </span>
+                                      <p className="font-medium capitalize">
+                                        {pet.gender}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                                    {pet.description}
+                                  </p>
+                                  <div className="flex justify-between items-center">
+                                    <div className="text-xs text-gray-500">
+                                      Added:{" "}
+                                      {new Date(
+                                        pet.createdAt || ""
+                                      ).toLocaleDateString()}
+                                    </div>
+                                    <div className="flex items-center gap-1">
                                       <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                        disabled={isDeleting}
-                                        title="Delete pet"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleEdit(pet);
+                                        }}
+                                        title="Edit pet"
+                                        className="h-8 w-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100"
                                       >
-                                        <Trash2 className="h-4 w-4" />
+                                        <Edit className="h-4 w-4" />
                                       </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>
-                                          Are you sure you want to delete this
-                                          pet?
-                                        </AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          This action cannot be undone. This
-                                          will permanently delete the pet from
-                                          the system.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>
-                                          Cancel
-                                        </AlertDialogCancel>
-                                        <AlertDialogAction
-                                          className="bg-red-500 hover:bg-red-600"
-                                          onClick={() =>
-                                            handleDeletePet(pet._id)
-                                          }
+                                      {pet.isArchived ? (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleRestorePet(pet._id);
+                                          }}
+                                          disabled={isProcessing}
+                                          title="Restore pet"
+                                          className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
                                         >
-                                          Delete
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                </div>
-                              </td>
-                            </tr>
-                          ))
+                                          <RotateCcw className="h-4 w-4" />
+                                        </Button>
+                                      ) : (
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                              disabled={isProcessing}
+                                              title="Archive pet"
+                                              onClick={(e) =>
+                                                e.stopPropagation()
+                                              }
+                                            >
+                                              <Archive className="h-4 w-4" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>
+                                                Archive this pet?
+                                              </AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                This will remove the pet from
+                                                public view but keep it in the
+                                                system for records.
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>
+                                                Cancel
+                                              </AlertDialogCancel>
+                                              <AlertDialogAction
+                                                className="bg-red-600 hover:bg-red-700"
+                                                onClick={() =>
+                                                  handleArchivePet(pet._id)
+                                                }
+                                              >
+                                                Archive
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      )}
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {filteredPets.map((pet) => (
+                              <Card
+                                key={pet._id}
+                                className={`cursor-pointer ${
+                                  pet.isArchived ? "opacity-80" : ""
+                                }`}
+                                onClick={() => handleView(pet)}
+                              >
+                                <CardContent className="p-4">
+                                  <div className="flex items-start gap-4">
+                                    <div className="flex-shrink-0">
+                                      <img
+                                        src={
+                                          pet.images && pet.images.length > 0
+                                            ? pet.images[0].url
+                                            : "/placeholder-pet.jpg"
+                                        }
+                                        alt={pet.name}
+                                        className="w-24 h-24 object-top rounded-md"
+                                      />
+                                    </div>
+                                    <div className="flex-grow">
+                                      <div className="flex justify-between items-start">
+                                        <div>
+                                          <h3 className="font-semibold text-lg text-gray-900">
+                                            {pet.name}
+                                          </h3>
+                                          <div className="flex items-center gap-2 mt-1">
+                                            <Badge
+                                              variant="outline"
+                                              className={`capitalize ${getTypeColor(
+                                                pet.type
+                                              )} border`}
+                                            >
+                                              {pet.type}
+                                            </Badge>
+                                            <Badge
+                                              className={`${getStatusColor(
+                                                pet.adoptionStatus
+                                              )} border`}
+                                            >
+                                              {pet.adoptionStatus
+                                                .charAt(0)
+                                                .toUpperCase() +
+                                                pet.adoptionStatus.slice(1)}
+                                            </Badge>
+                                            {pet.isArchived && (
+                                              <Badge
+                                                variant="secondary"
+                                                className="border"
+                                              >
+                                                Archived
+                                              </Badge>
+                                            )}
+                                            {pet.videos &&
+                                              pet.videos.length > 0 && (
+                                                <div className="flex items-center text-gray-500">
+                                                  <Video className="h-4 w-4 mr-1" />
+                                                  <span className="text-xs">
+                                                    {pet.videos.length}
+                                                  </span>
+                                                </div>
+                                              )}
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleEdit(pet);
+                                            }}
+                                            title="Edit pet"
+                                            className="h-8 w-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100"
+                                          >
+                                            <Edit className="h-4 w-4" />
+                                          </Button>
+                                          {pet.isArchived ? (
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleRestorePet(pet._id);
+                                              }}
+                                              disabled={isProcessing}
+                                              title="Restore pet"
+                                              className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                            >
+                                              <RotateCcw className="h-4 w-4" />
+                                            </Button>
+                                          ) : (
+                                            <AlertDialog>
+                                              <AlertDialogTrigger asChild>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                  disabled={isProcessing}
+                                                  title="Archive pet"
+                                                  onClick={(e) =>
+                                                    e.stopPropagation()
+                                                  }
+                                                >
+                                                  <Archive className="h-4 w-4" />
+                                                </Button>
+                                              </AlertDialogTrigger>
+                                              <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                  <AlertDialogTitle>
+                                                    Archive this pet?
+                                                  </AlertDialogTitle>
+                                                  <AlertDialogDescription>
+                                                    This will remove the pet
+                                                    from public view but keep it
+                                                    in the system for records.
+                                                  </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                  <AlertDialogCancel>
+                                                    Cancel
+                                                  </AlertDialogCancel>
+                                                  <AlertDialogAction
+                                                    className="bg-red-600 hover:bg-red-700"
+                                                    onClick={() =>
+                                                      handleArchivePet(pet._id)
+                                                    }
+                                                  >
+                                                    Archive
+                                                  </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                              </AlertDialogContent>
+                                            </AlertDialog>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3 text-sm">
+                                        <div>
+                                          <span className="text-gray-500 text-xs">
+                                            Breed:
+                                          </span>
+                                          <p className="font-medium">
+                                            {pet.breed}
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <span className="text-gray-500 text-xs">
+                                            Age:
+                                          </span>
+                                          <p className="font-medium">
+                                            {getAgeText(pet.age)}
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <span className="text-gray-500 text-xs">
+                                            Gender:
+                                          </span>
+                                          <p className="font-medium capitalize">
+                                            {pet.gender}
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <span className="text-gray-500 text-xs">
+                                            Added:
+                                          </span>
+                                          <p className="font-medium">
+                                            {new Date(
+                                              pet.createdAt || ""
+                                            ).toLocaleDateString()}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <p className="text-sm text-gray-600 mt-3 line-clamp-2">
+                                        {pet.description}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
                         )}
-                      </tbody>
-                    </table>
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* View Pet Dialog */}
+            <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
+                {/* Add DialogTitle for accessibility */}
+                <DialogTitle className="sr-only">
+                  {selectedPet ? `View Pet: ${selectedPet.name}` : "View Pet"}
+                </DialogTitle>
+                {selectedPet && (
+                  <div className="w-full flex flex-col lg:flex-row gap-8 p-6">
+                    {/* Left: Image Gallery */}
+                    <div className="flex-1 flex flex-col gap-6">
+                      <Card className="rounded-xl shadow-lg overflow-hidden border-none">
+                        <div className="relative aspect-square">
+                          <img
+                            src={
+                              selectedPet.images &&
+                              selectedPet.images.length > 0
+                                ? selectedPet.images[currentImageIndex].url
+                                : "/placeholder-pet.jpg"
+                            }
+                            alt={selectedPet.name}
+                            className="w-full h-full object-cover"
+                          />
+                          {selectedPet.images &&
+                            selectedPet.images.length > 1 && (
+                              <>
+                                <button
+                                  onClick={() =>
+                                    setCurrentImageIndex((prev) =>
+                                      prev === 0
+                                        ? selectedPet.images.length - 1
+                                        : prev - 1
+                                    )
+                                  }
+                                  className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-all"
+                                >
+                                  <ChevronLeft size={24} />
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    setCurrentImageIndex((prev) =>
+                                      prev === selectedPet.images.length - 1
+                                        ? 0
+                                        : prev + 1
+                                    )
+                                  }
+                                  className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-all"
+                                >
+                                  <ChevronRight size={24} />
+                                </button>
+                                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                                  {selectedPet.images.map((_, index) => (
+                                    <button
+                                      key={index}
+                                      onClick={() =>
+                                        setCurrentImageIndex(index)
+                                      }
+                                      className={`w-2 h-2 rounded-full ${
+                                        index === currentImageIndex
+                                          ? "bg-white"
+                                          : "bg-white/50"
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          <div className="absolute top-4 right-4">
+                            <Badge
+                              className={`${getStatusColor(
+                                selectedPet.adoptionStatus
+                              )} border text-sm`}
+                            >
+                              {selectedPet.adoptionStatus
+                                .charAt(0)
+                                .toUpperCase() +
+                                selectedPet.adoptionStatus.slice(1)}
+                            </Badge>
+                          </div>
+                        </div>
+                        {/* Image Thumbnails */}
+                        {selectedPet.images &&
+                          selectedPet.images.length > 1 && (
+                            <div className="p-4 flex space-x-2 overflow-x-auto">
+                              {selectedPet.images.map((img, index) => (
+                                <img
+                                  key={index}
+                                  src={img.url}
+                                  alt={`${selectedPet.name} ${index + 1}`}
+                                  className={`w-16 h-16 object-cover rounded-md border cursor-pointer ${
+                                    index === currentImageIndex
+                                      ? "border-orange-500"
+                                      : "border-transparent"
+                                  }`}
+                                  onClick={() => setCurrentImageIndex(index)}
+                                />
+                              ))}
+                            </div>
+                          )}
+                      </Card>
+                      {/* Videos */}
+                      {selectedPet.videos && selectedPet.videos.length > 0 && (
+                        <div className="space-y-4 mt-6">
+                          {selectedPet.videos.map((video, idx) => (
+                            <Card
+                              key={idx}
+                              className="border-none shadow-lg rounded-xl overflow-hidden"
+                            >
+                              <CardContent className="p-0">
+                                <div className="relative aspect-video rounded-lg overflow-hidden group">
+                                  <video
+                                    src={video.url}
+                                    controls
+                                    className="w-full h-full object-cover"
+                                    poster={
+                                      selectedPet.images &&
+                                      selectedPet.images.length > 0
+                                        ? selectedPet.images[0].url
+                                        : undefined
+                                    }
+                                  />
+                                  <button
+                                    className="absolute top-2 right-2 bg-black/40 hover:bg-black/70 text-white p-2 rounded-full transition-all group-hover:scale-110"
+                                    onClick={() => {
+                                      setVideoModalSrc(video.url);
+                                      setVideoModalOpen(true);
+                                    }}
+                                    title="Enlarge video"
+                                  >
+                                    <Maximize2 size={20} />
+                                  </button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {/* Right: Pet Info */}
+                    <div className="flex-1 flex flex-col gap-6">
+                      <Card className="rounded-xl shadow-lg overflow-hidden border-none">
+                        <CardContent className="p-6">
+                          <div className="flex flex-col gap-4">
+                            <div className="flex justify-between items-start">
+                              <h1 className="text-3xl font-bold text-gray-800">
+                                {selectedPet.name}
+                              </h1>
+                              <span
+                                className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                  selectedPet.adoptionStatus === "available"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : "bg-red-100 text-red-800"
+                                }`}
+                              >
+                                {selectedPet.adoptionStatus === "available"
+                                  ? "Available for Adoption"
+                                  : "Not Available"}
+                              </span>
+                            </div>
+                            <div className="flex items-center text-gray-600">
+                              <span className="text-sm">
+                                {selectedPet.owner || "Animal Shelter, City"}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-2 my-2">
+                              <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                                {selectedPet.type}
+                              </span>
+                              <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">
+                                {selectedPet.breed}
+                              </span>
+                              <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                                {selectedPet.gender}
+                              </span>
+                              <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-medium">
+                                {getAgeText(selectedPet.age)}
+                              </span>
+                            </div>
+                            <div className="bg-gray-50 p-4 rounded-lg mt-4">
+                              <h2 className="text-xl font-semibold mb-2 text-gray-800">
+                                About {selectedPet.name}
+                              </h2>
+                              <p className="text-gray-700 leading-relaxed">
+                                {selectedPet.description}
+                              </p>
+                            </div>
+                            <div className="flex items-center text-gray-500 text-sm">
+                              <span>
+                                Added:{" "}
+                                {new Date(
+                                  selectedPet.createdAt || ""
+                                ).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <Button
+                              variant="outline"
+                              className="mt-4"
+                              onClick={() => {
+                                setViewDialogOpen(false);
+                                handleEdit(selectedPet);
+                              }}
+                            >
+                              <Edit className="h-4 w-4 mr-2" /> Edit
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
                   </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
+              </DialogContent>
+            </Dialog>
 
-          {/* Modal for Add/Edit */}
-          {modalOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-              <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
-                <h3 className="font-bold text-lg mb-4 text-[#0a1629]">
-                  {editPet ? "Edit Pet" : "Add Pet"}
-                </h3>
-                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                  <input
-                    className="border rounded px-3 py-2"
-                    placeholder="Name"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    required
-                  />
-                  <input
-                    className="border rounded px-3 py-2"
-                    placeholder="Type"
-                    value={form.type}
-                    onChange={(e) => setForm({ ...form, type: e.target.value })}
-                    required
-                  />
-                  <input
-                    className="border rounded px-3 py-2"
-                    placeholder="Breed"
-                    value={form.breed}
-                    onChange={(e) =>
-                      setForm({ ...form, breed: e.target.value })
-                    }
-                    required
-                  />
-                  <input
-                    className="border rounded px-3 py-2"
-                    placeholder="Age"
-                    type="number"
-                    value={form.age}
-                    onChange={(e) =>
-                      setForm({ ...form, age: Number(e.target.value) })
-                    }
-                    required
-                  />
-                  <input
-                    className="border rounded px-3 py-2"
-                    placeholder="Gender"
-                    value={form.gender}
-                    onChange={(e) =>
-                      setForm({ ...form, gender: e.target.value })
-                    }
-                    required
-                  />
-                  <input
-                    className="border rounded px-3 py-2"
-                    placeholder="Description"
-                    value={form.description}
-                    onChange={(e) =>
-                      setForm({ ...form, description: e.target.value })
-                    }
-                    required
-                  />
-                  <input
-                    className="border rounded px-3 py-2"
-                    placeholder="Image URL"
-                    value={form.image}
-                    onChange={(e) =>
-                      setForm({ ...form, image: e.target.value })
-                    }
-                  />
-                  <select
-                    className="border rounded px-3 py-2"
-                    value={form.adoptionStatus}
-                    onChange={(e) =>
-                      setForm({ ...form, adoptionStatus: e.target.value })
-                    }
-                    required
-                  >
-                    <option value="">Select Status</option>
-                    <option value="available">Available</option>
-                    <option value="pending">Pending</option>
-                    <option value="adopted">Adopted</option>
-                  </select>
-                  <div className="flex gap-2 justify-end">
+            {/* Video Enlarge Modal */}
+            <Dialog open={videoModalOpen} onOpenChange={setVideoModalOpen}>
+              <DialogContent className="max-w-3xl">
+                <DialogTitle className="sr-only">Enlarged Video</DialogTitle>
+                {videoModalSrc && (
+                  <div className="w-full">
+                    <video
+                      src={videoModalSrc}
+                      controls
+                      autoPlay
+                      className="w-full h-[400px] object-contain rounded-xl"
+                    />
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
+
+            {/* Modal for Add/Edit */}
+            {modalOpen && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-lg text-gray-900">
+                      {editPet ? "Edit Pet" : "Add Pet"}
+                    </h3>
                     <Button
-                      type="button"
-                      variant="outline"
+                      variant="ghost"
+                      size="icon"
                       onClick={() => setModalOpen(false)}
+                      className="h-8 w-8"
                     >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      className="bg-orange-500 hover:bg-orange-600 text-white"
-                    >
-                      {editPet ? "Save" : "Add"}
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
-                </form>
+                  <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+                    {/* Images Section */}
+                    <div>
+                      <Label
+                        htmlFor="images"
+                        className="mb-2 block text-sm font-medium text-gray-700"
+                      >
+                        Images
+                      </Label>
+                      <div className="flex gap-2 flex-wrap mb-2">
+                        {form.imagePreviews.map((preview, index) => (
+                          <div key={index} className="relative">
+                            <img
+                              src={preview}
+                              alt={`Preview ${index + 1}`}
+                              className="w-16 h-16 object-cover rounded-md border"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeImage(index)}
+                              className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <input
+                        type="file"
+                        id="images"
+                        ref={imageInputRef}
+                        onChange={handleImageChange}
+                        accept="image/*"
+                        className="hidden"
+                        multiple
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => imageInputRef.current?.click()}
+                        className="w-full"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Images
+                      </Button>
+                    </div>
+                    {/* Videos Section */}
+                    <div>
+                      <Label
+                        htmlFor="videos"
+                        className="mb-2 block text-sm font-medium text-gray-700"
+                      >
+                        Videos
+                      </Label>
+                      <div className="flex gap-2 flex-wrap mb-2">
+                        {form.videoPreviews.map((preview, index) => (
+                          <div key={index} className="relative">
+                            <video
+                              src={preview}
+                              className="w-16 h-16 object-cover rounded-md border"
+                              controls
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeVideo(index)}
+                              className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <input
+                        type="file"
+                        id="videos"
+                        ref={videoInputRef}
+                        onChange={handleVideoChange}
+                        accept="video/*"
+                        className="hidden"
+                        multiple
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => videoInputRef.current?.click()}
+                        className="w-full"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Videos
+                      </Button>
+                    </div>
+                    {/* Pet Info Fields */}
+                    <div className="flex flex-col gap-3">
+                      <div>
+                        <Label htmlFor="name">Name</Label>
+                        <Input
+                          id="name"
+                          placeholder="Pet name"
+                          value={form.name}
+                          onChange={(e) =>
+                            setForm({ ...form, name: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="type">Type</Label>
+                        <Select
+                          value={form.type}
+                          onValueChange={(value) =>
+                            setForm({ ...form, type: value })
+                          }
+                          required
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="dog">Dog</SelectItem>
+                            <SelectItem value="cat">Cat</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="breed">Breed</Label>
+                        <Input
+                          id="breed"
+                          placeholder="Breed"
+                          value={form.breed}
+                          onChange={(e) =>
+                            setForm({ ...form, breed: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="age">Age Category</Label>
+                        <Select
+                          value={form.age}
+                          onValueChange={(value) =>
+                            setForm({ ...form, age: value })
+                          }
+                          required
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select age category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="kitten">
+                              Kitten (&lt; 1 year)
+                            </SelectItem>
+                            <SelectItem value="young adult">
+                              Young Adult (1-3 years)
+                            </SelectItem>
+                            <SelectItem value="mature adult">
+                              Mature Adult (4-7 years)
+                            </SelectItem>
+                            <SelectItem value="adult">
+                              Adult (8+ years)
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="gender">Gender</Label>
+                        <Select
+                          value={form.gender}
+                          onValueChange={(value) =>
+                            setForm({ ...form, gender: value })
+                          }
+                          required
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select gender" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="male">Male</SelectItem>
+                            <SelectItem value="female">Female</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="description">Description</Label>
+                        <Input
+                          id="description"
+                          placeholder="Description"
+                          value={form.description}
+                          onChange={(e) =>
+                            setForm({ ...form, description: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="status">Adoption Status</Label>
+                        <Select
+                          value={form.adoptionStatus}
+                          onValueChange={(value) =>
+                            setForm({ ...form, adoptionStatus: value })
+                          }
+                          required
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="available">Available</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="adopted">Adopted</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    {/* Actions */}
+                    <div className="flex gap-2 justify-end mt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setModalOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        className="bg-orange-500 hover:bg-orange-600 text-white"
+                        disabled={isProcessing}
+                      >
+                        {isProcessing
+                          ? "Saving..."
+                          : editPet
+                          ? "Save Changes"
+                          : "Add Pet"}
+                      </Button>
+                    </div>
+                  </form>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+          {/* Add closing div for the opening div at line 401 */}
         </div>
-      </div>
-    </AdminAuthWrapper>
+      </AdminAuthWrapper>
+      {/* Toast container (if not already in _app.tsx) */}
+      {/* <ToastContainer /> */}
+    </>
   );
 }

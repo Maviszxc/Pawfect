@@ -150,7 +150,7 @@ const AdminSidebar = () => {
               {user?.fullname ? user.fullname[0] : "U"}
             </AvatarFallback>
           </Avatar>
-          <div className="text-base font-semibold text-[#0a1629]">
+          <div className="text-base font-semibold text-center text-[#0a1629]">
             {user?.fullname || "User"}
           </div>
           <div className="text-xs text-gray-500">
@@ -200,7 +200,7 @@ const AdminSidebar = () => {
                       </AvatarFallback>
                     </Avatar>
                     <div className="ml-3">
-                      <div className="text-sm font-medium text-black">
+                      <div className="text-sm font-medium  text-black">
                         {user?.fullname || "User"}
                       </div>
                       <div className="text-xs text-gray-500 truncate max-w-[180px]">

@@ -112,25 +112,23 @@ export default function AuthNavigation() {
                 transition={{ duration: 0.1 }}
               >
                 <button
-                  className="relative px-1 py-2 text-gray-800 hover:text-gray-600 transition-colors duration-200 group flex items-center gap-1"
+                  className="relative px-1 py-2 text-gray-800 hover:text-orange-600 transition-colors duration-200 group flex items-center gap-1"
                   onClick={() => handleNavItemClick(item.href)}
                   aria-current={isActive ? "page" : undefined}
                 >
                   {item.label === "Live" && (
                     <Video className="w-4 h-4 text-red-500" />
                   )}
-                  <span
-                    className={`${
-                      isActive ? "font-medium text-orange-500" : ""
-                    }`}
-                  >
+                  <span className={isActive ? "font-medium text-orange-500" : ""}>
                     {item.label}
                   </span>
-                  <motion.span
-                    className="absolute bottom-0 left-0 w-full h-0.5 bg-orange-500"
-                    initial={false}
-                    animate={{ scaleX: isActive ? 1 : 0 }}
-                    transition={{ duration: 0.3 }}
+                  <span
+                    className={`
+                      absolute bottom-0 left-0 w-full h-0.5 bg-orange-500
+                      transition-transform duration-300 origin-left
+                      ${isActive ? "scale-x-100" : "scale-x-0"}
+                      group-hover:scale-x-100
+                    `}
                   />
                 </button>
               </motion.li>
@@ -329,7 +327,7 @@ export default function AuthNavigation() {
             <li className="mt-3 pt-3 border-t border-gray-100">
               <Link
                 href="/faqs"
-                className="block sm:hidden py-2 px-3 rounded-lg text-gray-600 hover:bg-gray-50 flex items-center gap-2"
+                className=" sm:hidden py-2 px-3 rounded-lg text-gray-600 hover:bg-gray-50 flex items-center gap-2"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <svg
@@ -355,3 +353,4 @@ export default function AuthNavigation() {
     </nav>
   );
 }
+  

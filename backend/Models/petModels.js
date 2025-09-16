@@ -10,34 +10,36 @@ const petSchema = new Schema(
     type: {
       type: String,
       required: true,
-      enum: [
-        "dog",
-        "cat",
-        "Dog",
-        "Cat",
-      ],
+      enum: ["dog", "cat", "Dog", "Cat"],
     },
     breed: {
       type: String,
       required: true,
     },
     age: {
-      type: Number,
+      type: String,
       required: true,
+      enum: ["kitten", "young adult", "mature adult", "adult"],
     },
     gender: {
       type: String,
       required: true,
       enum: ["male", "female", "Male", "Female"],
     },
-    images: {
-      type: [String],
-      required: true,
-    },
-    video: {
-      type: String,
-      default: "",
-    },
+    images: [
+      {
+        url: String,
+        public_id: String,
+        format: String,
+      },
+    ],
+    videos: [
+      {
+        url: String,
+        public_id: String,
+        format: String,
+      },
+    ],
     description: {
       type: String,
       required: true,

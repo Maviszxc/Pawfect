@@ -52,46 +52,37 @@ export default function LivePage() {
     }
   }, [adminStream]);
 
+  // Update the useEffect for connection
   useEffect(() => {
-    const connectWithRetry = async () => {
-      let connectAttempts = 0;
-      const maxAttempts = 5;
+    let isMounted = true;
+    let retryTimeout: NodeJS.Timeout;
 
-      const connect = async () => {
-        if (connectAttempts >= maxAttempts) {
-          console.log("Maximum connection attempts reached");
-          setConnectionStatus("Connection failed after multiple attempts");
-          return;
+    const connectWithRetry = async (attempt = 1) => {
+      if (!isMounted) return;
+
+      try {
+        setConnectionStatus(`Connecting (${attempt})`);
+        await connectToRoom(roomId, false);
+        console.log("Connected successfully");
+      } catch (error) {
+        if (!isMounted) return;
+
+        console.error(`Connection attempt ${attempt} failed:`, error);
+
+        if (attempt < 5) {
+          const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+          retryTimeout = setTimeout(() => connectWithRetry(attempt + 1), delay);
+        } else {
+          setConnectionStatus("Connection failed");
         }
-
-        try {
-          connectAttempts++;
-          setConnectionStatus(`Connecting (${connectAttempts}/${maxAttempts})`);
-          await connectToRoom(roomId, false);
-          console.log("Connected to room as viewer");
-          connectAttempts = 0;
-        } catch (error) {
-          console.error(
-            `Failed to connect (attempt ${connectAttempts}):`,
-            error
-          );
-
-          if (connectAttempts < maxAttempts) {
-            const delay = Math.min(1000 * Math.pow(2, connectAttempts), 10000);
-            console.log(`Retrying in ${delay / 1000}s...`);
-            setTimeout(connect, delay);
-          } else {
-            setConnectionStatus("Connection failed");
-          }
-        }
-      };
-
-      connect();
+      }
     };
 
     connectWithRetry();
 
     return () => {
+      isMounted = false;
+      if (retryTimeout) clearTimeout(retryTimeout);
       disconnectFromRoom();
     };
   }, [roomId, connectToRoom, disconnectFromRoom]);

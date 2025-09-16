@@ -247,7 +247,10 @@ export default function AdminUsersPage() {
                     <Loader />
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
+                  <div
+                    className="overflow-x-auto"
+                    style={{ maxHeight: "60vh", overflowY: "auto" }}
+                  >
                     <table className="w-full mt-4 text-left">
                       <thead>
                         <tr className="text-gray-400 text-sm">
@@ -278,7 +281,12 @@ export default function AdminUsersPage() {
                                 <div className="flex items-center gap-3">
                                   <Avatar>
                                     <AvatarImage
-                                      src={user.profilePicture || ""}
+                                      src={
+                                        user.profilePicture &&
+                                        user.profilePicture.trim() !== ""
+                                          ? user.profilePicture
+                                          : "/placeholder-user.png"
+                                      }
                                     />
                                     <AvatarFallback>
                                       {user.fullname.charAt(0)}

@@ -18,6 +18,7 @@ interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
   options?: string[];
+  imageUrl?: string; // Added to handle pet images separately
 }
 
 interface QuizOption {
@@ -30,7 +31,7 @@ interface PetMatch {
   name: string;
   type: string;
   breed: string;
-  age: number;
+  age: string;
   gender: string;
   image?: string;
   images?: string[];
@@ -72,7 +73,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
       id: "welcome",
       role: "assistant",
       content:
-        "Hi there! I'm your pet matching assistant. I can help you find the perfect pet companion based on your preferences. Would you like to start the matching quiz?",
+        "🐾 **Welcome to PetMatch!** \n\nHi there! I'm your pet matching assistant. I can help you find the perfect pet companion based on your preferences. \n\nWould you like to start the matching quiz?",
       options: ["Yes, let's start", "Tell me more first"],
     },
   ]);
@@ -92,14 +93,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
   // Quiz questions with multiple-choice options
   const quizQuestions = [
     {
-      question: "What type of pet are you looking for?",
+      question: "🐕🐈 What type of pet are you looking for?",
       options: [
         { text: "Dog", value: "dog" },
         { text: "Cat", value: "cat" },
       ],
     },
     {
-      question: "What's your activity level?",
+      question: "🏃‍♂️ What's your activity level?",
       options: [
         { text: "Very active", value: "high" },
         { text: "Moderately active", value: "medium" },
@@ -107,7 +108,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
       ],
     },
     {
-      question: "How much time can you spend with your pet daily?",
+      question: "⏰ How much time can you spend with your pet daily?",
       options: [
         { text: "A lot (4+ hours)", value: "high" },
         { text: "Moderate (2-4 hours)", value: "medium" },
@@ -115,7 +116,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
       ],
     },
     {
-      question: "Do you prefer a pet that is:",
+      question: "😊 Do you prefer a pet that is:",
       options: [
         { text: "Playful and energetic", value: "energetic" },
         { text: "Calm and relaxed", value: "calm" },
@@ -123,7 +124,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
       ],
     },
     {
-      question: "Do you have other pets at home?",
+      question: "🐶🐱 Do you have other pets at home?",
       options: [
         { text: "Yes, dogs", value: "dogs" },
         { text: "Yes, cats", value: "cats" },
@@ -237,7 +238,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
           id: (Date.now() + 1).toString(),
           role: "assistant",
           content:
-            "Sorry, I encountered an error. Please try again or ask a different question.",
+            "❌ **Sorry, I encountered an error**\n\nPlease try again or ask a different question.",
         },
       ]);
     } finally {
@@ -288,7 +289,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
           id: (Date.now() + 1).toString(),
           role: "assistant",
           content:
-            "Sorry, I encountered an error answering your question. Please try again.",
+            "❌ **Sorry, I encountered an error**\n\nPlease try again with your question.",
         },
       ]);
     } finally {
@@ -299,42 +300,57 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
     setShowFaqButtons(false);
   };
 
-  // Process message with Gemini AI
+  // Process message with Gemini AI - Updated to handle more natural responses
   const processWithGemini = async (message: string): Promise<string> => {
     try {
-      // In a real application, you should call your own backend API
-      // which then calls the Gemini API with your secure API key
-      // This prevents exposing your API key in the frontend
-
-      // For demonstration purposes, we'll simulate a response
-      // Replace this with an actual API call to your backend
+      // In a real application, call your backend API which then calls Gemini API
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Simulate different responses based on input
-      if (message.toLowerCase().includes("adoption process")) {
-        return "Our adoption process involves: 1) Finding a pet you're interested in, 2) Filling out an application, 3) Meeting the pet, and 4) Finalizing the adoption with a small fee. The entire process usually takes 3-5 days.";
-      } else if (
-        message.toLowerCase().includes("fee") ||
-        message.toLowerCase().includes("cost")
+      const lowerMessage = message.toLowerCase();
+
+      if (
+        lowerMessage.includes("adoption process") ||
+        lowerMessage.includes("how to adopt")
       ) {
-        return "Our adoption fees help cover the cost of vaccinations, spay/neuter procedures, and general care. Fees typically range from $50 to $300 depending on the pet's age and breed.";
-      } else if (message.toLowerCase().includes("insurance")) {
-        return "We partner with several pet insurance providers and can help you get set up with coverage. Many new owners find this helpful for unexpected veterinary costs.";
+        return "**Our Adoption Process:**\n\n1. **Browse Available Pets** - View our pets online or visit our shelter\n2. **Submit Application** - Fill out our adoption form\n3. **Meet & Greet** - Schedule time with your potential pet\n4. **Home Check** - Optional visit to ensure a good fit\n5. **Finalize Adoption** - Complete paperwork and pay fees\n6. **Take Home** - Welcome your new family member!\n\nThe process typically takes 3-7 days. We're here to help every step of the way! 🐾";
       } else if (
-        message.toLowerCase().includes("prepare") ||
-        message.toLowerCase().includes("home")
+        lowerMessage.includes("fee") ||
+        lowerMessage.includes("cost") ||
+        lowerMessage.includes("price")
       ) {
-        return "To prepare your home for a new pet, you'll need: food and water bowls, a comfortable bed, appropriate toys, grooming supplies, and a safe space for them to adjust. We can provide a complete checklist!";
-      } else if (message.toLowerCase().includes("vaccination")) {
-        return "All our pets are up-to-date on core vaccinations appropriate for their age and species. This typically includes rabies, distemper, and other essential vaccines. We provide complete medical records at adoption.";
+        return "**Adoption Fees:**\n\n• **Cats/Kittens**: $75 - $150\n• **Dogs/Puppies**: $150 - $300\n• **Small Animals**: $25 - $75\n\n💰 *Fees include:*\n- Spay/neuter surgery\n- Initial vaccinations\n- Microchipping\n- Health check-up\n- Deworming treatment\n\nWe offer discounts for seniors and multiple pet adoptions!";
+      } else if (lowerMessage.includes("insurance")) {
+        return "**Pet Insurance Options:**\n\nWe partner with several insurance providers to offer:\n\n• **Basic Coverage**: $20-30/month - Accident protection\n• **Comprehensive**: $40-60/month - Illness + accidents\n• **Wellness Plans**: $15-25/month - Preventive care\n\n🏥 *Most plans cover:*\n- Emergency visits\n- Surgeries\n- Medications\n- Specialist care\n\nLet me know if you'd like specific provider recommendations!";
       } else if (
-        message.toLowerCase().includes("hello") ||
-        message.toLowerCase().includes("hi")
+        lowerMessage.includes("prepare") ||
+        lowerMessage.includes("home") ||
+        lowerMessage.includes("supplies")
       ) {
-        return "Hello! I'm here to help you find your perfect pet companion. How can I assist you today?";
+        return "**Preparing Your Home:**\n\n**Essentials Checklist:**\n\n🐕 **For Dogs:**\n- Food and water bowls\n- Quality dog food\n- Collar with ID tags\n- Leash and harness\n- Comfortable bed\n- Chew toys\n- Grooming supplies\n- Crate (if crate training)\n\n🐈 **For Cats:**\n- Litter box and litter\n- Scratching post\n- Food and water bowls\n- Quality cat food\n- Cozy bed\n- Interactive toys\n- Carrier\n\n**Pet-proofing Tips:**\n- Secure electrical cords\n- Remove toxic plants\n- Store chemicals safely\n- Create a safe space\n- Baby gates if needed";
+      } else if (
+        lowerMessage.includes("vaccination") ||
+        lowerMessage.includes("vaccine") ||
+        lowerMessage.includes("shots")
+      ) {
+        return "**Vaccination Information:**\n\nAll our pets receive age-appropriate vaccinations:\n\n🐶 **Dogs:**\n- Rabies\n- DHPP (Distemper, Hepatitis, Parainfluenza, Parvovirus)\n- Bordetella (Kennel Cough)\n- Leptospirosis\n\n🐱 **Cats:**\n- Rabies\n- FVRCP (Feline Viral Rhinotracheitis, Calicivirus, Panleukopenia)\n- Feline Leukemia (FeLV)\n\n📋 *We provide:*\n- Complete medical records\n- Vaccination certificates\n- Spay/neuter documentation\n- Microchip information\n\nAll pets are vet-checked before adoption!";
+      } else if (
+        lowerMessage.includes("hello") ||
+        lowerMessage.includes("hi") ||
+        lowerMessage.includes("hey")
+      ) {
+        return "Hello! 👋 I'm your Pet Matching Assistant! \n\nI can help you:\n• Find your perfect pet companion 🐕🐈\n• Answer adoption questions ❓\n• Guide you through our process 📋\n• Provide pet care information 📚\n\nHow can I help you today?";
+      } else if (lowerMessage.includes("thank")) {
+        return "You're very welcome! 😊 I'm happy to help. If you have any other questions about pet adoption, care, or our available pets, just let me know! 🐾";
+      } else if (
+        lowerMessage.includes("quiz") ||
+        lowerMessage.includes("match") ||
+        lowerMessage.includes("start over")
+      ) {
+        handleStartOver();
+        return "🔄 **Starting Over**\n\nLet's begin the matching quiz to find your perfect pet companion!";
       }
 
-      return "I'm a pet matching assistant designed to help you find your perfect companion. I can answer questions about pet adoption, help you through our matching quiz, or tell you more about our available pets. How can I help you?";
+      return "I'm here to help you find your perfect pet companion! 🐕🐈\n\nI can:\n• Help you take our matching quiz to find compatible pets\n• Answer questions about adoption processes and fees\n• Provide information on pet care and preparation\n• Tell you about our available pets\n\nWhat would you like to know? You can also type 'quiz' to start our matching process!";
     } catch (error) {
       console.error("Error calling Gemini API:", error);
       throw error;
@@ -364,7 +380,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content:
-          "I'll ask you a series of questions about your preferences and lifestyle. Based on your answers, I'll match you with pets from our database that would be a good fit for you. Ready to start?",
+          "📋 **How It Works:**\n\nI'll ask you 5 simple questions about your:\n• Preferred pet type 🐕🐈\n• Activity level 🏃‍♂️\n• Available time ⏰\n• Temperament preference 😊\n• Current pets 🐶🐱\n\nBased on your answers, I'll match you with pets from our database that would be a perfect fit for your lifestyle!\n\nReady to find your new best friend?",
         options: ["Yes, let's start", "No thanks"],
       };
       setMessages((prev) => [...prev, infoMessage]);
@@ -377,7 +393,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content:
-          "No problem! Feel free to chat with me anytime you're ready to find your perfect pet companion.",
+          "No problem! 😊 Feel free to chat with me anytime you're ready to find your perfect pet companion. I'm here to help with any questions! 🐾",
       };
       setMessages((prev) => [...prev, goodbyeMessage]);
       return;
@@ -451,30 +467,30 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
           id: (Date.now() + 1).toString(),
           role: "assistant",
           content:
-            "Thanks for your answers! I'm finding the perfect pet match for you...",
+            "✨ **Searching our database...** \n\nI'm analyzing your preferences to find the perfect furry friend for you! This might take a moment.",
         },
       ]);
 
       // Build query parameters from quiz answers
       const queryParams = new URLSearchParams();
 
-      const petType = quizAnswers["What type of pet are you looking for?"];
+      const petType = quizAnswers["🐕🐈 What type of pet are you looking for?"];
       if (petType) queryParams.append("type", petType);
 
-      const activityLevel = quizAnswers["What's your activity level?"];
+      const activityLevel = quizAnswers["🏃‍♂️ What's your activity level?"];
       if (activityLevel) queryParams.append("activityLevel", activityLevel);
 
       const timeAvailable =
-        quizAnswers["How much time can you spend with your pet daily?"];
+        quizAnswers["⏰ How much time can you spend with your pet daily?"];
       if (timeAvailable) queryParams.append("timeAvailable", timeAvailable);
 
-      const temperament = quizAnswers["Do you prefer a pet that is:"];
+      const temperament = quizAnswers["😊 Do you prefer a pet that is:"];
       if (temperament) queryParams.append("temperament", temperament);
 
-      const otherPets = quizAnswers["Do you have other pets at home?"];
+      const otherPets = quizAnswers["🐶🐱 Do you have other pets at home?"];
       if (otherPets) queryParams.append("otherPets", otherPets);
 
-      // Call the new matching endpoint
+      // Call the matching endpoint
       const response = await axiosInstance.get(
         `${BASE_URL}/api/pets/match?${queryParams.toString()}`
       );
@@ -484,19 +500,44 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
         setMatchedPets(pets);
         setMatchedPet(pets[0]);
 
-        // Show the match result
+        // Get the first valid image URL
+        const getPetImage = (pet: PetMatch) => {
+          if (pet.images && pet.images.length > 0 && pet.images[0]) {
+            // Check if it's a base64 string or URL
+            if (pet.images[0].startsWith("data:image")) {
+              return pet.images[0];
+            }
+            return `${BASE_URL}${pet.images[0]}`;
+          }
+          if (pet.image) {
+            if (pet.image.startsWith("data:image")) {
+              return pet.image;
+            }
+            return `${BASE_URL}${pet.image}`;
+          }
+          return null;
+        };
+
+        const petImage = getPetImage(pets[0]);
+
+        // Create a message with the pet info
+        const matchMessage = `🎉 **Perfect Match Found!** \n\nI found ${
+          pets.length
+        } amazing pet${
+          pets.length > 1 ? "s" : ""
+        } that match your preferences!\n\n**Meet ${pets[0].name}**\n⭐ ${
+          pets[0].age
+        } ${pets[0].gender.toLowerCase()} ${pets[0].breed}\n\n${
+          pets[0].description
+        }`;
+
         setMessages((prev) => [
           ...prev,
           {
             id: (Date.now() + 2).toString(),
             role: "assistant",
-            content: `I found ${pets.length} perfect match${
-              pets.length > 1 ? "es" : ""
-            } for you! Meet ${pets[0].name}, a ${
-              pets[0].age
-            } year old ${pets[0].gender.toLowerCase()} ${pets[0].breed}.\n\n${
-              pets[0].description
-            }\n\n![${pets[0].name}](${pets[0].images && pets[0].images.length > 0 ? pets[0].images[0] : ''})`,
+            content: matchMessage,
+            imageUrl: petImage || undefined,
           },
         ]);
 
@@ -506,7 +547,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
           {
             id: (Date.now() + 3).toString(),
             role: "assistant",
-            content: "What would you like to do next?",
+            content: "**What would you like to do next?**",
             options: [
               "View pet details",
               "See more matches",
@@ -523,8 +564,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
             id: (Date.now() + 2).toString(),
             role: "assistant",
             content:
-              "I couldn't find any pets that match your preferences right now. Would you like to try different criteria or check back later?",
-            options: ["Start over", "End chat"],
+              "🐾 **No Perfect Matches Found**\n\nI couldn't find any pets that exactly match your preferences right now. \n\nWould you like to:\n• Try different criteria\n• Browse all available pets\n• Check back later when we have new arrivals",
+            options: ["Start over", "Browse all pets", "End chat"],
           },
         ]);
       }
@@ -536,7 +577,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
           id: (Date.now() + 1).toString(),
           role: "assistant",
           content:
-            "Sorry, I encountered an error while searching for pets. Please try again.",
+            "❌ **Oops! Something went wrong**\n\nI encountered an error while searching for pets. Please try again in a moment.",
           options: ["Start over", "End chat"],
         },
       ]);
@@ -555,31 +596,56 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
   // Handle "See more matches" option
   const handleSeeMoreMatches = () => {
     if (matchedPets.length > 1) {
-      // Show next pet in the list
       const currentIndex = matchedPets.findIndex(
         (pet) => pet._id === matchedPet?._id
       );
       const nextIndex = (currentIndex + 1) % matchedPets.length;
       const nextPet = matchedPets[nextIndex];
 
+      // Get the first valid image URL
+      const getPetImage = (pet: PetMatch) => {
+        if (pet.images && pet.images.length > 0 && pet.images[0]) {
+          // Check if it's a base64 string or URL
+          if (pet.images[0].startsWith("data:image")) {
+            return pet.images[0];
+          }
+          return `${BASE_URL}${pet.images[0]}`;
+        }
+        if (pet.image) {
+          if (pet.image.startsWith("data:image")) {
+            return pet.image;
+          }
+          return `${BASE_URL}${pet.image}`;
+        }
+        return null;
+      };
+
+      const nextImage = getPetImage(nextPet);
+
       setMatchedPet(nextPet);
 
-      // Update message with next pet
+      const matchMessage = `🐾 **Another Great Match!** \n\n**Meet ${
+        nextPet.name
+      }**\n⭐ ${nextPet.age} ${nextPet.gender.toLowerCase()} ${
+        nextPet.breed
+      }\n\n${nextPet.description}`;
+
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: "assistant",
-          content: `Here's another great match: ${nextPet.name}, a ${
-            nextPet.age
-          } year old ${nextPet.gender.toLowerCase()} ${nextPet.breed}.\n\n${
-            nextPet.description
-          }`,
+          content: matchMessage,
+          imageUrl: nextImage || undefined,
         },
+      ]);
+
+      setMessages((prev) => [
+        ...prev,
         {
           id: (Date.now() + 2).toString(),
           role: "assistant",
-          content: "What would you like to do next?",
+          content: "**What would you like to do next?**",
           options: [
             "View pet details",
             "See more matches",
@@ -591,6 +657,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
     }
   };
 
+  // Handle "Browse all pets" option
+  const handleBrowseAllPets = () => {
+    router.push("/pets");
+  };
+
   // Handle "Start over" option
   const handleStartOver = () => {
     setMessages([
@@ -598,7 +669,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
         id: "welcome",
         role: "assistant",
         content:
-          "Hi there! I'm your pet matching assistant. I can help you find the perfect pet companion based on your preferences. Would you like to start the matching quiz?",
+          "🐾 **Welcome to PetMatch!** \n\nHi there! I'm your pet matching assistant. I can help you find the perfect pet companion based on your preferences. \n\nWould you like to start the matching quiz?",
         options: ["Yes, let's start", "Tell me more first"],
       },
     ]);
@@ -616,6 +687,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
       handleSeeMoreMatches();
     } else if (option === "Start over") {
       handleStartOver();
+    } else if (option === "Browse all pets") {
+      handleBrowseAllPets();
     } else if (option === "End chat") {
       onClose();
     } else {
@@ -625,18 +698,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
 
   // Add CSS for markdown content
   useEffect(() => {
-    // Add a style tag for markdown images
-    const style = document.createElement('style');
+    // Add a style tag for markdown content
+    const style = document.createElement("style");
     style.innerHTML = `
-      .markdown-content img {
-        max-width: 100%;
-        height: auto;
-        border-radius: 8px;
-        margin: 8px 0;
+      .markdown-content {
+        line-height: 1.6;
+      }
+      .markdown-content strong {
+        color: #fbbf24;
+      }
+      .markdown-content ul, .markdown-content ol {
+        margin-left: 1.5rem;
+        margin-bottom: 1rem;
+      }
+      .markdown-content li {
+        margin-bottom: 0.5rem;
       }
     `;
     document.head.appendChild(style);
-    
+
     return () => {
       document.head.removeChild(style);
     };
@@ -770,6 +850,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
                     <div className="whitespace-pre-line markdown-content">
                       <ReactMarkdown>{message.content}</ReactMarkdown>
                     </div>
+                    {/* Pet image inside the chat bubble */}
+                    {message.imageUrl && (
+                      <div className="w-48 h-48 rounded-lg overflow-hidden border-2 border-gray-700 shadow-lg mt-3">
+                        {message.imageUrl.startsWith("data:image") ? (
+                          <img
+                            src={message.imageUrl}
+                            alt="Pet image"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Image
+                            src={message.imageUrl}
+                            alt="Pet image"
+                            width={192}
+                            height={192}
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -784,7 +884,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
                       <Button
                         key={option}
                         variant="outline"
-                        className="mr-2 mb-2 border-gray-700 text-white bg-[#303846] hover:bg-[#3E4C5E] focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        className="mr-2 mb-2 border-gray-700 text-white bg-[#303846] hover:bg-[#3E4C5E] focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 hover:scale-105"
                         onClick={() => handleOptionClick(option)}
                       >
                         {option}
@@ -822,7 +922,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
                 <Badge
                   key={index}
                   variant="outline"
-                  className="cursor-pointer hover:bg-[#3A3B3C] border-gray-700 text-gray-300"
+                  className="cursor-pointer hover:bg-[#3A3B3C] border-gray-700 text-gray-300 hover:text-white transition-colors duration-200"
                   onClick={() => handleFaqClick(question)}
                 >
                   {question}
@@ -832,55 +932,70 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
           </div>
         )}
 
-        {/* Chat input with user profile */}
-        <div
-          className="p-4 border-b rounded-b-xl border-gray-800 relative z-[10001] bg-[#242526]"
-          style={{ pointerEvents: "auto" }}
-        >
-          {/* Input field and send button */}
-          <div className="flex items-center">
-            <div className="flex-1 relative">
-              <Input
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Ask me anything about pets..."
-                className="w-full bg-[#3A3B3C] border-none text-white placeholder-gray-400 rounded-full pr-12 focus:ring-1 focus:ring-blue-500"
-                onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                disabled={isLoading}
-                aria-label="Message input"
-              />
-              <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
-                <Button
-                  onClick={handleSendMessage}
-                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-full w-8 h-8 flex items-center justify-center p-0 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-transform hover:scale-105"
-                  disabled={isLoading || inputValue.trim() === ""}
-                  aria-label="Send message"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom toolbar */}
-          <div className="flex items-center justify-between mt-3">
-            <div className="flex items-center space-x-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 px-2 text-gray-400 hover:text-blue-500"
-                onClick={toggleFaqButtons}
-              >
-                <MessageSquare className="h-4 w-4 mr-1" />
-                <span className="text-xs">FAQs</span>
-              </Button>
-            </div>
-            <div className="flex items-center">
-              <span className="text-xs text-gray-500">1:11 AM</span>
-            </div>
+        {/* Input area */}
+        <div className="p-4 border-t border-gray-800 bg-[#242526] rounded-b-xl">
+          <div className="flex space-x-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleFaqButtons}
+              className="text-gray-400 hover:bg-gray-700 rounded-full"
+              aria-label="Toggle FAQ questions"
+            >
+              <MessageSquare className="h-5 w-5" />
+            </Button>
+            <Input
+              placeholder="Type your message..."
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              className="flex-1 bg-[#3A3B3C] border-none text-white placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 rounded-full"
+              disabled={isLoading}
+            />
+            <Button
+              size="icon"
+              onClick={handleSendMessage}
+              disabled={isLoading || inputValue.trim() === ""}
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-200 hover:scale-105"
+              aria-label="Send message"
+            >
+              <Send className="h-5 w-5" />
+            </Button>
           </div>
         </div>
       </div>
+
+      {/* Add sparkle animation styles */}
+      <style jsx>{`
+        .sparkle {
+          position: absolute;
+          width: 6px;
+          height: 6px;
+          background: #fff;
+          border-radius: 50%;
+          pointer-events: none;
+          animation: sparkle 1.5s ease-out forwards;
+          box-shadow: 0 0 8px 2px #3b82f6;
+        }
+        @keyframes sparkle {
+          0% {
+            transform: scale(0);
+            opacity: 1;
+          }
+          50% {
+            opacity: 1;
+          }
+          100% {
+            transform: scale(1.5);
+            opacity: 0;
+          }
+        }
+      `}</style>
     </div>
   );
 };

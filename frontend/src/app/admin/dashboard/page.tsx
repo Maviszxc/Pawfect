@@ -38,7 +38,7 @@ interface Pet {
   adoptionStatus: string;
   owner?: string;
   createdAt?: string;
-  images?: string[];
+  images?: { url: string }[]; // <-- update type
 }
 
 interface User {
@@ -59,6 +59,17 @@ interface Adoption {
   petImage?: string;
   status: string;
   createdAt: string;
+  user?: {
+    _id: string;
+    fullname: string;
+    email: string;
+    profilePicture?: string;
+  };
+  pet?: {
+    name?: string;
+    images?: { url: string }[];
+    [key: string]: any;
+  };
 }
 
 // Sample data for productivity chart
@@ -92,9 +103,18 @@ export default function AdminDashboardPage() {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      // Fetch pets
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        throw new Error("No access token found");
+      }
+
+      // Fetch pets (admin route)
       const petsResponse = await axiosInstance.get(
-        `${BASE_URL}/api/admin/pets`
+        `${BASE_URL}/api/pets/admin/all`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 30000,
+        }
       );
       if (petsResponse.data.success) {
         setPets(petsResponse.data.pets);
@@ -109,11 +129,11 @@ export default function AdminDashboardPage() {
       }
 
       // Fetch users
-      const token = localStorage.getItem("accessToken");
       const usersResponse = await axiosInstance.get(
         `${BASE_URL}/api/admin/users`,
         {
           headers: { Authorization: `Bearer ${token}` },
+          timeout: 30000,
         }
       );
       if (usersResponse.data.success) {
@@ -124,9 +144,13 @@ export default function AdminDashboardPage() {
         }));
       }
 
-      // Fetch adoptions
+      // Fetch adoptions with user and pet populated
       const adoptionsResponse = await axiosInstance.get(
-        `${BASE_URL}/api/admin/adoptions`
+        `${BASE_URL}/api/admin/adoptions?populate=user,pet`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 30000,
+        }
       );
       if (adoptionsResponse.data.success) {
         setAdoptions(adoptionsResponse.data.adoptions);
@@ -155,15 +179,15 @@ export default function AdminDashboardPage() {
   // Get recent adoptions (last 4)
   const recentAdoptions = adoptions.slice(0, 4);
 
-  if (isLoading) {
-    return (
-      <AdminAuthWrapper>
-        <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
-          <Loader />
-        </div>
-      </AdminAuthWrapper>
-    );
-  }
+  // if (isLoading) {
+  //   return (
+  //     <AdminAuthWrapper>
+  //       <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+  //         <Loader />
+  //       </div>
+  //     </AdminAuthWrapper>
+  //   );
+  // }
 
   return (
     <AdminAuthWrapper>
@@ -297,9 +321,17 @@ export default function AdminDashboardPage() {
                       <div className="flex items-center gap-3">
                         <Avatar className="h-9 w-9">
                           <AvatarImage
-                            src={pet.images?.[0] || "/placeholder-pet.jpg"}
+                            src={
+                              pet.images &&
+                              pet.images.length > 0 &&
+                              pet.images[0].url
+                                ? pet.images[0].url
+                                : "/placeholder-pet.jpg"
+                            }
                           />
-                          <AvatarFallback>{pet.name[0]}</AvatarFallback>
+                          <AvatarFallback>
+                            {pet.name && pet.name.length > 0 ? pet.name[0] : ""}
+                          </AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
                           <div className="font-medium text-[#0a1629]">
@@ -353,7 +385,11 @@ export default function AdminDashboardPage() {
                           <AvatarImage
                             src={user.profilePicture || "/placeholder-user.png"}
                           />
-                          <AvatarFallback>{user.fullname[0]}</AvatarFallback>
+                          <AvatarFallback>
+                            {user.fullname && user.fullname.length > 0
+                              ? user.fullname[0]
+                              : ""}
+                          </AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
                           <div className="font-medium text-[#0a1629]">
@@ -376,6 +412,7 @@ export default function AdminDashboardPage() {
                     </div>
                   ))
                 )}
+
                 <div className="flex justify-end mt-4">
                   <button className="text-orange-500 text-sm font-medium hover:text-orange-600">
                     View all users →
@@ -387,7 +424,7 @@ export default function AdminDashboardPage() {
             {/* Recent Adoptions */}
             <Card className="rounded-2xl shadow bg-orange-500 text-white">
               <CardContent className="p-6 flex flex-col h-full">
-                <div className="font-bold text-black text-lg mb-4 flex items-center gap-2">
+                <div className="font-bold text-white text-lg mb-4 flex items-center gap-2">
                   Recent Adoptions
                 </div>
                 {recentAdoptions.length === 0 ? (
@@ -401,18 +438,42 @@ export default function AdminDashboardPage() {
                       className="bg-white rounded-xl p-4 text-[#0a1629] shadow mb-3"
                     >
                       <div className="flex items-center gap-3 mb-2">
+                        {/* Pet Avatar */}
                         <Avatar className="h-8 w-8">
                           <AvatarImage
-                            src={adoption.petImage || "/placeholder-pet.jpg"}
+                            src={
+                              adoption.pet?.images &&
+                              adoption.pet.images.length > 0 &&
+                              adoption.pet.images[0]?.url
+                                ? adoption.pet.images[0]?.url
+                                : "/placeholder-pet.jpg"
+                            }
+                            alt={
+                              adoption.pet?.name || adoption.petName || "Pet"
+                            }
                           />
-                          <AvatarFallback>{adoption.petName[0]}</AvatarFallback>
+                          <AvatarFallback>
+                            {(adoption.pet?.name || adoption.petName || "P")[0]}
+                          </AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
                           <div className="font-semibold text-sm">
-                            {adoption.petName}
+                            {adoption.pet?.name || adoption.petName}
                           </div>
                           <div className="text-xs text-gray-500">
-                            by {adoption.adopterName}
+                            by{" "}
+                            {
+                              // Show adopter's name: prefer user.fullname, fallback to adopterName, then adopterEmail
+                              adoption.user?.fullname?.trim()
+                                ? adoption.user.fullname
+                                : adoption.adopterName?.trim()
+                                ? adoption.adopterName
+                                : adoption.user?.email?.trim()
+                                ? adoption.user.email
+                                : adoption.adopterEmail?.trim()
+                                ? adoption.adopterEmail
+                                : "Unknown"
+                            }
                           </div>
                         </div>
                         <Badge
@@ -421,7 +482,7 @@ export default function AdminDashboardPage() {
                               ? "bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full text-xs font-semibold"
                               : adoption.status === "pending"
                               ? "bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded-full text-xs font-semibold"
-                              : "bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-full text-xs font-semibold"
+                              : "bg-red-50 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded-full text-xs font-semibold"
                           }
                         >
                           {adoption.status}
@@ -434,7 +495,7 @@ export default function AdminDashboardPage() {
                   ))
                 )}
                 <div className="flex justify-end mt-auto pt-4">
-                  <button className="text-black text-sm font-medium hover:text-orange-200">
+                  <button className="text-white text-sm font-medium hover:text-orange-200">
                     View all adoptions →
                   </button>
                 </div>

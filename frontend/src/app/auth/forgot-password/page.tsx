@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import axiosInstance from "@/lib/axiosInstance";
 // console imports removed
+import { toast } from "react-toastify";
 
 const handleApiError = (error: unknown): string => {
   if (error && typeof error === "object" && "response" in error) {
@@ -33,7 +34,7 @@ export default function ForgotPassword() {
 
   const handleSendOtp = async () => {
     if (!email) {
-      console.error("Please enter your email address");
+      toast.error("Please enter your email address");
       return;
     }
 
@@ -44,14 +45,13 @@ export default function ForgotPassword() {
         { email }
       );
       if (response.data.success) {
-        console.log("OTP sent to your email.");
+        toast.info("OTP sent to your email.");
         setStep(2);
       } else {
-        console.error(response.data.message || "Failed to send OTP. Try again.");
+        toast.error(response.data.message || "Failed to send OTP. Try again.");
       }
     } catch (error) {
-      console.error("Send OTP error:", error);
-      console.error(handleApiError(error));
+      toast.error(handleApiError(error));
     } finally {
       setIsLoading(false);
     }
@@ -59,28 +59,26 @@ export default function ForgotPassword() {
 
   const handleVerifyOtp = async () => {
     if (!otp) {
-      console.error("Please enter the OTP");
+      toast.info("Please enter the OTP");
       return;
     }
 
     setIsLoading(true);
     try {
-      console.log("Verifying OTP with:", { email, otp });
       const response = await axiosInstance.post("/api/users/verify-otp", {
         email,
         otp,
       });
       if (response.data.success) {
-        console.log("OTP verified successfully.");
+        toast.success("OTP verified successfully.");
         setVerifiedOtp(otp);
         setIsOtpVerified(true);
         setStep(3);
       } else {
-        console.error(response.data.message || "Invalid OTP. Try again.");
+        toast.error(response.data.message || "Invalid OTP. Try again.");
       }
     } catch (error) {
-      console.error("Verify OTP error:", error);
-      console.error(handleApiError(error));
+      toast.error(handleApiError(error));
     } finally {
       setIsLoading(false);
     }
@@ -88,12 +86,12 @@ export default function ForgotPassword() {
 
   const handleResetPassword = async () => {
     if (!newPassword) {
-      console.error("Please enter a new password");
+      toast.error("Please enter a new password");
       return;
     }
 
     if (!isOtpVerified) {
-      console.error("Please verify your OTP first");
+      toast.error("Please verify your OTP first");
       setStep(2);
       return;
     }
@@ -107,14 +105,15 @@ export default function ForgotPassword() {
       });
 
       if (response.data.success) {
-        console.log("Password reset successfully. Please log in.");
+        toast.success("Password reset successfully. Please log in.");
         router.push("/auth/login");
       } else {
-        console.error(response.data.message || "Failed to reset password. Try again.");
+        toast.error(
+          response.data.message || "Failed to reset password. Try again."
+        );
       }
     } catch (error) {
-      console.error("Reset password error:", error);
-      console.error(handleApiError(error));
+      toast.error(handleApiError(error));
     } finally {
       setIsLoading(false);
     }
@@ -194,7 +193,7 @@ export default function ForgotPassword() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email Address"
-              className="bg-white/10 border-gray-300 focus:border-orange-500 text-black placeholder:text-gray-500 w-full text-center text-lg py-6 rounded-xl"
+              className="border border-gray-300 focus:border-orange-500 transition-colors bg-white/10 text-black placeholder:text-gray-500 w-full text-center text-lg py-6 rounded-xl"
               required
             />
             <Button
@@ -217,7 +216,7 @@ export default function ForgotPassword() {
               onChange={(e) => setOtp(e.target.value)}
               maxLength={6}
               placeholder="Enter OTP"
-              className="bg-white/10 border-gray-300 focus:border-orange-500 text-black placeholder:text-gray-500 w-full text-center text-lg tracking-widest py-6 rounded-xl"
+              className="border border-gray-300 focus:border-orange-500 transition-colors bg-white/10 text-black placeholder:text-gray-500 w-full text-center text-lg tracking-widest py-6 rounded-xl"
               required
             />
             <Button

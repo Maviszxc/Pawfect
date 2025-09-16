@@ -5,6 +5,7 @@ import ClientLoadingIndicator from "@/components/ClientLoadingIndicator";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { VideoStreamProvider } from "@/context/VideoStreamContext";
+import WebSocketErrorBoundary from "@/components/WebSocketErrorBoundary";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -39,22 +40,24 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <VideoStreamProvider>
-          <ClientLoadingIndicator />
-          <ToastContainer
-            position="bottom-right"
-            autoClose={5000}
-            hideProgressBar={false}
-            newestOnTop
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-          theme="dark"
-        />
-          {children}
+          <WebSocketErrorBoundary>
+            <ClientLoadingIndicator />
+            <ToastContainer
+              position="bottom-right"
+              autoClose={5000}
+              hideProgressBar={false}
+              newestOnTop
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+              theme="dark"
+            />
+            {children}
+          </WebSocketErrorBoundary>
         </VideoStreamProvider>
-        </body>
-      </html>
-    );
+      </body>
+    </html>
+  );
   }

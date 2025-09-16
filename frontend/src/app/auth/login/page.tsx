@@ -114,7 +114,7 @@ export default function Login() {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="Email Address"
-                  className="bg-white/10 focus:border-orange-500 border-gray-300 text-black placeholder:text-gray-500 rounded-xl py-6"
+                  className="border border-gray-300 focus:border-orange-500 transition-colors bg-white/10 text-black placeholder:text-gray-500 rounded-xl py-6"
                   required
                 />
               </div>

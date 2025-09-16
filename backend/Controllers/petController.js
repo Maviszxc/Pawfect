@@ -1,14 +1,17 @@
 const Pet = require("../Models/petModels");
-const cloudinary = require("../Utilities/cloudinaryConfig");
+const {
+  cloudinary,
+  uploadToCloudinary,
+} = require("../Utilities/cloudinaryConfig");
 const fs = require("fs");
+const path = require("path");
+const { promisify } = require("util");
+const pipeline = promisify(require("stream").pipeline);
 
 // Get all pets (including archived for admin)
 exports.getAllPets = async (req, res) => {
   try {
-    // Since this route is public, we don't have req.user
-    // Just show non-archived pets to everyone
     const filter = { isArchived: false };
-
     const pets = await Pet.find(filter);
     res.status(200).json({
       success: true,
@@ -19,6 +22,228 @@ exports.getAllPets = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error fetching pets",
+      error: error.message,
+    });
+  }
+};
+
+// Get all pets for admin (including archived)
+exports.getAllPetsAdmin = async (req, res) => {
+  try {
+    const pets = await Pet.find();
+    res.status(200).json({
+      success: true,
+      count: pets.length,
+      pets,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error fetching pets",
+      error: error.message,
+    });
+  }
+};
+
+exports.createPet = async (req, res) => {
+  try {
+    const { name, type, breed, age, gender, description, adoptionStatus } =
+      req.body;
+
+    // Validate required fields
+    if (!name || !type || !breed || !age || !gender || !description) {
+      return res.status(400).json({
+        success: false,
+        message: "All required fields must be provided",
+      });
+    }
+
+    // Process images (upload to Cloudinary)
+    const imageFiles = req.files?.images || [];
+    const videoFiles = req.files?.videos || [];
+
+    if (imageFiles.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one pet image is required",
+      });
+    }
+
+    // Upload images to Cloudinary
+    const imageUrls = [];
+    for (const imageFile of imageFiles) {
+      try {
+        const result = await uploadToCloudinary(imageFile.path, "image");
+        imageUrls.push({
+          url: result.secure_url,
+          public_id: result.public_id,
+          format: result.format,
+        });
+        if (fs.existsSync(imageFile.path)) {
+          fs.unlinkSync(imageFile.path);
+        }
+      } catch (error) {
+        if (fs.existsSync(imageFile.path)) {
+          fs.unlinkSync(imageFile.path);
+        }
+        throw error;
+      }
+    }
+
+    // Upload videos to Cloudinary
+    const videoUrls = [];
+    for (const videoFile of videoFiles) {
+      try {
+        const result = await uploadToCloudinary(videoFile.path, "video");
+        videoUrls.push({
+          url: result.secure_url,
+          public_id: result.public_id,
+          format: result.format,
+        });
+        if (fs.existsSync(videoFile.path)) {
+          fs.unlinkSync(videoFile.path);
+        }
+      } catch (error) {
+        if (fs.existsSync(videoFile.path)) {
+          fs.unlinkSync(videoFile.path);
+        }
+        throw error;
+      }
+    }
+
+    // Create new pet
+    const newPet = new Pet({
+      name,
+      type,
+      breed,
+      age,
+      gender,
+      images: imageUrls,
+      videos: videoUrls,
+      description,
+      adoptionStatus: adoptionStatus || "available",
+    });
+
+    const savedPet = await newPet.save();
+    res.status(201).json({
+      success: true,
+      message: "Pet created successfully",
+      pet: savedPet,
+    });
+  } catch (error) {
+    // Clean up uploaded files if error occurs
+    if (req.files) {
+      for (const fileType in req.files) {
+        for (const file of req.files[fileType]) {
+          if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
+        }
+      }
+    }
+    res.status(500).json({
+      success: false,
+      message: "Error creating pet",
+      error: error.message,
+    });
+  }
+};
+
+// Update the updatePet function to handle Cloudinary image uploads
+exports.updatePet = async (req, res) => {
+  try {
+    const { name, type, breed, age, gender, description, adoptionStatus } =
+      req.body;
+    const updateData = {
+      name,
+      type,
+      breed,
+      age,
+      gender,
+      description,
+      adoptionStatus,
+    };
+
+    // Get existing pet for merging images/videos
+    const existingPet = await Pet.findById(req.params.id);
+    if (!existingPet) {
+      return res.status(404).json({
+        success: false,
+        message: "Pet not found",
+      });
+    }
+
+    // Process new images if any
+    const imageFiles = req.files?.images || [];
+    if (imageFiles.length > 0) {
+      const imageUrls = [];
+      for (const imageFile of imageFiles) {
+        try {
+          const result = await uploadToCloudinary(imageFile.path, "image");
+          imageUrls.push({
+            url: result.secure_url,
+            public_id: result.public_id,
+            format: result.format,
+          });
+          fs.unlinkSync(imageFile.path);
+        } catch (error) {
+          if (fs.existsSync(imageFile.path)) {
+            fs.unlinkSync(imageFile.path);
+          }
+        }
+      }
+      // Append new images to existing ones
+      updateData.images = [...(existingPet.images || []), ...imageUrls];
+    }
+
+    // Process new videos if any
+    const videoFiles = req.files?.videos || [];
+    if (videoFiles.length > 0) {
+      const videoUrls = [];
+      for (const videoFile of videoFiles) {
+        try {
+          const result = await uploadToCloudinary(videoFile.path, "video");
+          videoUrls.push({
+            url: result.secure_url,
+            public_id: result.public_id,
+            format: result.format,
+          });
+          fs.unlinkSync(videoFile.path);
+        } catch (error) {
+          if (fs.existsSync(videoFile.path)) {
+            fs.unlinkSync(videoFile.path);
+          }
+        }
+      }
+      // Append new videos to existing ones
+      updateData.videos = [...(existingPet.videos || []), ...videoUrls];
+    }
+
+    const updatedPet = await Pet.findByIdAndUpdate(
+      req.params.id,
+      { $set: updateData },
+      { new: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Pet updated successfully",
+      pet: updatedPet,
+    });
+  } catch (error) {
+    // Clean up uploaded files if error occurs
+    if (req.files) {
+      for (const fileType in req.files) {
+        for (const file of req.files[fileType]) {
+          if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
+        }
+      }
+    }
+    res.status(500).json({
+      success: false,
+      message: "Error updating pet",
       error: error.message,
     });
   }
@@ -47,88 +272,6 @@ exports.getPetById = async (req, res) => {
   }
 };
 
-// Create new pet with image and optional video
-exports.createPet = async (req, res) => {
-  try {
-    const { name, type, breed, age, gender, description, adoptionStatus } =
-      req.body;
-
-    // Validate required fields
-    if (!name || !type || !breed || !age || !gender || !description) {
-      return res.status(400).json({
-        success: false,
-        message: "All required fields must be provided",
-      });
-    }
-
-    // Check if image was uploaded
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: "Pet image is required",
-      });
-    }
-
-    // Get the image path
-    const imagePath = req.file.path.replace(/\\/g, "/"); // Normalize path for all OS
-    const imageUrl = `${req.protocol}://${req.get("host")}/${imagePath}`;
-
-    // Create new pet with image
-    const newPet = new Pet({
-      name,
-      type,
-      breed,
-      age,
-      gender,
-      images: [imageUrl], // Convert single image to array for model compatibility
-      description,
-      adoptionStatus: adoptionStatus || "Available",
-    });
-
-    const savedPet = await newPet.save();
-    res.status(201).json({
-      success: true,
-      message: "Pet created successfully",
-      pet: savedPet,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Error creating pet",
-      error: error.message,
-    });
-  }
-};
-
-// Update pet
-exports.updatePet = async (req, res) => {
-  try {
-    const updatedPet = await Pet.findByIdAndUpdate(
-      req.params.id,
-      { $set: req.body },
-      { new: true }
-    );
-
-    if (!updatedPet) {
-      return res.status(404).json({
-        success: false,
-        message: "Pet not found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Pet updated successfully",
-      pet: updatedPet,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Error updating pet",
-      error: error.message,
-    });
-  }
-};
 
 // Archive pet (soft delete)
 exports.archivePet = async (req, res) => {
@@ -193,25 +336,18 @@ exports.restorePet = async (req, res) => {
 // Filter pets
 exports.filterPets = async (req, res) => {
   try {
-    const { type, gender, breed, ageMin, ageMax, searchQuery, status } =
-      req.query;
+    const { type, gender, breed, age, searchQuery, status } = req.query;
     const filter = {};
 
     // Add filters if they exist
     if (type && type !== "all") filter.type = type;
     if (gender && gender !== "all") filter.gender = gender;
     if (breed && breed !== "all") filter.breed = breed;
+    if (age && age !== "all") filter.age = age;
     if (status && status !== "all") filter.adoptionStatus = status;
 
     // Always filter out archived pets for public routes
     filter.isArchived = false;
-
-    // Age range filter
-    if (ageMin !== undefined || ageMax !== undefined) {
-      filter.age = {};
-      if (ageMin !== undefined) filter.age.$gte = parseInt(ageMin);
-      if (ageMax !== undefined) filter.age.$lte = parseInt(ageMax);
-    }
 
     // Search query filter (name, breed, or description)
     if (searchQuery) {
@@ -240,7 +376,7 @@ exports.filterPets = async (req, res) => {
 // Delete pet (hard delete)
 exports.deletePet = async (req, res) => {
   try {
-    const pet = await Pet.findByIdAndDelete(req.params.id);
+    const pet = await Pet.findById(req.params.id);
 
     if (!pet) {
       return res.status(404).json({
@@ -248,6 +384,38 @@ exports.deletePet = async (req, res) => {
         message: "Pet not found",
       });
     }
+
+    // Delete images from Cloudinary
+    if (pet.images && pet.images.length > 0) {
+      for (const img of pet.images) {
+        try {
+          if (img.public_id) {
+            await cloudinary.uploader.destroy(img.public_id, {
+              resource_type: "image",
+            });
+          }
+        } catch (error) {
+          console.error("Error deleting image from Cloudinary:", error);
+        }
+      }
+    }
+
+    // Delete videos from Cloudinary
+    if (pet.videos && pet.videos.length > 0) {
+      for (const vid of pet.videos) {
+        try {
+          if (vid.public_id) {
+            await cloudinary.uploader.destroy(vid.public_id, {
+              resource_type: "video",
+            });
+          }
+        } catch (error) {
+          console.error("Error deleting video from Cloudinary:", error);
+        }
+      }
+    }
+
+    await Pet.findByIdAndDelete(req.params.id);
 
     res.status(200).json({
       success: true,
@@ -265,63 +433,62 @@ exports.deletePet = async (req, res) => {
 // Match pets based on user preferences
 exports.matchPets = async (req, res) => {
   try {
-    const { type, activityLevel, timeAvailable, temperament, otherPets } = req.query;
+    const { type, activityLevel, timeAvailable, temperament, otherPets } =
+      req.query;
     const filter = { isArchived: false, adoptionStatus: "available" };
     const conditions = [];
 
     // Apply filters based on user preferences
     if (type && type !== "all") {
-      // Make the type case-insensitive
       filter.type = { $regex: new RegExp("^" + type + "$", "i") };
     }
-    
+
     // Map activity level to age filters
     if (activityLevel === "low") {
-      filter.age = { $gte: 3 }; // Older, calmer pets
+      filter.age = "adult"; // Older, calmer pets
     } else if (activityLevel === "high") {
-      filter.age = { $lte: 2 }; // Younger, more energetic pets
+      filter.age = { $in: ["kitten", "young adult"] }; // Younger, more energetic pets
     }
-    
+
     // Map time available to breed characteristics (simplified)
     if (timeAvailable === "low") {
       // Filter for lower maintenance breeds
       conditions.push({
         $or: [
           { breed: { $regex: "shorthair|domestic", $options: "i" } },
-          { type: "cat" } // Cats generally require less time
-        ]
+          { type: "cat" }, // Cats generally require less time
+        ],
       });
     }
-    
+
     // Map temperament to breed characteristics
     if (temperament === "calm") {
       conditions.push({
         $or: [
           { breed: { $regex: "persian|ragdoll|british", $options: "i" } },
-          { age: { $gte: 4 } } // Older pets tend to be calmer
-        ]
+          { age: "adult" }, // Older pets tend to be calmer
+        ],
       });
     } else if (temperament === "energetic") {
       conditions.push({
         $or: [
           { breed: { $regex: "retriever|shepherd|terrier", $options: "i" } },
-          { age: { $lte: 2 } } // Younger pets tend to be more energetic
-        ]
+          { age: { $in: ["kitten", "young adult"] } }, // Younger pets tend to be more energetic
+        ],
       });
     }
-    
+
     // Filter based on other pets
     if (otherPets && otherPets !== "none") {
       // For simplicity, we'll just ensure the pet is good with other animals
-      // In a real app, you'd have a compatibility field in your database
       conditions.push({
         $or: [
           { breed: { $regex: "friendly|social|good with", $options: "i" } },
-          { description: { $regex: "good with|gets along", $options: "i" } }
-        ]
+          { description: { $regex: "good with|gets along", $options: "i" } },
+        ],
       });
     }
-    
+
     // Add all conditions to the filter if there are any
     if (conditions.length > 0) {
       filter.$and = conditions;

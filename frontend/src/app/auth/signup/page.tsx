@@ -11,6 +11,7 @@ import Loader from "@/components/Loader";
 import axiosInstance from "@/lib/axiosInstance";
 import { BASE_URL } from "@/utils/constants";
 // console imports removed
+import { toast } from "react-toastify";
 
 export default function SignUp() {
   const router = useRouter();
@@ -30,7 +31,7 @@ export default function SignUp() {
           `${BASE_URL}/api/users/check-verified?email=${formData.email}`
         );
         if (!response.data.error) {
-          console.log("Email is already used. Please login.");
+          toast.info("Email is already used. Please login.");
           setIsLoading(true);
 
           setTimeout(() => {
@@ -76,13 +77,13 @@ export default function SignUp() {
 
       const data = await res.json();
       if (res.ok) {
-        console.log("OTP sent to your email. Please verify your account.");
+        toast.success("OTP sent to your email. Please verify your account.");
         router.push(`/auth/verify-otp?email=${formData.email}`);
       } else {
-        console.error(data.message || "Sign-up failed. Try again.");
+        toast.error(data.message || "Sign-up failed. Try again.");
       }
     } catch (err) {
-      console.error("Something went wrong. Please try again.");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -132,7 +133,7 @@ export default function SignUp() {
                 value={formData.fullname}
                 onChange={handleChange}
                 placeholder="Full Name"
-                className="bg-white/10 border-gray-300 focus:border-orange-500 text-black placeholder:text-gray-500 rounded-xl py-6"
+                className="border border-gray-300 focus:border-orange-500 transition-colors bg-white/10 text-black placeholder:text-gray-500 rounded-xl py-6"
                 required
               />
               <Input
@@ -141,7 +142,7 @@ export default function SignUp() {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="Email Address"
-                className="bg-white/10 border-gray-300 focus:border-orange-500 text-black placeholder:text-gray-500 rounded-xl py-6"
+                className="border border-gray-300 focus:border-orange-500 transition-colors bg-white/10 text-black placeholder:text-gray-500 rounded-xl py-6"
                 required
               />
               <PasswordInput

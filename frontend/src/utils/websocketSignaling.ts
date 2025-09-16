@@ -25,12 +25,12 @@ class WebSocketSignaling {
     return this.ws !== null && this.ws.readyState === WebSocket.CONNECTING;
   }
 
+  // Update the connect method
   async connect(): Promise<void> {
     return new Promise((resolve, reject) => {
-      // Reset intentional disconnect flag
       this.isIntentionalDisconnect = false;
 
-      // Clear any existing connection
+      // Clear existing connection
       if (this.ws) {
         try {
           this.ws.close();
@@ -42,76 +42,40 @@ class WebSocketSignaling {
 
       // Check if WebSocket is supported
       if (typeof WebSocket === "undefined") {
-        reject(new Error("WebSocket is not supported in this environment"));
+        reject(new Error("WebSocket is not supported"));
         return;
       }
 
       console.log("Connecting to WebSocket server:", NEXT_PUBLIC_WS_URL);
 
       try {
-        this.ws = new WebSocket(NEXT_PUBLIC_WS_URL);
-
-        // Set connection timeout
-        this.connectionTimeout = setTimeout(() => {
-          if (!this.isConnected()) {
-            console.error("WebSocket connection timeout");
-            this.ws?.close();
-            reject(new Error("Connection timeout after 10 seconds"));
+        // Add timeout handling
+        const connectionTimeout = setTimeout(() => {
+          if (this.ws?.readyState === WebSocket.CONNECTING) {
+            this.ws.close();
+            reject(new Error("Connection timeout"));
           }
         }, 10000);
 
+        this.ws = new WebSocket(NEXT_PUBLIC_WS_URL);
+
         this.ws.onopen = () => {
+          clearTimeout(connectionTimeout);
           console.log("✅ Connected to signaling server");
-          if (this.connectionTimeout) {
-            clearTimeout(this.connectionTimeout);
-            this.connectionTimeout = null;
-          }
           this.reconnectAttempts = 0;
           resolve();
         };
 
-        this.ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            this.handleMessage(data);
-          } catch (error) {
-            console.error("Error parsing message:", error);
-          }
+        this.ws.onerror = (error) => {
+          clearTimeout(connectionTimeout);
+          console.error("WebSocket connection error:", error);
+          reject(new Error("Connection failed"));
         };
 
         this.ws.onclose = (event) => {
-          if (this.connectionTimeout) {
-            clearTimeout(this.connectionTimeout);
-            this.connectionTimeout = null;
-          }
+          clearTimeout(connectionTimeout);
+          console.log(`WebSocket closed: ${event.code} - ${event.reason}`);
 
-          const closeReasons: Record<number, string> = {
-            1000: "Normal closure",
-            1001: "Endpoint going away",
-            1002: "Protocol error",
-            1003: "Unsupported data",
-            1005: "No status received",
-            1006: "Abnormal closure",
-            1007: "Invalid frame payload data",
-            1008: "Policy violation",
-            1009: "Message too big",
-            1010: "Missing extension",
-            1011: "Internal error",
-            1012: "Service restart",
-            1013: "Try again later",
-            1014: "Bad gateway",
-            1015: "TLS handshake failed",
-          };
-
-          const reason =
-            closeReasons[event.code] || `Unknown code: ${event.code}`;
-          console.log(
-            `WebSocket closed: ${reason} - ${
-              event.reason || "No reason provided"
-            }`
-          );
-
-          // Only attempt reconnect if not intentional and not too many attempts
           if (
             !this.isIntentionalDisconnect &&
             this.reconnectAttempts < this.maxReconnectAttempts
@@ -134,6 +98,26 @@ class WebSocketSignaling {
               3: "CLOSED",
             };
             console.error(`WebSocket state: ${states[this.ws.readyState]}`);
+          }
+        };
+        
+        this.ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log("Received message:", data.type);
+            this.handleMessage(data);
+          } catch (error) {
+            console.error("Error parsing message:", error);
+          }
+        };
+        
+        this.ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log("Received message:", data.type);
+            this.handleMessage(data);
+          } catch (error) {
+            console.error("Error parsing message:", error);
           }
         };
       } catch (error) {

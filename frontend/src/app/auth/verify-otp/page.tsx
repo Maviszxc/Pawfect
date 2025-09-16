@@ -11,10 +11,10 @@ import Navigation from "@/components/Navigation";
 import AuthNavigation from "@/components/authNavigation";
 import { BASE_URL } from "@/utils/constants";
 import Link from "next/link";
+import { toast } from "react-toastify";
 
 const OtpPage: React.FC = () => {
   const router = useRouter();
-  // Using react-consoleify directly
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
   const [otp, setOtp] = useState("");
@@ -38,14 +38,10 @@ const OtpPage: React.FC = () => {
           `/api/users/check-verified?email=${encodeURIComponent(email)}`
         );
 
-        console.log("Verification status:", response.data);
-
         if (response.data.success) {
-          console.log("Account already verified. Logging you in...");
-
+          toast.info("Account already verified. Logging you in...");
           try {
             const signupToken = localStorage.getItem("signupToken");
-
             if (signupToken) {
               localStorage.setItem("accessToken", signupToken);
               setIsAuthenticated(true);
@@ -55,11 +51,8 @@ const OtpPage: React.FC = () => {
             } else {
               const autoLoginResponse = await axiosInstance.post(
                 "/api/users/auto-login",
-                {
-                  email,
-                }
+                { email }
               );
-
               if (autoLoginResponse.data.accessToken) {
                 localStorage.setItem(
                   "accessToken",
@@ -70,15 +63,14 @@ const OtpPage: React.FC = () => {
                   router.push("/dashboard");
                 }, 1500);
               } else {
-                console.info("Please log in with your credentials");
+                toast.info("Please log in with your credentials");
                 setTimeout(() => {
                   router.push("/auth/login");
                 }, 1500);
               }
             }
           } catch (loginError) {
-            console.error("Auto-login error:", loginError);
-            console.info("Please log in with your credentials");
+            toast.error("Auto-login error. Please log in manually.");
             setTimeout(() => {
               router.push("/auth/login");
             }, 1500);
@@ -87,7 +79,6 @@ const OtpPage: React.FC = () => {
           setCheckingStatus(false);
         }
       } catch (error) {
-        console.error("Error checking verification status:", error);
         setCheckingStatus(false);
       }
     };
@@ -105,10 +96,11 @@ const OtpPage: React.FC = () => {
     return () => clearInterval(timer);
   }, [resendTimer]);
 
+  // --- FIX: Use the same OTP verification logic as forgot password (send email and otp) ---
   const handleVerify = async () => {
     if (loading || otp.length !== 6) {
       if (otp.length !== 6) {
-        console.error("Please enter a valid 6-digit OTP");
+        toast.error("Please enter a valid 6-digit OTP");
       }
       return;
     }
@@ -116,69 +108,24 @@ const OtpPage: React.FC = () => {
     setLoading(true);
 
     try {
-      console.log("Sending request with:", { email, otp });
+      // Use the same endpoint and payload as forgot password
       const response = await axiosInstance.post("/api/users/verify-otp", {
         email,
         otp,
       });
-      console.log("Server response:", response.data);
-
       if (response.data.success) {
-        console.log("Account verified successfully!");
+        toast.success("Account verified successfully!");
 
-        const signupToken = localStorage.getItem("signupToken");
-
-        if (signupToken) {
-          localStorage.setItem("accessToken", signupToken);
-          setIsAuthenticated(true);
-          console.log("Logged in successfully!");
-          setTimeout(() => {
-            router.push("/dashboard");
-          }, 1500);
-        } else {
-          try {
-            const loginResponse = await fetch(`${BASE_URL}/api/users/login`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                email: email,
-                password:
-                  sessionStorage.getItem(`temp_password_${email}`) || "",
-              }),
-            });
-
-            const loginData = await loginResponse.json();
-
-            if (loginResponse.ok) {
-              localStorage.setItem("accessToken", loginData.accessToken);
-              setIsAuthenticated(true);
-              console.log("Logged in successfully!");
-
-              setTimeout(() => {
-                router.push("/dashboard");
-              }, 1500);
-            } else {
-              console.info("Please log in with your credentials");
-              setTimeout(() => {
-                router.push("/auth/login");
-              }, 1500);
-            }
-          } catch (loginError) {
-            console.error("Error logging in:", loginError);
-            console.info("Please log in with your credentials");
-            setTimeout(() => {
-              router.push("/auth/login");
-            }, 1500);
-          }
-        }
+        // Optionally, auto-login or redirect to login
+        setTimeout(() => {
+          router.push("/auth/login");
+        }, 1500);
       } else {
-        console.error(response.data.message || "Failed to verify OTP");
+        toast.error(response.data.message || "Failed to verify OTP");
       }
     } catch (error: any) {
-      console.error("Error:", error);
       const errorData = error.response?.data || {};
-      console.log("Error details:", errorData);
-      console.error(errorData.message || "Something went wrong. Try again.");
+      toast.error(errorData.message || "Something went wrong. Try again.");
     } finally {
       setLoading(false);
     }
@@ -193,12 +140,12 @@ const OtpPage: React.FC = () => {
         email,
       });
       if (response.data.success) {
-        console.log("A new OTP has been sent to your email.");
+        toast.success("A new OTP has been sent to your email.");
       } else {
-        console.error(response.data.message);
+        toast.error(response.data.message || "Failed to resend OTP.");
       }
     } catch {
-      console.error("Failed to resend OTP. Try again later.");
+      toast.error("Failed to resend OTP. Try again later.");
       setResendTimer(0);
     }
   };
@@ -247,7 +194,7 @@ const OtpPage: React.FC = () => {
           }
           maxLength={6}
           placeholder="Enter OTP"
-          className="bg-white/10 border-gray-300 focus:border-orange-500 text-black placeholder:text-gray-500 w-full text-center text-lg tracking-widest py-6 rounded-xl"
+          className="border border-gray-300 focus:border-orange-500 transition-colors bg-white/10 text-black placeholder:text-gray-500 w-full text-center text-lg tracking-widest py-6 rounded-xl"
         />
 
         <Button

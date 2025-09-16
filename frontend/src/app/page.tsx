@@ -45,7 +45,7 @@ export default function Home() {
       try {
         const response = await axios.get(`${BASE_URL}/api/pets?limit=3`);
         if (response.data.success) {
-          setFeaturedPets(response.data.pets || []);
+          setFeaturedPets((response.data.pets || []).slice(0, 3)); // Only 3 pets
         }
       } catch (error) {
         console.error("Error fetching pets:", error);
@@ -61,12 +61,6 @@ export default function Home() {
     <main className="min-h-screen pt-5 bg-white">
       {/* Hero Section */}
       <div className="relative min-h-screen bg-gradient-to-b from-background to-background/95">
-        {/* Loading Overlay */}
-        {loading && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70">
-            <Loader />
-          </div>
-        )}
         {/* Background Pattern */}
         <div className="absolute inset-0 bg-grid-pattern opacity-5" />
 
@@ -426,7 +420,7 @@ export default function Home() {
                   </div>
                 ))
               ) : featuredPets.length > 0 ? (
-                featuredPets.map((pet, index) => (
+                featuredPets.slice(0, 3).map((pet, index) => (
                   <motion.div
                     key={String(index)}
                     initial={{ opacity: 0, y: 20 }}
@@ -438,8 +432,11 @@ export default function Home() {
                     <div className="h-56 rounded-xl mb-5 relative overflow-hidden group-hover:shadow-md transition-all duration-300">
                       <img
                         src={
-                          (pet as any).images && (pet as any).images.length > 0
-                            ? (pet as any).images[0]
+                          (pet as any).images &&
+                          Array.isArray((pet as any).images) &&
+                          (pet as any).images.length > 0 &&
+                          (pet as any).images[0]?.url
+                            ? (pet as any).images[0].url
                             : "https://images.unsplash.com/photo-1543466835-00a7907e9de1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1074&q=80"
                         }
                         alt={(pet as any).name}
@@ -490,6 +487,7 @@ export default function Home() {
               )}
             </div>
 
+            {/* Show "View all available pets" button below the grid */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}

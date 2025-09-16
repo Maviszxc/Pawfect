@@ -59,54 +59,41 @@ export const VideoStreamProvider = ({
   const pendingIceCandidates = useRef<RTCIceCandidateInit[]>([]);
   const isAdminRef = useRef<boolean>(false);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+
+  // Connection management variables
+  const MAX_CONNECTION_ATTEMPTS = 3;
+  const CONNECTION_RESET_TIMEOUT = 30000;
   const connectionAttempts = useRef(0);
-  const MAX_CONNECTION_ATTEMPTS = 5;
-  const CONNECTION_RESET_TIMEOUT = 60000;
+  const lastResetTime = useRef(Date.now());
 
   const initializePeerConnection = () => {
-    if (typeof window === "undefined") {
-      console.log("Cannot initialize peer connection: window is undefined");
-      return null;
-    }
+    if (typeof window === "undefined") return null;
 
-    if (!window.RTCPeerConnection) {
-      console.error("RTCPeerConnection is not supported in this browser");
-      setConnectionStatus("WebRTC not supported");
-      return null;
-    }
-
+    // Reset connection attempts if it's been a while
     if (connectionAttempts.current >= MAX_CONNECTION_ATTEMPTS) {
-      console.error(
-        `Too many connection attempts (${connectionAttempts.current}). Please refresh the page.`
-      );
-      setConnectionStatus("Too many connection attempts");
-      return null;
-    }
-
-    connectionAttempts.current += 1;
-    console.log(
-      `Connection attempt ${connectionAttempts.current} of ${MAX_CONNECTION_ATTEMPTS}`
-    );
-
-    setTimeout(() => {
-      console.log("Resetting connection attempts counter");
-      connectionAttempts.current = 0;
-    }, CONNECTION_RESET_TIMEOUT);
-
-    if (peerConnectionRef.current) {
-      console.log("Closing existing peer connection");
-      try {
-        const currentState = peerConnectionRef.current.connectionState;
-        console.log(`Current connection state before closing: ${currentState}`);
-        peerConnectionRef.current.close();
-        console.log("Existing peer connection closed successfully");
-      } catch (error) {
-        console.error("Error closing existing peer connection:", error);
+      const timeSinceLastReset = Date.now() - lastResetTime.current;
+      if (timeSinceLastReset > CONNECTION_RESET_TIMEOUT) {
+        connectionAttempts.current = 0;
+      } else {
+        console.error("Too many connection attempts");
+        return null;
       }
     }
 
-    console.log("Creating new RTCPeerConnection");
-    let pc;
+    connectionAttempts.current += 1;
+    lastResetTime.current = Date.now();
+
+    // Close existing connection
+    if (peerConnectionRef.current) {
+      try {
+        peerConnectionRef.current.close();
+      } catch (error) {
+        console.warn("Error closing connection:", error);
+      }
+    }
+
+    let pc: RTCPeerConnection | null = null;
+
     try {
       pc = new RTCPeerConnection({
         iceServers: ICE_SERVERS,
@@ -119,6 +106,7 @@ export const VideoStreamProvider = ({
       return null;
     }
 
+    // Set up event handlers
     pc.ontrack = (event) => {
       console.log("Received track", event.track.kind);
       if (event.streams && event.streams[0]) {
@@ -174,6 +162,7 @@ export const VideoStreamProvider = ({
       setPeerConnection(pc);
       return pc;
     }
+
     return null;
   };
 
@@ -201,6 +190,7 @@ export const VideoStreamProvider = ({
       console.error("Error setting remote description:", error);
     }
   };
+
   const handleICECandidate = async (candidate: RTCIceCandidateInit) => {
     if (!peerConnectionRef.current) {
       console.log("Cannot handle ICE candidate: no peer connection");
@@ -339,7 +329,7 @@ export const VideoStreamProvider = ({
       }
 
       // Continue with room connection
-      await continueRoomConnection(newRoomId);
+      await continueRoomConnection(newRoomId, isAdminRole);
     } catch (error) {
       console.error("[DEBUG] Error in connectToRoom:", error);
       setConnectionStatus("Connection failed");
@@ -348,7 +338,10 @@ export const VideoStreamProvider = ({
   };
 
   // Improved continueRoomConnection function with better error handling
-  const continueRoomConnection = async (newRoomId: string) => {
+  const continueRoomConnection = async (
+    newRoomId: string,
+    isAdminRole: boolean
+  ) => {
     // Initialize peer connection with retry logic
     let pc: RTCPeerConnection | null = null;
     let retryCount = 0;
@@ -383,6 +376,8 @@ export const VideoStreamProvider = ({
 
     setPeerConnection(pc);
     peerConnectionRef.current = pc;
+    isAdminRef.current = isAdminRole;
+    setRoomId(newRoomId);
 
     try {
       // Join the signaling room with retry logic

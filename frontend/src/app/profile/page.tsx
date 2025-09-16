@@ -37,6 +37,7 @@ export default function Profile() {
     password: "",
     newEmail: "",
     profilePicture: "",
+    isAdmin: false,
   });
   const [otp, setOtp] = useState("");
   const [isOtpSent, setIsOtpSent] = useState(false);
@@ -77,6 +78,7 @@ export default function Profile() {
           password: "",
           newEmail: "",
           profilePicture: user.profilePicture || "",
+          isAdmin: user.isAdmin || false,
         });
       }
     } catch (err) {
@@ -420,12 +422,6 @@ export default function Profile() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex pt-28 pb-32 flex-col items-center justify-center px-4">
-      {/* Loading Overlay */}
-      {isLoading && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70">
-          <Loader />
-        </div>
-      )}
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -466,9 +462,6 @@ export default function Profile() {
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center py-8">
                   <Loader />
-                  <p className="text-gray-600 mt-4">
-                    Processing your request...
-                  </p>
                 </div>
               ) : view === "account" ? (
                 <form className="space-y-6" onSubmit={handleUpdateName}>
@@ -672,17 +665,33 @@ export default function Profile() {
                         accept="image/*"
                       />
                     </div>
-                    <h3 className="font-semibold text-gray-800 text-lg">
+                    <h3 className="font-semibold text-gray-800 text-lg text-center">
                       {formData.fullname}
                     </h3>
-                    <p className="text-sm text-gray-500 mb-2">
+                    <p className="text-sm text-gray-500 mb-2 text-center">
                       {formData.email}
                     </p>
-                    <p className="text-xs text-gray-400 mb-6">
+                    <p
+                      className="text-xs text-gray-400 mb-6 text-center cursor-pointer hover:text-gray-600 transition-colors"
+                      onClick={triggerFileInput}
+                    >
                       {uploadingImage
                         ? "Uploading..."
                         : "Change profile picture"}
                     </p>
+
+                    {/* Admin View Button */}
+                    {formData.isAdmin && (
+                      <Button
+                        className="w-full mb-2"
+                        variant="outline"
+                        onClick={() =>
+                          window.open("/admin/dashboard", "_blank")
+                        }
+                      >
+                        Admin View
+                      </Button>
+                    )}
 
                     {/* Navigation Menu - At bottom of left column */}
                     <div className="mt-auto pt-24">

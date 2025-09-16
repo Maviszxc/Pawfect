@@ -74,9 +74,9 @@ export default function AdminProfilePage() {
 
   return (
     <AdminAuthWrapper>
-      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]">
+      <div className="min-h-screen pb-52 flex items-center justify-center bg-[#f8fafc]">
         <Card className="w-full max-w-md rounded-2xl shadow bg-white">
-          <CardContent className="p-8 flex flex-col items-center">
+          <CardContent className="p- flex flex-col items-center">
             <Avatar className="h-20 w-20 mb-4">
               <AvatarImage
                 src={user?.profilePicture || "/placeholder-user.png"}
@@ -130,12 +130,23 @@ export default function AdminProfilePage() {
                 </div>
               </form>
             ) : (
-              <Button
-                className="bg-orange-500 text-white w-full"
-                onClick={() => setEditMode(true)}
-              >
-                Edit Profile
-              </Button>
+              <>
+                <Button
+                  className="bg-orange-500 text-white w-full mb-3"
+                  onClick={() => setEditMode(true)}
+                >
+                  Edit Profile
+                </Button>
+                {user?.isAdmin && (
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    onClick={() => window.open(`/`, "_blank")}
+                  >
+                    View User Preview
+                  </Button>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
