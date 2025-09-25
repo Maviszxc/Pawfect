@@ -43,13 +43,12 @@ const wss = new WebSocket.Server({
 const rooms = new Map();
 let connectionCounter = 0;
 
-// Helper function to broadcast to all clients in a room except the sender
-function broadcastToRoom(roomId, message, excludeClient = null) {
+// Helper function to broadcast to all clients in a room (including sender)
+function broadcastToRoom(roomId, message) {
   if (!rooms.has(roomId)) return;
-
   const clients = rooms.get(roomId);
   clients.forEach((client) => {
-    if (client !== excludeClient && client.readyState === WebSocket.OPEN) {
+    if (client.readyState === WebSocket.OPEN) {
       try {
         client.send(JSON.stringify(message));
       } catch (error) {
@@ -279,18 +278,28 @@ wss.on("connection", (ws, req) => {
           console.log(
             `Broadcasting chat message from ${clientId} in room ${data.roomId}`
           );
-          broadcastToRoom(
-            data.roomId,
-            {
-              type: "chat-message",
-              message: data.message,
-              sender: data.sender,
-              timestamp: data.timestamp,
-              roomId: data.roomId,
-              senderId: clientId,
-            },
-            ws
-          );
+
+          // Attach sender info (name/profile) if available
+          let senderName = data.sender || "User";
+          let profileUrl = data.profileUrl || "";
+          if (ws.userData) {
+            senderName = ws.userData.name || senderName;
+            profileUrl = ws.userData.profilePicture || profileUrl;
+          }
+
+          const messageData = {
+            type: "chat-message",
+            message: data.message,
+            sender: senderName,
+            senderId: clientId,
+            timestamp: data.timestamp || new Date().toISOString(),
+            roomId: data.roomId,
+            profileUrl,
+            isStaff: ws.isAdmin || false,
+          };
+
+          // Broadcast to ALL clients in the room including sender
+          broadcastToRoom(data.roomId, messageData);
           break;
 
         case "ping":

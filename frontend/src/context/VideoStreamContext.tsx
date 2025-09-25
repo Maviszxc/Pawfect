@@ -10,6 +10,27 @@ import React, {
   useCallback,
 } from "react";
 import { signaling } from "../utils/websocketSignaling";
+import axiosInstance from "../lib/axiosInstance";
+import { BASE_URL } from "../utils/constants";
+
+type ChatMessage = {
+  id: string;
+  sender: string;
+  message: string;
+  timestamp: Date;
+  isStaff: boolean;
+  profileUrl?: string;
+  senderId?: string;
+};
+
+type UserInfo = {
+  _id: string;
+  fullname: string;
+  email: string;
+  profilePicture?: string;
+  isAdmin: boolean;
+  verified: boolean;
+};
 
 type VideoStreamContextType = {
   adminStream: MediaStream | null;
@@ -20,8 +41,14 @@ type VideoStreamContextType = {
   connectToRoom: (roomId: string, isAdmin: boolean) => Promise<void>;
   disconnectFromRoom: () => void;
   connectionStatus: string;
-  sendChatMessage: (message: string, sender: string) => void;
-  chatMessages: any[];
+  sendChatMessage: (
+    message: string,
+    sender: string,
+    profileUrl?: string
+  ) => void;
+  chatMessages: ChatMessage[];
+  currentUser: UserInfo | null;
+  fetchCurrentUser: () => Promise<void>;
 };
 
 const VideoStreamContext = createContext<VideoStreamContextType>({
@@ -35,11 +62,14 @@ const VideoStreamContext = createContext<VideoStreamContextType>({
   connectionStatus: "Disconnected",
   sendChatMessage: () => {},
   chatMessages: [],
+  currentUser: null,
+  fetchCurrentUser: async () => {},
 });
 
 const ICE_SERVERS = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "stun:stun2.l.google.com:19302" },
 ];
 
 export const VideoStreamProvider = ({
@@ -52,7 +82,8 @@ export const VideoStreamProvider = ({
   const [peerConnection, setPeerConnection] =
     useState<RTCPeerConnection | null>(null);
   const [connectionStatus, setConnectionStatus] = useState("Disconnected");
-  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [currentUser, setCurrentUser] = useState<UserInfo | null>(null);
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const isAdminRef = useRef<boolean>(false);
@@ -60,15 +91,150 @@ export const VideoStreamProvider = ({
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const isConnectingRef = useRef<boolean>(false);
   const streamRef = useRef<MediaStream | null>(null);
+  const hasRemoteDescriptionRef = useRef<boolean>(false);
+
+  // Helper function to get profile picture URL (handles Cloudinary URLs)
+  const getProfilePictureUrl = (profilePicture: string | undefined): string => {
+    if (
+      !profilePicture ||
+      profilePicture === "undefined" ||
+      profilePicture.trim() === ""
+    ) {
+      return "/placeholder-user.png";
+    }
+
+    // If it's a base64 image, return as is
+    if (profilePicture.startsWith("data:image")) {
+      return profilePicture;
+    }
+
+    // If it's a full URL (Cloudinary, http, https), return as is
+    if (
+      profilePicture.startsWith("http") ||
+      profilePicture.startsWith("//") ||
+      profilePicture.includes("cloudinary")
+    ) {
+      return profilePicture;
+    }
+
+    // Otherwise, treat as relative path from uploads
+    return `${BASE_URL}${
+      profilePicture.startsWith("/") ? "" : "/"
+    }${profilePicture}`;
+  };
+
+  // Fetch current user data from backend
+  const fetchCurrentUser = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        console.log("No access token found");
+        setCurrentUser(null);
+        return;
+      }
+
+      const response = await axiosInstance.get(
+        `${BASE_URL}/api/users/current-user`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 10000,
+        }
+      );
+
+      if (response.data.success && response.data.user) {
+        const userData: UserInfo = {
+          _id: response.data.user._id,
+          fullname: response.data.user.fullname,
+          email: response.data.user.email,
+          profilePicture: response.data.user.profilePicture,
+          isAdmin: response.data.user.isAdmin || false,
+          verified: response.data.user.verified || false,
+        };
+
+        setCurrentUser(userData);
+
+        // Update localStorage with fresh user data
+        localStorage.setItem("user", JSON.stringify(userData));
+
+        console.log("Current user fetched:", {
+          name: userData.fullname,
+          email: userData.email,
+          isAdmin: userData.isAdmin,
+          profilePicture: userData.profilePicture ? "Yes" : "No",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching current user:", error);
+      setCurrentUser(null);
+      // Clear invalid token
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        (error as any).response?.status === 401
+      ) {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("user");
+      }
+    }
+  }, []);
+
+  // Initialize user data on component mount
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+    if (token) {
+      fetchCurrentUser();
+    } else {
+      // Try to get user from localStorage as fallback
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          if (user._id && user.fullname) {
+            setCurrentUser(user);
+          } else {
+            localStorage.removeItem("user");
+          }
+        } catch (error) {
+          console.error("Error parsing stored user data:", error);
+          localStorage.removeItem("user");
+        }
+      }
+    }
+  }, [fetchCurrentUser]);
+
+  // Get user info with proper fallbacks
+  const getUserInfo = useCallback(() => {
+    if (currentUser) {
+      return {
+        name: currentUser.fullname,
+        fullname: currentUser.fullname,
+        profilePicture: getProfilePictureUrl(currentUser.profilePicture),
+        userId: currentUser._id,
+        isAdmin: currentUser.isAdmin,
+        email: currentUser.email,
+      };
+    }
+
+    // Fallback for non-authenticated users
+    return {
+      name: "Anonymous User",
+      fullname: "Anonymous User",
+      profilePicture: "/placeholder-user.png",
+      userId: `guest-${Date.now()}`,
+      isAdmin: false,
+      email: "",
+    };
+  }, [currentUser]);
 
   // Initialize peer connection
   const initializePeerConnection = useCallback((isAdmin: boolean) => {
     console.log(
-      `🔄 Initializing peer connection as ${isAdmin ? "admin" : "viewer"}`
+      `Initializing peer connection as ${isAdmin ? "admin" : "viewer"}`
     );
 
     if (peerConnectionRef.current) {
-      console.log("🧹 Cleaning up existing peer connection");
+      console.log("Cleaning up existing peer connection");
       try {
         peerConnectionRef.current.close();
       } catch (e) {
@@ -84,70 +250,74 @@ export const VideoStreamProvider = ({
 
       pc.onicecandidate = (event) => {
         if (event.candidate && roomIdRef.current) {
-          console.log("🧊 Generated ICE candidate:", event.candidate);
+          console.log("Generated ICE candidate");
           signaling.sendICECandidate(
             event.candidate.toJSON(),
             roomIdRef.current
           );
         } else if (!event.candidate) {
-          console.log("✅ All ICE candidates generated");
+          console.log("All ICE candidates generated");
         }
       };
 
       pc.ontrack = (event) => {
-        console.log("🎥 Track received:", event.track.kind, event.track.id);
+        console.log("Track received:", event.track.kind);
         if (event.streams && event.streams[0]) {
+          const stream = event.streams[0];
           console.log(
-            "📹 Stream received with tracks:",
-            event.streams[0].getTracks().length
+            "Stream received with tracks:",
+            stream.getTracks().length
           );
-          setAdminStream(event.streams[0]);
-          setIsAdminStreaming(true);
-          setConnectionStatus("Stream connected");
+
+          const videoTracks = stream.getVideoTracks();
+          if (videoTracks.length > 0) {
+            setAdminStream(stream);
+            setIsAdminStreaming(true);
+            setConnectionStatus("Stream connected");
+          }
         }
       };
 
       pc.onconnectionstatechange = () => {
         const state = pc.connectionState;
         setConnectionStatus(state);
-        console.log("🔄 Peer connection state:", state);
+        console.log("Peer connection state:", state);
 
         if (state === "connected") {
           setIsAdminStreaming(true);
-          console.log("✅ WebRTC connection established");
+          console.log("WebRTC connection established");
         } else if (state === "disconnected" || state === "failed") {
           setIsAdminStreaming(false);
-          setAdminStream(null);
-          console.log("❌ WebRTC connection lost");
+          console.log("WebRTC connection lost");
         } else if (state === "closed") {
           setIsAdminStreaming(false);
           setAdminStream(null);
-          console.log("🔒 WebRTC connection closed");
+          console.log("WebRTC connection closed");
         }
       };
 
       pc.oniceconnectionstatechange = () => {
-        console.log("🧊 ICE connection state:", pc.iceConnectionState);
+        console.log("ICE connection state:", pc.iceConnectionState);
       };
 
       pc.onsignalingstatechange = () => {
-        console.log("📡 Signaling state:", pc.signalingState);
+        console.log("Signaling state:", pc.signalingState);
+        hasRemoteDescriptionRef.current = pc.remoteDescription !== null;
       };
 
-      // If admin, add tracks immediately
       if (isAdmin && streamRef.current) {
-        console.log("🎥 Admin: Adding tracks to peer connection");
+        console.log("Admin: Adding tracks to peer connection");
         streamRef.current.getTracks().forEach((track) => {
           pc.addTrack(track, streamRef.current!);
         });
-        console.log("✅ Admin tracks added");
       }
 
       peerConnectionRef.current = pc;
       setPeerConnection(pc);
+      hasRemoteDescriptionRef.current = false;
       return pc;
     } catch (error) {
-      console.error("❌ Error creating peer connection:", error);
+      console.error("Error creating peer connection:", error);
       return null;
     }
   }, []);
@@ -157,14 +327,13 @@ export const VideoStreamProvider = ({
     async (pc: RTCPeerConnection) => {
       if (pendingCandidatesRef.current.length > 0) {
         console.log(
-          `📨 Processing ${pendingCandidatesRef.current.length} pending ICE candidates`
+          `Processing ${pendingCandidatesRef.current.length} pending ICE candidates`
         );
         for (const candidate of pendingCandidatesRef.current) {
           try {
             await pc.addIceCandidate(new RTCIceCandidate(candidate));
-            console.log("✅ Added pending ICE candidate");
           } catch (error) {
-            console.error("❌ Error adding pending ICE candidate:", error);
+            console.error("Error adding pending ICE candidate:", error);
           }
         }
         pendingCandidatesRef.current = [];
@@ -173,61 +342,62 @@ export const VideoStreamProvider = ({
     []
   );
 
-  // Update the useEffect with signaling callbacks
+  // Handle WebRTC signaling
   useEffect(() => {
     const callbacks = {
       onConnected: () => {
-        console.log("✅ Signaling connected");
+        console.log("Signaling connected");
         setConnectionStatus("Connected to signaling");
       },
+
       onDisconnected: () => {
-        console.log("❌ Signaling disconnected");
+        console.log("Signaling disconnected");
         setConnectionStatus("Disconnected from signaling");
         setIsAdminStreaming(false);
-        setAdminStream(null);
       },
+
       onError: (error: string) => {
-        console.error("❌ Signaling error:", error);
+        console.error("Signaling error:", error);
         setConnectionStatus(`Error: ${error}`);
       },
+
       onJoined: (data: any) => {
-        console.log("✅ Joined room successfully", data);
+        console.log("Joined room successfully", data);
         setConnectionStatus("Joined room - waiting for stream");
 
-        // If admin, create offer after joining
         if (isAdminRef.current) {
           setTimeout(async () => {
             try {
               const pc = peerConnectionRef.current;
               if (!pc) return;
 
-              console.log("📤 Admin: Creating offer...");
+              console.log("Admin: Creating offer...");
               const offer = await pc.createOffer();
               await pc.setLocalDescription(offer);
               signaling.sendOffer(offer, roomIdRef.current);
-              console.log("✅ Admin: Offer created and sent");
             } catch (error) {
-              console.error("❌ Error creating offer:", error);
+              console.error("Error creating offer:", error);
             }
           }, 1000);
         }
       },
+
       onUserJoined: (data: any) => {
-        console.log("👤 User joined room:", data);
-        // If admin and a user joins, re-send the offer
+        console.log("User joined room:", data);
         if (isAdminRef.current && peerConnectionRef.current) {
           setTimeout(async () => {
             try {
-              console.log("📤 Admin: Sending offer to new user");
+              console.log("Admin: Sending offer to new user");
               const offer = await peerConnectionRef.current!.createOffer();
               await peerConnectionRef.current!.setLocalDescription(offer);
               signaling.sendOffer(offer, roomIdRef.current);
             } catch (error) {
-              console.error("❌ Error sending offer to new user:", error);
+              console.error("Error sending offer to new user:", error);
             }
           }, 500);
         }
       },
+
       onOffer: async (
         offer: RTCSessionDescriptionInit,
         roomId: string,
@@ -235,30 +405,35 @@ export const VideoStreamProvider = ({
       ) => {
         if (roomId !== roomIdRef.current || isAdminRef.current) return;
 
-        console.log("📨 Offer received from admin:", senderId);
+        console.log("Offer received from admin");
         try {
           const pc = peerConnectionRef.current;
           if (!pc) {
-            console.error("❌ No peer connection available");
+            console.error("No peer connection available");
             return;
           }
 
-          console.log("🔄 Setting remote description...");
-          await pc.setRemoteDescription(new RTCSessionDescription(offer));
-          console.log("✅ Remote description set");
+          if (pc.signalingState !== "stable") {
+            console.log("Signaling not stable, waiting...");
+            setTimeout(() => callbacks.onOffer(offer, roomId, senderId), 1000);
+            return;
+          }
 
-          // Process any pending ICE candidates
+          console.log("Setting remote description...");
+          await pc.setRemoteDescription(new RTCSessionDescription(offer));
+          console.log("Remote description set");
+
           await processPendingCandidates(pc);
 
-          console.log("📤 Creating answer...");
+          console.log("Creating answer...");
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
           signaling.sendAnswer(answer, roomId);
-          console.log("✅ Answer sent to admin");
         } catch (error) {
-          console.error("❌ Error handling offer:", error);
+          console.error("Error handling offer:", error);
         }
       },
+
       onAnswer: async (
         answer: RTCSessionDescriptionInit,
         roomId: string,
@@ -266,21 +441,29 @@ export const VideoStreamProvider = ({
       ) => {
         if (roomId !== roomIdRef.current || !isAdminRef.current) return;
 
-        console.log("📨 Answer received from user:", senderId);
+        console.log("Answer received from user");
         try {
           const pc = peerConnectionRef.current;
           if (!pc) return;
 
-          console.log("🔄 Setting remote description...");
-          await pc.setRemoteDescription(new RTCSessionDescription(answer));
-          console.log("✅ Remote description set");
+          if (pc.signalingState !== "have-local-offer") {
+            console.warn(
+              "Cannot set remote answer in current state:",
+              pc.signalingState
+            );
+            return;
+          }
 
-          // Process any pending ICE candidates
+          console.log("Setting remote description...");
+          await pc.setRemoteDescription(new RTCSessionDescription(answer));
+          console.log("Remote description set");
+
           await processPendingCandidates(pc);
         } catch (error) {
-          console.error("❌ Error handling answer:", error);
+          console.error("Error handling answer:", error);
         }
       },
+
       onIceCandidate: async (
         candidate: RTCIceCandidateInit,
         roomId: string,
@@ -288,30 +471,32 @@ export const VideoStreamProvider = ({
       ) => {
         if (roomId !== roomIdRef.current) return;
 
-        console.log("🧊 ICE candidate received from:", senderId);
+        console.log("ICE candidate received");
         try {
           const pc = peerConnectionRef.current;
           if (pc && pc.remoteDescription) {
             await pc.addIceCandidate(new RTCIceCandidate(candidate));
-            console.log("✅ ICE candidate added");
           } else {
-            console.log("📥 Storing ICE candidate for later");
+            console.log("Storing ICE candidate for later");
             pendingCandidatesRef.current.push(candidate);
           }
         } catch (error) {
-          console.error("❌ Error adding ICE candidate:", error);
+          console.error("Error adding ICE candidate:", error);
         }
       },
+
       onChatMessage: (messageData: any, roomId: string) => {
         if (roomId === roomIdRef.current) {
           setChatMessages((prev) => [
             ...prev,
             {
-              id: Date.now().toString(),
-              sender: messageData.sender,
+              id: Date.now().toString() + Math.random().toString(36).slice(2),
+              sender: messageData.sender || "Unknown",
               message: messageData.message,
-              timestamp: new Date(messageData.timestamp),
-              isStaff: messageData.sender === "Admin",
+              timestamp: new Date(messageData.timestamp || Date.now()),
+              isStaff: messageData.isStaff || messageData.isAdmin || false,
+              profileUrl: getProfilePictureUrl(messageData.profileUrl),
+              senderId: messageData.senderId,
             },
           ]);
         }
@@ -328,7 +513,7 @@ export const VideoStreamProvider = ({
   const connectToRoom = useCallback(
     async (roomId: string, isAdmin: boolean = false) => {
       if (isConnectingRef.current) {
-        console.log("⚠️ Already connecting, skipping...");
+        console.log("Already connecting, skipping...");
         return;
       }
 
@@ -337,32 +522,32 @@ export const VideoStreamProvider = ({
 
       try {
         console.log(
-          `🚀 Connecting to room: ${roomId} as ${isAdmin ? "admin" : "viewer"}`
+          `Connecting to room: ${roomId} as ${isAdmin ? "admin" : "viewer"}`
         );
 
-        // Set role and room first
         isAdminRef.current = isAdmin;
         roomIdRef.current = roomId;
 
-        // Initialize peer connection with the correct role
         const pc = initializePeerConnection(isAdmin);
         if (!pc) {
           throw new Error("Failed to initialize WebRTC peer connection");
         }
 
-        // Connect to signaling server
-        console.log("🔌 Connecting to signaling server...");
         await signaling.connect();
-        console.log("✅ Signaling server connected");
 
-        // Join the room
-        console.log(`🎯 Joining room: ${roomId}`);
-        await signaling.joinRoom(roomId, isAdmin);
+        // Get current user info
+        const userInfo = getUserInfo();
+        console.log("Joining with user info:", userInfo);
+
+        await signaling.joinRoom(roomId, isAdmin, {
+          name: userInfo.fullname,
+          profilePicture: userInfo.profilePicture,
+          userId: userInfo.userId,
+        });
 
         setConnectionStatus("Connected to room");
-        console.log("✅ Room connection completed successfully");
       } catch (error) {
-        console.error("❌ Error connecting to room:", error);
+        console.error("Error connecting to room:", error);
         setConnectionStatus(
           `Connection failed: ${
             error instanceof Error ? error.message : "Unknown error"
@@ -373,11 +558,11 @@ export const VideoStreamProvider = ({
         isConnectingRef.current = false;
       }
     },
-    [initializePeerConnection]
+    [initializePeerConnection, getUserInfo]
   );
 
   const disconnectFromRoom = useCallback(() => {
-    console.log("🔌 Disconnecting from room");
+    console.log("Disconnecting from room");
 
     if (peerConnectionRef.current) {
       try {
@@ -397,23 +582,38 @@ export const VideoStreamProvider = ({
     pendingCandidatesRef.current = [];
     isConnectingRef.current = false;
     roomIdRef.current = "";
+    hasRemoteDescriptionRef.current = false;
 
-    console.log("✅ Disconnected from room");
+    console.log("Disconnected from room");
   }, []);
 
-  const sendChatMessage = useCallback((message: string, sender: string) => {
-    if (roomIdRef.current) {
-      signaling.sendChatMessage(message, sender, roomIdRef.current);
-    }
-  }, []);
+  const sendChatMessage = useCallback(
+    (message: string, _sender: string, _profileUrl?: string) => {
+      if (roomIdRef.current && currentUser) {
+        const userInfo = getUserInfo();
+        signaling.sendChatMessage(
+          message,
+          userInfo.fullname,
+          roomIdRef.current,
+          userInfo.profilePicture
+        );
+      }
+    },
+    [currentUser, getUserInfo]
+  );
 
   const setAdminStreamHandler = useCallback((stream: MediaStream | null) => {
     streamRef.current = stream;
     setAdminStream(stream);
 
-    // If we have a stream and are admin, add tracks to existing peer connection
     if (stream && isAdminRef.current && peerConnectionRef.current) {
-      console.log("🎥 Adding tracks to existing admin peer connection");
+      const senders = peerConnectionRef.current.getSenders();
+      senders.forEach((sender) => {
+        if (sender.track) {
+          peerConnectionRef.current!.removeTrack(sender);
+        }
+      });
+
       stream.getTracks().forEach((track) => {
         peerConnectionRef.current!.addTrack(track, stream);
       });
@@ -440,6 +640,8 @@ export const VideoStreamProvider = ({
         connectionStatus,
         sendChatMessage,
         chatMessages,
+        currentUser,
+        fetchCurrentUser,
       }}
     >
       {children}
