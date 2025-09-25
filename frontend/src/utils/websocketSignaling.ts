@@ -11,7 +11,6 @@ class Signaling {
       try {
         console.log(`Connecting to signaling server: ${NEXT_PUBLIC_WS_URL}`);
 
-        // Use http://localhost:5003 for Socket.IO, not ws://...
         this.socket = io(NEXT_PUBLIC_WS_URL, {
           transports: ["websocket", "polling"],
           timeout: 10000,
@@ -36,7 +35,6 @@ class Signaling {
           reject(error);
         });
 
-        // Set up event listeners
         this.setupEventListeners();
       } catch (error) {
         console.error("Error connecting to signaling server:", error);
@@ -60,12 +58,22 @@ class Signaling {
 
     this.socket.on("offer", (data: any) => {
       console.log("Offer received:", data);
-      this.callbacks.onOffer?.(data.offer, data.roomId, data.senderId);
+      this.callbacks.onOffer?.(
+        data.offer,
+        data.roomId,
+        data.senderId,
+        data.targetId
+      );
     });
 
     this.socket.on("answer", (data: any) => {
       console.log("Answer received:", data);
-      this.callbacks.onAnswer?.(data.answer, data.roomId, data.senderId);
+      this.callbacks.onAnswer?.(
+        data.answer,
+        data.roomId,
+        data.senderId,
+        data.targetId
+      );
     });
 
     this.socket.on("ice-candidate", (data: any) => {
@@ -73,7 +81,8 @@ class Signaling {
       this.callbacks.onIceCandidate?.(
         data.candidate,
         data.roomId,
-        data.senderId
+        data.senderId,
+        data.targetId
       );
     });
 
@@ -113,26 +122,65 @@ class Signaling {
       isAdmin,
       userData: {
         name: userData.name || "User",
-        fullname: userData.name || userData.fullname || "User", // Add fullname
+        fullname: userData.name || userData.fullname || "User",
         profilePicture: userData.profilePicture || "",
         id: userData.userId || `guest-${Date.now()}`,
       },
     });
   }
 
-  sendOffer(offer: RTCSessionDescriptionInit, roomId: string) {
+  sendOffer(
+    offer: RTCSessionDescriptionInit,
+    roomId: string,
+    targetId?: string
+  ) {
     if (!this.socket) return;
-    this.socket.emit("offer", { offer, roomId });
+
+    console.log(
+      `Sending offer to room ${roomId}${
+        targetId ? ` (target: ${targetId})` : ""
+      }`
+    );
+
+    this.socket.emit("offer", {
+      offer,
+      roomId,
+      targetId,
+    });
   }
 
-  sendAnswer(answer: RTCSessionDescriptionInit, roomId: string) {
+  sendAnswer(
+    answer: RTCSessionDescriptionInit,
+    roomId: string,
+    targetId?: string
+  ) {
     if (!this.socket) return;
-    this.socket.emit("answer", { answer, roomId });
+
+    console.log(
+      `Sending answer to room ${roomId}${
+        targetId ? ` (target: ${targetId})` : ""
+      }`
+    );
+
+    this.socket.emit("answer", {
+      answer,
+      roomId,
+      targetId,
+    });
   }
 
-  sendICECandidate(candidate: RTCIceCandidateInit, roomId: string) {
+  sendICECandidate(
+    candidate: RTCIceCandidateInit,
+    roomId: string,
+    targetId?: string
+  ) {
     if (!this.socket) return;
-    this.socket.emit("ice-candidate", { candidate, roomId });
+
+    this.socket.emit("ice-candidate", {
+      candidate,
+      roomId,
+      targetId,
+    });
   }
 
   sendChatMessage(
@@ -146,7 +194,7 @@ class Signaling {
     const messageData = {
       message,
       sender,
-      fullname: sender, // Ensure fullname is included
+      fullname: sender,
       roomId,
       profileUrl: profileUrl || "",
       timestamp: new Date().toISOString(),

@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Camera, CameraOff, RefreshCw } from "lucide-react";
+import { Send, Camera, CameraOff, RefreshCw, Users, Eye } from "lucide-react";
 import AdminAuthWrapper from "@/components/AdminAuthWrapper";
 import { useVideoStream } from "@/context/VideoStreamContext";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -29,6 +29,9 @@ export default function AdminLivePage() {
     sendChatMessage,
     currentUser,
     fetchCurrentUser,
+    connectedUsers,
+    viewerCount,
+    totalParticipants,
   } = useVideoStream();
 
   const roomId = "pet-live-room";
@@ -159,13 +162,82 @@ export default function AdminLivePage() {
 
   return (
     <AdminAuthWrapper>
-      <div className="min-h-screen bg-[#f8fafc] pb-8">
-        <div className="container mx-auto p-4 pt-24 space-y-6">
-          <div className="flex justify-between items-center">
+      <div className="min-h-screen bg-[#f8fafc] ">
+        <div className="container mx-auto p-7 pt-2 space-y-6">
+          {/* Stream Statistics Card */}
+          <Card className="w-full rounded-2xl bg-orange-500 border border-orange-200">
+            <CardContent className="p-6">
+              <h2 className="text-xl font-semibold mb-4 text-white">
+                Stream Statistics
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-blue-50 p-4 rounded-xl text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {viewerCount}
+                  </div>
+                  <div className="text-sm text-blue-800">Current Viewers</div>
+                </div>
+                <div className="bg-green-50 p-4 rounded-xl text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    {totalParticipants}
+                  </div>
+                  <div className="text-sm text-green-800">
+                    Total Participants
+                  </div>
+                </div>
+                <div className="bg-orange-50 p-4 rounded-xl text-center">
+                  <div className="text-2xl font-bold text-orange-600">
+                    {connectedUsers.size}
+                  </div>
+                  <div className="text-sm text-orange-800">
+                    Active Connections
+                  </div>
+                </div>
+                <div className="bg-purple-50 p-4 rounded-xl text-center">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {chatMessages.length}
+                  </div>
+                  <div className="text-sm text-purple-800">Chat Messages</div>
+                </div>
+              </div>
+
+              {isCameraActive && (
+                <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-green-800 font-medium">
+                      Live stream is active
+                    </span>
+                    <span className="text-green-600 text-sm">
+                      Broadcasting to {viewerCount} viewer
+                      {viewerCount !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <div className="flex justify-between p-5  items-center">
             <div>
-              <h1 className="text-3xl font-bold text-[#0a1629]">
-                Live Stream Admin
-              </h1>
+              <div className="flex items-center pt-2 gap-5">
+                <h1 className="text-3xl font-bold text-[#0a1629]">
+                  Live Stream Admin
+                </h1>
+
+                {/* Admin Stats */}
+                <div className="flex items-center gap-3">
+                  {/* Live Status Badge */}
+                  {isCameraActive && (
+                    <div className="flex items-center gap-2 bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
+                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                      <span>LIVE</span>
+                    </div>
+                  )}
+
+                 
+                </div>
+              </div>
+
               {currentUser && (
                 <div className="flex items-center gap-2 mt-2">
                   <Avatar className="h-6 w-6">
@@ -180,6 +252,12 @@ export default function AdminLivePage() {
                   <span className="text-sm text-gray-600">
                     Streaming as {currentUser.fullname}
                   </span>
+                  {connectedUsers.size > 0 && (
+                    <span className="text-xs text-green-600 ml-2">
+                      • {connectedUsers.size} active connection
+                      {connectedUsers.size !== 1 ? "s" : ""}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -258,9 +336,15 @@ export default function AdminLivePage() {
                         <span className="text-sm text-gray-600">
                           Status: {connectionStatus}
                         </span>
-                        <span className="text-sm text-green-600">
-                          ● Streaming active
-                        </span>
+                        <div className="flex items-center gap-3 text-sm">
+                          <span className="text-blue-600">
+                            Broadcasting to {viewerCount} viewer
+                            {viewerCount !== 1 ? "s" : ""}
+                          </span>
+                          <span className="text-green-600">
+                            • Streaming active
+                          </span>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -275,13 +359,21 @@ export default function AdminLivePage() {
             {/* Chat Section */}
             <Card className="w-full rounded-2xl shadow">
               <CardContent className="p-6">
-                <h2 className="text-xl font-semibold mb-4 text-[#0a1629]">
-                  Live Chat
-                </h2>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold text-[#0a1629]">
+                    Live Chat
+                  </h2>
+                  {chatMessages.length > 0 && (
+                    <span className="text-sm text-gray-500">
+                      {chatMessages.length} message
+                      {chatMessages.length !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                </div>
                 <div className="space-y-4">
                   <div
                     ref={chatContainerRef}
-                    className="h-64 border rounded-xl p-4 overflow-y-auto space-y-2 bg-gray-50"
+                    className="h-80 border rounded-xl p-4 overflow-y-auto space-y-2 bg-gray-50"
                   >
                     {chatMessages.map((msg) => (
                       <div
@@ -305,7 +397,8 @@ export default function AdminLivePage() {
                           <div className="flex justify-between items-start mb-1">
                             <span className="font-semibold text-sm">
                               {msg.sender}
-                              {msg.isStaff && " (Staff)"}
+                              {msg.isStaff && " (You)"}
+                              {!msg.isStaff && " (Viewer)"}
                             </span>
                             <span className="text-xs opacity-70">
                               {msg.timestamp.toLocaleTimeString()}

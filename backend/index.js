@@ -61,8 +61,12 @@ const rooms = new Map();
 
 // Replace the existing socket.io setup section in your index.js with this:
 
+// Server Socket.IO handler - replace the socket.io section in your index.js
+
+// Server Socket.IO handler - replace the socket.io section in your index.js
+
 io.on("connection", (socket) => {
-  console.log("✅ Socket.IO client connected:", socket.id);
+  console.log("Socket.IO client connected:", socket.id);
 
   // Set up user data with proper defaults
   socket.userData = {
@@ -77,7 +81,7 @@ io.on("connection", (socket) => {
 
   socket.on("join", ({ roomId, isAdmin, userData }) => {
     try {
-      console.log(`🚀 User ${socket.id} joining room:`, {
+      console.log(`User ${socket.id} joining room:`, {
         roomId,
         isAdmin,
         userData: {
@@ -120,7 +124,7 @@ io.on("connection", (socket) => {
 
       if (isAdmin) {
         room.admin = socket.id;
-        console.log(`👑 Admin ${socket.id} (${socket.userData.fullname}) joined room ${roomId}`);
+        console.log(`Admin ${socket.id} (${socket.userData.fullname}) joined room ${roomId}`);
       } else {
         room.users.set(socket.id, {
           id: socket.id,
@@ -129,7 +133,7 @@ io.on("connection", (socket) => {
           profilePicture: socket.userData.profilePicture,
           joinedAt: new Date(),
         });
-        console.log(`👤 User ${socket.id} (${socket.userData.fullname}) joined room ${roomId}`);
+        console.log(`User ${socket.id} (${socket.userData.fullname}) joined room ${roomId}`);
       }
 
       // Notify the joining user
@@ -150,6 +154,7 @@ io.on("connection", (socket) => {
         user: socket.userData,
         isAdmin: isAdmin,
         participantCount: room.users.size + (room.admin ? 1 : 0),
+        viewerCount: room.users.size,
         roomId,
       });
 
@@ -159,13 +164,15 @@ io.on("connection", (socket) => {
         roomId,
         participants,
         participantCount: participants.length,
+        viewerCount: room.users.size,
+        adminPresent: !!room.admin,
       });
 
       console.log(
-        `🏠 Room ${roomId} now has ${room.users.size} users and admin: ${room.admin ? `${room.admin} (${socket.userData.fullname})` : 'none'}`
+        `Room ${roomId} now has ${room.users.size} users and admin: ${room.admin ? `${room.admin} (${socket.userData.fullname})` : 'none'}`
       );
     } catch (error) {
-      console.error("❌ Error joining room:", error);
+      console.error("Error joining room:", error);
       socket.emit("error", {
         type: "join-error",
         message: "Failed to join room",
@@ -174,52 +181,30 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("offer", ({ offer, roomId }) => {
+  socket.on("offer", ({ offer, roomId, targetId }) => {
     try {
       const room = rooms.get(roomId);
       if (!room) {
-        console.error(`❌ Room ${roomId} not found for offer`);
+        console.error(`Room ${roomId} not found for offer`);
         return;
       }
 
-      console.log(`📤 User ${socket.id} (${socket.userData.fullname}) sending offer to room ${roomId}`);
+      console.log(`User ${socket.id} (${socket.userData.fullname}) sending offer to room ${roomId}${targetId ? ` (target: ${targetId})` : ''}`);
 
-      // Broadcast offer to all other users in the room
-      socket.to(roomId).emit("offer", {
-        offer,
-        senderId: socket.id,
-        senderData: socket.userData,
-        roomId,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error("❌ Error handling offer:", error);
-    }
-  });
-
-  socket.on("answer", ({ answer, roomId }) => {
-    try {
-      const room = rooms.get(roomId);
-      if (!room) {
-        console.error(`❌ Room ${roomId} not found for answer`);
-        return;
-      }
-
-      console.log(`📨 User ${socket.id} (${socket.userData.fullname}) sending answer in room ${roomId}`);
-
-      // If user is answering admin's offer, send to admin
-      if (room.admin && room.admin !== socket.id) {
-        socket.to(room.admin).emit("answer", {
-          answer,
+      if (targetId) {
+        // Send to specific target
+        socket.to(targetId).emit("offer", {
+          offer,
           senderId: socket.id,
           senderData: socket.userData,
           roomId,
+          targetId,
           timestamp: new Date().toISOString(),
         });
       } else {
-        // Broadcast to all in room (fallback)
-        socket.to(roomId).emit("answer", {
-          answer,
+        // Broadcast to all other users in the room
+        socket.to(roomId).emit("offer", {
+          offer,
           senderId: socket.id,
           senderData: socket.userData,
           roomId,
@@ -227,29 +212,85 @@ io.on("connection", (socket) => {
         });
       }
     } catch (error) {
-      console.error("❌ Error handling answer:", error);
+      console.error("Error handling offer:", error);
     }
   });
 
-  socket.on("ice-candidate", ({ candidate, roomId }) => {
+  socket.on("answer", ({ answer, roomId, targetId }) => {
     try {
       const room = rooms.get(roomId);
       if (!room) {
-        console.error(`❌ Room ${roomId} not found for ICE candidate`);
+        console.error(`Room ${roomId} not found for answer`);
         return;
       }
 
-      console.log(`🧊 User ${socket.id} sending ICE candidate to room ${roomId}`);
+      console.log(`User ${socket.id} (${socket.userData.fullname}) sending answer in room ${roomId}${targetId ? ` (target: ${targetId})` : ''}`);
 
-      // Send to all other participants in the room
-      socket.to(roomId).emit("ice-candidate", {
-        candidate,
-        senderId: socket.id,
-        roomId,
-        timestamp: new Date().toISOString(),
-      });
+      if (targetId) {
+        // Send to specific target
+        socket.to(targetId).emit("answer", {
+          answer,
+          senderId: socket.id,
+          senderData: socket.userData,
+          roomId,
+          targetId,
+          timestamp: new Date().toISOString(),
+        });
+      } else {
+        // Send to admin or broadcast
+        if (room.admin && room.admin !== socket.id) {
+          socket.to(room.admin).emit("answer", {
+            answer,
+            senderId: socket.id,
+            senderData: socket.userData,
+            roomId,
+            timestamp: new Date().toISOString(),
+          });
+        } else {
+          socket.to(roomId).emit("answer", {
+            answer,
+            senderId: socket.id,
+            senderData: socket.userData,
+            roomId,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
     } catch (error) {
-      console.error("❌ Error handling ICE candidate:", error);
+      console.error("Error handling answer:", error);
+    }
+  });
+
+  socket.on("ice-candidate", ({ candidate, roomId, targetId }) => {
+    try {
+      const room = rooms.get(roomId);
+      if (!room) {
+        console.error(`Room ${roomId} not found for ICE candidate`);
+        return;
+      }
+
+      console.log(`User ${socket.id} sending ICE candidate to room ${roomId}${targetId ? ` (target: ${targetId})` : ''}`);
+
+      if (targetId) {
+        // Send to specific target
+        socket.to(targetId).emit("ice-candidate", {
+          candidate,
+          senderId: socket.id,
+          roomId,
+          targetId,
+          timestamp: new Date().toISOString(),
+        });
+      } else {
+        // Send to all other participants in the room
+        socket.to(roomId).emit("ice-candidate", {
+          candidate,
+          senderId: socket.id,
+          roomId,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } catch (error) {
+      console.error("Error handling ICE candidate:", error);
     }
   });
 
@@ -259,12 +300,12 @@ io.on("connection", (socket) => {
       const room = rooms.get(roomId);
 
       if (!room) {
-        console.error(`❌ Room ${roomId} not found for chat message`);
+        console.error(`Room ${roomId} not found for chat message`);
         return;
       }
 
       console.log(
-        `💬 ${socket.userData.fullname || socket.userData.name} sending message to room ${roomId}`
+        `${socket.userData.fullname || socket.userData.name} sending message to room ${roomId}`
       );
 
       // Use the most up-to-date user data
@@ -287,10 +328,10 @@ io.on("connection", (socket) => {
       io.to(roomId).emit("chat-message", messageData);
 
       console.log(
-        `✅ Message broadcast to ${room.users.size + 1} participants from ${finalSender}`
+        `Message broadcast to ${room.users.size + 1} participants from ${finalSender}`
       );
     } catch (error) {
-      console.error("❌ Error handling chat message:", error);
+      console.error("Error handling chat message:", error);
     }
   });
 
@@ -299,27 +340,49 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnecting", (reason) => {
-    console.log(`🔌 User ${socket.id} (${socket.userData.fullname || socket.userData.name}) disconnecting:`, reason);
+    console.log(`User ${socket.id} (${socket.userData.fullname || socket.userData.name}) disconnecting:`, reason);
 
     if (socket.userData.roomId) {
+      const room = rooms.get(socket.userData.roomId);
+      
+      // Remove user from room
       removeUserFromRoom(socket.userData.roomId, socket.id);
 
-      // Notify others about user leaving
+      // Get updated counts after removal
+      const updatedRoom = rooms.get(socket.userData.roomId);
+      const participantCount = updatedRoom ? 
+        updatedRoom.users.size + (updatedRoom.admin ? 1 : 0) : 0;
+      const viewerCount = updatedRoom ? updatedRoom.users.size : 0;
+
+      // Notify others about user leaving with updated counts
       socket.to(socket.userData.roomId).emit("user-left", {
         userId: socket.id,
         userData: socket.userData,
         roomId: socket.userData.roomId,
         reason: reason,
+        participantCount: participantCount,
+        viewerCount: viewerCount,
       });
+
+      // Broadcast updated room info to remaining users
+      if (updatedRoom && participantCount > 0) {
+        io.to(socket.userData.roomId).emit("room-info", {
+          roomId: socket.userData.roomId,
+          participants: getRoomParticipants(updatedRoom),
+          participantCount: participantCount,
+          viewerCount: viewerCount,
+          adminPresent: !!updatedRoom.admin,
+        });
+      }
     }
   });
 
   socket.on("disconnect", (reason) => {
-    console.log(`❌ User ${socket.id} (${socket.userData.fullname || socket.userData.name}) disconnected:`, reason);
+    console.log(`User ${socket.id} (${socket.userData.fullname || socket.userData.name}) disconnected:`, reason);
   });
 
   socket.on("error", (error) => {
-    console.error(`❌ Socket error for ${socket.id}:`, error);
+    console.error(`Socket error for ${socket.id}:`, error);
   });
 });
 

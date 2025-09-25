@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, RefreshCw } from "lucide-react";
+import { Send, RefreshCw, Play } from "lucide-react";
 import { useVideoStream } from "@/context/VideoStreamContext";
 import Navigation from "@/components/Navigation";
 import AuthNavigation from "@/components/authNavigation";
@@ -18,6 +18,7 @@ export default function LivePage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [videoError, setVideoError] = useState("");
 
   const {
     adminStream,
@@ -29,6 +30,9 @@ export default function LivePage() {
     chatMessages,
     currentUser,
     fetchCurrentUser,
+    connectedUsers,
+    viewerCount,
+    totalParticipants,
   } = useVideoStream();
 
   const roomId = "pet-live-room";
@@ -37,7 +41,6 @@ export default function LivePage() {
     const token = localStorage?.getItem("accessToken");
     setIsLoggedIn(!!token);
 
-    // Fetch current user data if logged in
     if (token) {
       fetchCurrentUser();
     }
@@ -47,81 +50,154 @@ export default function LivePage() {
       setHasUserInteracted(true);
       document.removeEventListener("click", handleUserInteraction);
       document.removeEventListener("touchstart", handleUserInteraction);
+      document.removeEventListener("keydown", handleUserInteraction);
     };
 
     document.addEventListener("click", handleUserInteraction);
     document.addEventListener("touchstart", handleUserInteraction);
+    document.addEventListener("keydown", handleUserInteraction);
 
     return () => {
       document.removeEventListener("click", handleUserInteraction);
       document.removeEventListener("touchstart", handleUserInteraction);
+      document.removeEventListener("keydown", handleUserInteraction);
     };
   }, [fetchCurrentUser]);
 
   // Connect to room on component mount
   useEffect(() => {
-    console.log("User: Connecting to room...");
-    connectToRoom(roomId, false);
+    console.log("Viewer: Connecting to room...");
+    connectToRoom(roomId, false).catch((error) => {
+      console.error("Failed to connect to room:", error);
+      setVideoError("Failed to connect to live stream");
+    });
 
     return () => {
-      console.log("User: Disconnecting from room...");
+      console.log("Viewer: Disconnecting from room...");
       disconnectFromRoom();
     };
   }, [roomId, connectToRoom, disconnectFromRoom]);
 
-  // Update video element when stream changes
+  // Update video element when stream changes with better error handling
   useEffect(() => {
-    if (videoRef.current) {
-      // Pause before changing srcObject to avoid AbortError
-      videoRef.current.pause();
+    if (!videoRef.current) return;
 
-      if (adminStream) {
-        console.log("User: Setting video stream");
-        videoRef.current.srcObject = adminStream;
+    const videoElement = videoRef.current;
 
-        // Only play if user has interacted
-        if (hasUserInteracted) {
-          // Wait for loadedmetadata before playing
-          const playOnReady = () => {
-            videoRef.current?.play().catch((error) => {
-              console.error("Error playing video:", error);
-            });
-            videoRef.current?.removeEventListener(
-              "loadedmetadata",
-              playOnReady
-            );
-          };
-          videoRef.current.addEventListener("loadedmetadata", playOnReady);
-        }
-      } else {
-        videoRef.current.srcObject = null;
+    // Clear any previous errors
+    setVideoError("");
+
+    if (adminStream) {
+      console.log("Viewer: Setting video stream");
+
+      // Pause current playback to avoid conflicts
+      if (!videoElement.paused) {
+        videoElement.pause();
       }
+
+      // Set the new stream
+      videoElement.srcObject = adminStream;
+
+      // Handle metadata loaded
+      const handleLoadedMetadata = () => {
+        console.log("Video metadata loaded");
+        if (hasUserInteracted) {
+          playVideo();
+        }
+      };
+
+      // Handle video errors
+      const handleVideoError = (error: Event) => {
+        console.error("Video playback error:", error);
+        setVideoError("Error playing video stream");
+      };
+
+      // Handle play/pause events
+      const handlePlay = () => {
+        console.log("Video started playing");
+        setVideoError("");
+      };
+
+      const handlePause = () => {
+        console.log("Video paused");
+      };
+
+      // Add event listeners
+      videoElement.addEventListener("loadedmetadata", handleLoadedMetadata);
+      videoElement.addEventListener("error", handleVideoError);
+      videoElement.addEventListener("play", handlePlay);
+      videoElement.addEventListener("pause", handlePause);
+
+      // Cleanup function
+      return () => {
+        videoElement.removeEventListener(
+          "loadedmetadata",
+          handleLoadedMetadata
+        );
+        videoElement.removeEventListener("error", handleVideoError);
+        videoElement.removeEventListener("play", handlePlay);
+        videoElement.removeEventListener("pause", handlePause);
+      };
+    } else {
+      // Clear the video source
+      videoElement.srcObject = null;
+      console.log("Viewer: Cleared video stream");
     }
   }, [adminStream, hasUserInteracted]);
 
-  const handlePlayVideo = async () => {
-    if (videoRef.current && adminStream) {
-      try {
-        await videoRef.current.play();
-        setHasUserInteracted(true);
-      } catch (error) {
-        console.error("Error playing video:", error);
+  const playVideo = async () => {
+    if (!videoRef.current || !adminStream) {
+      console.log("Cannot play video: no video element or stream");
+      return;
+    }
+
+    try {
+      // Ensure the video is ready
+      if (videoRef.current.readyState < 2) {
+        console.log("Video not ready, waiting...");
+        return;
+      }
+
+      console.log("Attempting to play video...");
+      await videoRef.current.play();
+      setHasUserInteracted(true);
+      setVideoError("");
+      console.log("Video playing successfully");
+    } catch (error) {
+      console.error("Error playing video:", error);
+
+      // Handle specific error types
+      if (error instanceof Error) {
+        if (error.name === "AbortError") {
+          console.log("Play was interrupted, will retry...");
+          // Don't show error for abort errors, they're usually temporary
+          return;
+        } else if (error.name === "NotSupportedError") {
+          setVideoError("Video format not supported by your browser");
+        } else if (error.name === "NotAllowedError") {
+          setVideoError("Please click the play button to start the video");
+        } else {
+          setVideoError("Unable to play video stream");
+        }
       }
     }
+  };
+
+  const handlePlayButtonClick = () => {
+    setHasUserInteracted(true);
+    playVideo();
   };
 
   const handleSendMessage = () => {
     const message = chatInputRef.current?.value.trim();
     if (message) {
       if (currentUser) {
-        // Logged in user
         sendChatMessage(
           message,
           currentUser.fullname,
           currentUser.profilePicture
         );
       } else {
-        // Guest user
         sendChatMessage(message, "Guest User", "");
       }
 
@@ -133,12 +209,15 @@ export default function LivePage() {
 
   const reconnect = async () => {
     setIsRefreshing(true);
+    setVideoError("");
+
     try {
       await disconnectFromRoom();
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       await connectToRoom(roomId, false);
     } catch (error) {
       console.error("Reconnection failed:", error);
+      setVideoError("Failed to reconnect to stream");
     } finally {
       setIsRefreshing(false);
     }
@@ -185,10 +264,23 @@ export default function LivePage() {
     <div className="min-h-screen bg-[#f8fafc]">
       {isLoggedIn ? <AuthNavigation /> : <Navigation />}
 
-      <div className="container mx-auto p-4 pt-24 space-y-6">
-        <div className="flex justify-between items-center">
+      <div className="container mx-auto p-20 pt-36 space-y-6">
+        <div className="flex justify-between px-4 items-center">
           <div>
-            <h1 className="text-3xl font-bold text-[#0a1629]">Live Stream</h1>
+            <div className="flex items-center  gap-4">
+              <h1 className="text-3xl font-bold text-[#0a1629]">Live Stream</h1>
+              {/* Viewer Count Badge */}
+              <div className="flex items-center gap-2 bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                <span>
+                  {viewerCount} viewer{viewerCount !== 1 ? "s" : ""}
+                </span>
+                {isAdminStreaming && (
+                  <span className="text-xs opacity-75">• LIVE</span>
+                )}
+              </div>
+            </div>
+
             {currentUser && (
               <div className="flex items-center gap-2 mt-2">
                 <Avatar className="h-6 w-6">
@@ -203,6 +295,12 @@ export default function LivePage() {
                 <span className="text-sm text-gray-600">
                   Watching as {currentUser.fullname}
                 </span>
+                {connectedUsers.size > 0 && (
+                  <span className="text-xs text-green-600 ml-2">
+                    • Connected to {connectedUsers.size} peer
+                    {connectedUsers.size !== 1 ? "s" : ""}
+                  </span>
+                )}
               </div>
             )}
             {!currentUser && isLoggedIn && (
@@ -238,24 +336,39 @@ export default function LivePage() {
               </h2>
               <div className="space-y-4">
                 <div className="relative aspect-video bg-black rounded-xl overflow-hidden">
-                  {isAdminStreaming ? (
+                  {adminStream ? (
                     <>
                       <video
                         ref={videoRef}
                         autoPlay
                         playsInline
                         controls
+                        muted={false}
                         className="w-full h-full object-cover"
-                        onClick={handlePlayVideo}
+                        onError={(e) => {
+                          console.error("Video element error:", e);
+                          setVideoError("Video playback error");
+                        }}
                       />
-                      {!hasUserInteracted && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
-                          <Button
-                            onClick={handlePlayVideo}
-                            className="bg-orange-500 hover:bg-orange-600 text-white"
-                          >
-                            Click to Play Stream
-                          </Button>
+                      {(!hasUserInteracted || videoError) && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70">
+                          <div className="text-center text-white">
+                            <Button
+                              onClick={handlePlayButtonClick}
+                              className="bg-orange-500 hover:bg-orange-600 text-white mb-2"
+                              size="lg"
+                            >
+                              <Play className="w-5 h-5 mr-2" />
+                              {videoError
+                                ? "Retry Video"
+                                : "Click to Play Stream"}
+                            </Button>
+                            {videoError && (
+                              <p className="text-sm text-red-300 mt-2">
+                                {videoError}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       )}
                     </>
@@ -280,23 +393,39 @@ export default function LivePage() {
                         <p className="text-lg font-medium">
                           {connectionStatus === "Connecting..."
                             ? "Connecting to stream..."
+                            : connectionStatus.includes("Error")
+                            ? "Connection error"
                             : "Stream is offline"}
                         </p>
                         <p className="text-sm text-gray-300 mt-1">
-                          Please wait while we connect you to the live stream
+                          {connectionStatus.includes("Error")
+                            ? "Please try refreshing the connection"
+                            : "Please wait while we connect you to the live stream"}
                         </p>
                       </div>
                     </div>
                   )}
                 </div>
 
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600">
                     Status: {connectionStatus}
                   </span>
-                  {isAdminStreaming && (
-                    <span className="text-sm text-green-600">● Live now</span>
-                  )}
+                  <div className="flex items-center gap-4">
+                    <span className="text-gray-600">
+                      {totalParticipants} total • {viewerCount} viewer
+                      {viewerCount !== 1 ? "s" : ""}
+                    </span>
+                    {connectedUsers.size > 0 && (
+                      <span className="text-blue-600">
+                        {connectedUsers.size} connection
+                        {connectedUsers.size !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                    {isAdminStreaming && (
+                      <span className="text-green-600">● Live now</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -311,7 +440,7 @@ export default function LivePage() {
               <div className="space-y-4">
                 <div
                   ref={chatContainerRef}
-                  className="h-64 border rounded-xl p-4 overflow-y-auto space-y-2 bg-gray-50"
+                  className="max-h-96 border rounded-xl p-4 overflow-y-auto space-y-2 bg-gray-50"
                 >
                   {chatMessages.map((msg) => (
                     <div
@@ -322,9 +451,7 @@ export default function LivePage() {
                           : msg.senderId === currentUser?._id
                           ? "bg-orange-50 text-orange-800 mr-8 border border-orange-200"
                           : "bg-white text-gray-800 ml-8 border border-gray-200"
-                          
                       }`}
-                  
                     >
                       <Avatar className="h-8 w-8 flex-shrink-0 mt-1">
                         <AvatarImage
@@ -367,20 +494,20 @@ export default function LivePage() {
                         handleSendMessage();
                       }
                     }}
-                    disabled={!isAdminStreaming}
+                    disabled={connectionStatus === "Disconnected"}
                     className="rounded-xl"
                   />
                   <Button
                     onClick={handleSendMessage}
-                    disabled={!isAdminStreaming}
+                    disabled={connectionStatus === "Disconnected"}
                     className="bg-orange-500 hover:bg-orange-600 rounded-xl"
                   >
                     <Send className="w-4 h-4" />
                   </Button>
                 </div>
-                {!isAdminStreaming && (
+                {connectionStatus === "Disconnected" && (
                   <p className="text-xs text-gray-500 text-center">
-                    Chat is available when stream is active
+                    Chat is unavailable when disconnected
                   </p>
                 )}
               </div>

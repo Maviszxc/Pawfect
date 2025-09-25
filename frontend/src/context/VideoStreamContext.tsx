@@ -37,7 +37,7 @@ type VideoStreamContextType = {
   setAdminStream: (stream: MediaStream | null) => void;
   isAdminStreaming: boolean;
   setIsAdminStreaming: (isStreaming: boolean) => void;
-  peerConnection: RTCPeerConnection | null;
+  peerConnections: Map<string, RTCPeerConnection>;
   connectToRoom: (roomId: string, isAdmin: boolean) => Promise<void>;
   disconnectFromRoom: () => void;
   connectionStatus: string;
@@ -49,6 +49,9 @@ type VideoStreamContextType = {
   chatMessages: ChatMessage[];
   currentUser: UserInfo | null;
   fetchCurrentUser: () => Promise<void>;
+  connectedUsers: Set<string>;
+  viewerCount: number;
+  totalParticipants: number;
 };
 
 const VideoStreamContext = createContext<VideoStreamContextType>({
@@ -56,7 +59,7 @@ const VideoStreamContext = createContext<VideoStreamContextType>({
   setAdminStream: () => {},
   isAdminStreaming: false,
   setIsAdminStreaming: () => {},
-  peerConnection: null,
+  peerConnections: new Map(),
   connectToRoom: async () => {},
   disconnectFromRoom: () => {},
   connectionStatus: "Disconnected",
@@ -64,6 +67,9 @@ const VideoStreamContext = createContext<VideoStreamContextType>({
   chatMessages: [],
   currentUser: null,
   fetchCurrentUser: async () => {},
+  connectedUsers: new Set(),
+  viewerCount: 0,
+  totalParticipants: 0,
 });
 
 const ICE_SERVERS = [
@@ -79,21 +85,28 @@ export const VideoStreamProvider = ({
 }) => {
   const [adminStream, setAdminStream] = useState<MediaStream | null>(null);
   const [isAdminStreaming, setIsAdminStreaming] = useState(false);
-  const [peerConnection, setPeerConnection] =
-    useState<RTCPeerConnection | null>(null);
+  const [peerConnections, setPeerConnections] = useState<
+    Map<string, RTCPeerConnection>
+  >(new Map());
   const [connectionStatus, setConnectionStatus] = useState("Disconnected");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [currentUser, setCurrentUser] = useState<UserInfo | null>(null);
+  const [connectedUsers, setConnectedUsers] = useState<Set<string>>(new Set());
+  const [viewerCount, setViewerCount] = useState<number>(0);
+  const [totalParticipants, setTotalParticipants] = useState<number>(0);
 
-  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  // Refs for stable references
+  const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const isAdminRef = useRef<boolean>(false);
   const roomIdRef = useRef<string>("");
-  const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const pendingCandidatesRef = useRef<Map<string, RTCIceCandidateInit[]>>(
+    new Map()
+  );
   const isConnectingRef = useRef<boolean>(false);
   const streamRef = useRef<MediaStream | null>(null);
-  const hasRemoteDescriptionRef = useRef<boolean>(false);
+  const localSocketIdRef = useRef<string>("");
 
-  // Helper function to get profile picture URL (handles Cloudinary URLs)
+  // Helper function to get profile picture URL
   const getProfilePictureUrl = (profilePicture: string | undefined): string => {
     if (
       !profilePicture ||
@@ -103,12 +116,10 @@ export const VideoStreamProvider = ({
       return "/placeholder-user.png";
     }
 
-    // If it's a base64 image, return as is
     if (profilePicture.startsWith("data:image")) {
       return profilePicture;
     }
 
-    // If it's a full URL (Cloudinary, http, https), return as is
     if (
       profilePicture.startsWith("http") ||
       profilePicture.startsWith("//") ||
@@ -117,7 +128,6 @@ export const VideoStreamProvider = ({
       return profilePicture;
     }
 
-    // Otherwise, treat as relative path from uploads
     return `${BASE_URL}${
       profilePicture.startsWith("/") ? "" : "/"
     }${profilePicture}`;
@@ -152,8 +162,6 @@ export const VideoStreamProvider = ({
         };
 
         setCurrentUser(userData);
-
-        // Update localStorage with fresh user data
         localStorage.setItem("user", JSON.stringify(userData));
 
         console.log("Current user fetched:", {
@@ -166,7 +174,6 @@ export const VideoStreamProvider = ({
     } catch (error) {
       console.error("Error fetching current user:", error);
       setCurrentUser(null);
-      // Clear invalid token
       if (
         typeof error === "object" &&
         error !== null &&
@@ -185,7 +192,6 @@ export const VideoStreamProvider = ({
     if (token) {
       fetchCurrentUser();
     } else {
-      // Try to get user from localStorage as fallback
       const userStr = localStorage.getItem("user");
       if (userStr) {
         try {
@@ -216,7 +222,6 @@ export const VideoStreamProvider = ({
       };
     }
 
-    // Fallback for non-authenticated users
     return {
       name: "Anonymous User",
       fullname: "Anonymous User",
@@ -227,120 +232,136 @@ export const VideoStreamProvider = ({
     };
   }, [currentUser]);
 
-  // Initialize peer connection
-  const initializePeerConnection = useCallback((isAdmin: boolean) => {
-    console.log(
-      `Initializing peer connection as ${isAdmin ? "admin" : "viewer"}`
-    );
-
-    if (peerConnectionRef.current) {
-      console.log("Cleaning up existing peer connection");
+  // Create peer connection for a specific user
+  const createPeerConnection = useCallback(
+    (userId: string): RTCPeerConnection | null => {
       try {
-        peerConnectionRef.current.close();
-      } catch (e) {
-        console.log("Error during cleanup:", e);
-      }
-    }
+        console.log(`Creating peer connection for user: ${userId}`);
 
-    try {
-      const pc = new RTCPeerConnection({
-        iceServers: ICE_SERVERS,
-        iceCandidatePoolSize: 10,
-      });
+        const pc = new RTCPeerConnection({
+          iceServers: ICE_SERVERS,
+          iceCandidatePoolSize: 10,
+        });
 
-      pc.onicecandidate = (event) => {
-        if (event.candidate && roomIdRef.current) {
-          console.log("Generated ICE candidate");
-          signaling.sendICECandidate(
-            event.candidate.toJSON(),
-            roomIdRef.current
-          );
-        } else if (!event.candidate) {
-          console.log("All ICE candidates generated");
-        }
-      };
+        pc.onicecandidate = (event) => {
+          if (event.candidate && roomIdRef.current) {
+            console.log(`Sending ICE candidate to ${userId}`);
+            signaling.sendICECandidate(
+              event.candidate.toJSON(),
+              roomIdRef.current,
+              userId
+            );
+          }
+        };
 
-      pc.ontrack = (event) => {
-        console.log("Track received:", event.track.kind);
-        if (event.streams && event.streams[0]) {
-          const stream = event.streams[0];
-          console.log(
-            "Stream received with tracks:",
-            stream.getTracks().length
-          );
-
-          const videoTracks = stream.getVideoTracks();
-          if (videoTracks.length > 0) {
+        pc.ontrack = (event) => {
+          console.log(`Received track from ${userId}:`, event.track.kind);
+          if (event.streams && event.streams[0] && !isAdminRef.current) {
+            const stream = event.streams[0];
+            console.log(`Setting admin stream from ${userId}`);
             setAdminStream(stream);
             setIsAdminStreaming(true);
             setConnectionStatus("Stream connected");
           }
-        }
-      };
+        };
 
-      pc.onconnectionstatechange = () => {
-        const state = pc.connectionState;
-        setConnectionStatus(state);
-        console.log("Peer connection state:", state);
+        pc.onconnectionstatechange = () => {
+          const state = pc.connectionState;
+          console.log(`Peer connection state for ${userId}: ${state}`);
 
-        if (state === "connected") {
-          setIsAdminStreaming(true);
-          console.log("WebRTC connection established");
-        } else if (state === "disconnected" || state === "failed") {
-          setIsAdminStreaming(false);
-          console.log("WebRTC connection lost");
-        } else if (state === "closed") {
-          setIsAdminStreaming(false);
-          setAdminStream(null);
-          console.log("WebRTC connection closed");
-        }
-      };
+          if (state === "connected") {
+            setConnectedUsers((prev) => new Set(prev).add(userId));
+            if (!isAdminRef.current) {
+              setConnectionStatus("Connected to stream");
+            }
+          } else if (state === "disconnected" || state === "failed") {
+            setConnectedUsers((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(userId);
+              return newSet;
+            });
 
-      pc.oniceconnectionstatechange = () => {
-        console.log("ICE connection state:", pc.iceConnectionState);
-      };
-
-      pc.onsignalingstatechange = () => {
-        console.log("Signaling state:", pc.signalingState);
-        hasRemoteDescriptionRef.current = pc.remoteDescription !== null;
-      };
-
-      if (isAdmin && streamRef.current) {
-        console.log("Admin: Adding tracks to peer connection");
-        streamRef.current.getTracks().forEach((track) => {
-          pc.addTrack(track, streamRef.current!);
-        });
-      }
-
-      peerConnectionRef.current = pc;
-      setPeerConnection(pc);
-      hasRemoteDescriptionRef.current = false;
-      return pc;
-    } catch (error) {
-      console.error("Error creating peer connection:", error);
-      return null;
-    }
-  }, []);
-
-  // Process pending ICE candidates
-  const processPendingCandidates = useCallback(
-    async (pc: RTCPeerConnection) => {
-      if (pendingCandidatesRef.current.length > 0) {
-        console.log(
-          `Processing ${pendingCandidatesRef.current.length} pending ICE candidates`
-        );
-        for (const candidate of pendingCandidatesRef.current) {
-          try {
-            await pc.addIceCandidate(new RTCIceCandidate(candidate));
-          } catch (error) {
-            console.error("Error adding pending ICE candidate:", error);
+            if (userId === "admin" || peerConnectionsRef.current.size === 0) {
+              setIsAdminStreaming(false);
+              setAdminStream(null);
+              setConnectionStatus("Stream disconnected");
+            }
           }
+        };
+
+        pc.oniceconnectionstatechange = () => {
+          console.log(
+            `ICE connection state for ${userId}: ${pc.iceConnectionState}`
+          );
+        };
+
+        // Add local stream if admin
+        if (isAdminRef.current && streamRef.current) {
+          console.log(`Adding local stream tracks to connection for ${userId}`);
+          streamRef.current.getTracks().forEach((track) => {
+            pc.addTrack(track, streamRef.current!);
+          });
         }
-        pendingCandidatesRef.current = [];
+
+        // Store peer connection
+        peerConnectionsRef.current.set(userId, pc);
+        setPeerConnections(new Map(peerConnectionsRef.current));
+
+        return pc;
+      } catch (error) {
+        console.error(`Error creating peer connection for ${userId}:`, error);
+        return null;
       }
     },
     []
   );
+
+  // Process pending ICE candidates for a specific user
+  const processPendingCandidates = useCallback(
+    async (userId: string, pc: RTCPeerConnection) => {
+      const candidates = pendingCandidatesRef.current.get(userId) || [];
+      if (candidates.length > 0) {
+        console.log(
+          `Processing ${candidates.length} pending ICE candidates for ${userId}`
+        );
+
+        for (const candidate of candidates) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (error) {
+            console.error(`Error adding ICE candidate for ${userId}:`, error);
+          }
+        }
+
+        pendingCandidatesRef.current.delete(userId);
+      }
+    },
+    []
+  );
+
+  // Remove peer connection for a user
+  const removePeerConnection = useCallback((userId: string) => {
+    const pc = peerConnectionsRef.current.get(userId);
+    if (pc) {
+      try {
+        pc.close();
+      } catch (error) {
+        console.error(`Error closing peer connection for ${userId}:`, error);
+      }
+
+      peerConnectionsRef.current.delete(userId);
+      setPeerConnections(new Map(peerConnectionsRef.current));
+      pendingCandidatesRef.current.delete(userId);
+
+      setConnectedUsers((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(userId);
+        return newSet;
+      });
+
+      console.log(`Removed peer connection for ${userId}`);
+    }
+  }, []);
 
   // Handle WebRTC signaling
   useEffect(() => {
@@ -363,125 +384,165 @@ export const VideoStreamProvider = ({
 
       onJoined: (data: any) => {
         console.log("Joined room successfully", data);
-        setConnectionStatus("Joined room - waiting for stream");
+        localSocketIdRef.current = data.clientId || "";
 
-        if (isAdminRef.current) {
-          setTimeout(async () => {
-            try {
-              const pc = peerConnectionRef.current;
-              if (!pc) return;
-
-              console.log("Admin: Creating offer...");
-              const offer = await pc.createOffer();
-              await pc.setLocalDescription(offer);
-              signaling.sendOffer(offer, roomIdRef.current);
-            } catch (error) {
-              console.error("Error creating offer:", error);
-            }
-          }, 1000);
+        // Update participant counts from room info
+        if (data.roomInfo) {
+          setViewerCount(data.roomInfo.userCount || 0);
+          setTotalParticipants(data.roomInfo.totalParticipants || 0);
         }
+
+        setConnectionStatus("Joined room - waiting for connections");
       },
 
       onUserJoined: (data: any) => {
         console.log("User joined room:", data);
-        if (isAdminRef.current && peerConnectionRef.current) {
+
+        // Update participant count when someone joins
+        if (data.participantCount !== undefined) {
+          setTotalParticipants(data.participantCount);
+          // Viewer count is total minus admin (if present)
+          setViewerCount(Math.max(0, data.participantCount - 1));
+        }
+
+        if (
+          isAdminRef.current &&
+          data.user?.id &&
+          data.user.id !== localSocketIdRef.current
+        ) {
+          // Admin creates connection to new user
           setTimeout(async () => {
             try {
-              console.log("Admin: Sending offer to new user");
-              const offer = await peerConnectionRef.current!.createOffer();
-              await peerConnectionRef.current!.setLocalDescription(offer);
-              signaling.sendOffer(offer, roomIdRef.current);
+              const pc = createPeerConnection(data.user.id);
+              if (pc) {
+                console.log(`Admin creating offer for user ${data.user.id}`);
+                const offer = await pc.createOffer({
+                  offerToReceiveAudio: true,
+                  offerToReceiveVideo: true,
+                });
+                await pc.setLocalDescription(offer);
+                signaling.sendOffer(offer, roomIdRef.current, data.user.id);
+              }
             } catch (error) {
-              console.error("Error sending offer to new user:", error);
+              console.error(`Error creating offer for ${data.user.id}:`, error);
             }
-          }, 500);
+          }, 1000);
         }
       },
 
       onOffer: async (
         offer: RTCSessionDescriptionInit,
         roomId: string,
-        senderId?: string
+        senderId?: string,
+        targetId?: string
       ) => {
-        if (roomId !== roomIdRef.current || isAdminRef.current) return;
+        if (roomId !== roomIdRef.current) return;
 
-        console.log("Offer received from admin");
-        try {
-          const pc = peerConnectionRef.current;
-          if (!pc) {
-            console.error("No peer connection available");
-            return;
+        // Only process offers meant for us or broadcast offers
+        if (targetId && targetId !== localSocketIdRef.current) return;
+
+        // Viewers process offers from admin
+        if (!isAdminRef.current && senderId) {
+          console.log(`Viewer received offer from ${senderId}`);
+
+          try {
+            let pc = peerConnectionsRef.current.get(senderId);
+            if (!pc) {
+              const createdPc = createPeerConnection(senderId);
+              if (!createdPc) return;
+              pc = createdPc;
+            }
+
+            // Check signaling state before setting remote description
+            if (pc.signalingState !== "stable") {
+              console.log(
+                `Signaling state not stable (${pc.signalingState}), waiting...`
+              );
+              setTimeout(
+                () => callbacks.onOffer(offer, roomId, senderId, targetId),
+                1000
+              );
+              return;
+            }
+
+            await pc.setRemoteDescription(new RTCSessionDescription(offer));
+            await processPendingCandidates(senderId, pc);
+
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            signaling.sendAnswer(answer, roomId, senderId);
+
+            console.log(`Answer sent to ${senderId}`);
+          } catch (error) {
+            console.error(`Error handling offer from ${senderId}:`, error);
           }
-
-          if (pc.signalingState !== "stable") {
-            console.log("Signaling not stable, waiting...");
-            setTimeout(() => callbacks.onOffer(offer, roomId, senderId), 1000);
-            return;
-          }
-
-          console.log("Setting remote description...");
-          await pc.setRemoteDescription(new RTCSessionDescription(offer));
-          console.log("Remote description set");
-
-          await processPendingCandidates(pc);
-
-          console.log("Creating answer...");
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          signaling.sendAnswer(answer, roomId);
-        } catch (error) {
-          console.error("Error handling offer:", error);
         }
       },
 
       onAnswer: async (
         answer: RTCSessionDescriptionInit,
         roomId: string,
-        senderId?: string
+        senderId?: string,
+        targetId?: string
       ) => {
-        if (roomId !== roomIdRef.current || !isAdminRef.current) return;
+        if (roomId !== roomIdRef.current) return;
 
-        console.log("Answer received from user");
-        try {
-          const pc = peerConnectionRef.current;
-          if (!pc) return;
+        // Only process answers meant for us
+        if (targetId && targetId !== localSocketIdRef.current) return;
 
-          if (pc.signalingState !== "have-local-offer") {
-            console.warn(
-              "Cannot set remote answer in current state:",
-              pc.signalingState
-            );
-            return;
+        // Admin processes answers from viewers
+        if (isAdminRef.current && senderId) {
+          console.log(`Admin received answer from ${senderId}`);
+
+          try {
+            const pc = peerConnectionsRef.current.get(senderId);
+            if (!pc) {
+              console.error(`No peer connection found for ${senderId}`);
+              return;
+            }
+
+            if (pc.signalingState !== "have-local-offer") {
+              console.warn(
+                `Cannot set remote answer in current state: ${pc.signalingState}`
+              );
+              return;
+            }
+
+            await pc.setRemoteDescription(new RTCSessionDescription(answer));
+            await processPendingCandidates(senderId, pc);
+
+            console.log(`Remote description set for ${senderId}`);
+          } catch (error) {
+            console.error(`Error handling answer from ${senderId}:`, error);
           }
-
-          console.log("Setting remote description...");
-          await pc.setRemoteDescription(new RTCSessionDescription(answer));
-          console.log("Remote description set");
-
-          await processPendingCandidates(pc);
-        } catch (error) {
-          console.error("Error handling answer:", error);
         }
       },
 
       onIceCandidate: async (
         candidate: RTCIceCandidateInit,
         roomId: string,
-        senderId?: string
+        senderId?: string,
+        targetId?: string
       ) => {
         if (roomId !== roomIdRef.current) return;
+        if (targetId && targetId !== localSocketIdRef.current) return;
 
-        console.log("ICE candidate received");
+        if (!senderId) return;
+
+        console.log(`ICE candidate received from ${senderId}`);
+
         try {
-          const pc = peerConnectionRef.current;
+          const pc = peerConnectionsRef.current.get(senderId);
           if (pc && pc.remoteDescription) {
             await pc.addIceCandidate(new RTCIceCandidate(candidate));
           } else {
-            console.log("Storing ICE candidate for later");
-            pendingCandidatesRef.current.push(candidate);
+            console.log(`Storing ICE candidate from ${senderId} for later`);
+            const candidates = pendingCandidatesRef.current.get(senderId) || [];
+            candidates.push(candidate);
+            pendingCandidatesRef.current.set(senderId, candidates);
           }
         } catch (error) {
-          console.error("Error adding ICE candidate:", error);
+          console.error(`Error adding ICE candidate from ${senderId}:`, error);
         }
       },
 
@@ -501,6 +562,35 @@ export const VideoStreamProvider = ({
           ]);
         }
       },
+
+      onUserLeft: (data: any) => {
+        console.log("User left room:", data);
+
+        // Update participant counts when someone leaves
+        if (data.participantCount !== undefined) {
+          setTotalParticipants(data.participantCount);
+          setViewerCount(Math.max(0, data.participantCount - 1));
+        }
+
+        if (data.userId) {
+          removePeerConnection(data.userId);
+        }
+      },
+
+      onRoomInfo: (data: any) => {
+        console.log("Room info received:", data);
+
+        // Update participant counts from room info
+        if (data.participantCount !== undefined) {
+          setTotalParticipants(data.participantCount);
+          // Viewer count is total participants minus admin (if present)
+          const hasAdmin =
+            data.participants?.some((p: any) => p.isAdmin) || false;
+          setViewerCount(
+            Math.max(0, data.participantCount - (hasAdmin ? 1 : 0))
+          );
+        }
+      },
     };
 
     signaling.setCallbacks(callbacks);
@@ -508,7 +598,7 @@ export const VideoStreamProvider = ({
     return () => {
       signaling.disconnect();
     };
-  }, [processPendingCandidates]);
+  }, [createPeerConnection, processPendingCandidates, removePeerConnection]);
 
   const connectToRoom = useCallback(
     async (roomId: string, isAdmin: boolean = false) => {
@@ -528,14 +618,20 @@ export const VideoStreamProvider = ({
         isAdminRef.current = isAdmin;
         roomIdRef.current = roomId;
 
-        const pc = initializePeerConnection(isAdmin);
-        if (!pc) {
-          throw new Error("Failed to initialize WebRTC peer connection");
-        }
+        // Clear existing connections
+        peerConnectionsRef.current.forEach((pc) => {
+          try {
+            pc.close();
+          } catch (e) {
+            console.log("Error closing existing connection:", e);
+          }
+        });
+        peerConnectionsRef.current.clear();
+        setPeerConnections(new Map());
+        pendingCandidatesRef.current.clear();
 
         await signaling.connect();
 
-        // Get current user info
         const userInfo = getUserInfo();
         console.log("Joining with user info:", userInfo);
 
@@ -558,31 +654,34 @@ export const VideoStreamProvider = ({
         isConnectingRef.current = false;
       }
     },
-    [initializePeerConnection, getUserInfo]
+    [getUserInfo]
   );
 
   const disconnectFromRoom = useCallback(() => {
     console.log("Disconnecting from room");
 
-    if (peerConnectionRef.current) {
+    // Close all peer connections
+    peerConnectionsRef.current.forEach((pc, userId) => {
       try {
-        peerConnectionRef.current.close();
+        pc.close();
       } catch (e) {
-        console.log("Error closing peer connection:", e);
+        console.log(`Error closing peer connection for ${userId}:`, e);
       }
-      peerConnectionRef.current = null;
-      setPeerConnection(null);
-    }
+    });
+
+    peerConnectionsRef.current.clear();
+    setPeerConnections(new Map());
+    pendingCandidatesRef.current.clear();
 
     signaling.disconnect();
     setAdminStream(null);
     setIsAdminStreaming(false);
     setConnectionStatus("Disconnected");
+    setConnectedUsers(new Set());
 
-    pendingCandidatesRef.current = [];
     isConnectingRef.current = false;
     roomIdRef.current = "";
-    hasRemoteDescriptionRef.current = false;
+    localSocketIdRef.current = "";
 
     console.log("Disconnected from room");
   }, []);
@@ -606,16 +705,27 @@ export const VideoStreamProvider = ({
     streamRef.current = stream;
     setAdminStream(stream);
 
-    if (stream && isAdminRef.current && peerConnectionRef.current) {
-      const senders = peerConnectionRef.current.getSenders();
-      senders.forEach((sender) => {
-        if (sender.track) {
-          peerConnectionRef.current!.removeTrack(sender);
-        }
-      });
+    if (stream && isAdminRef.current) {
+      // Add stream to all existing peer connections
+      peerConnectionsRef.current.forEach((pc, userId) => {
+        try {
+          // Remove existing tracks
+          const senders = pc.getSenders();
+          senders.forEach((sender) => {
+            if (sender.track) {
+              pc.removeTrack(sender);
+            }
+          });
 
-      stream.getTracks().forEach((track) => {
-        peerConnectionRef.current!.addTrack(track, stream);
+          // Add new tracks
+          stream.getTracks().forEach((track) => {
+            pc.addTrack(track, stream);
+          });
+
+          console.log(`Updated stream for peer connection ${userId}`);
+        } catch (error) {
+          console.error(`Error updating stream for ${userId}:`, error);
+        }
       });
     }
   }, []);
@@ -634,7 +744,7 @@ export const VideoStreamProvider = ({
         setAdminStream: setAdminStreamHandler,
         isAdminStreaming,
         setIsAdminStreaming,
-        peerConnection,
+        peerConnections,
         connectToRoom,
         disconnectFromRoom,
         connectionStatus,
@@ -642,6 +752,9 @@ export const VideoStreamProvider = ({
         chatMessages,
         currentUser,
         fetchCurrentUser,
+        connectedUsers,
+        viewerCount,
+        totalParticipants,
       }}
     >
       {children}
