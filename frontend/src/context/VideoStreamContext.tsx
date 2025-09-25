@@ -1,3 +1,4 @@
+// context/VideoStreamContext.tsx
 "use client";
 
 import React, {
@@ -6,8 +7,9 @@ import React, {
   useState,
   useEffect,
   useRef,
+  useCallback,
 } from "react";
-import { signaling } from "@/utils/websocketSignaling";
+import { signaling } from "../utils/websocketSignaling";
 
 type VideoStreamContextType = {
   adminStream: MediaStream | null;
@@ -15,12 +17,11 @@ type VideoStreamContextType = {
   isAdminStreaming: boolean;
   setIsAdminStreaming: (isStreaming: boolean) => void;
   peerConnection: RTCPeerConnection | null;
-  createOffer: () => Promise<void>;
-  createAnswer: (offer: RTCSessionDescriptionInit) => Promise<void>;
-  addICECandidate: (candidate: RTCIceCandidateInit) => Promise<void>;
   connectToRoom: (roomId: string, isAdmin: boolean) => Promise<void>;
   disconnectFromRoom: () => void;
   connectionStatus: string;
+  sendChatMessage: (message: string, sender: string) => void;
+  chatMessages: any[];
 };
 
 const VideoStreamContext = createContext<VideoStreamContextType>({
@@ -29,20 +30,16 @@ const VideoStreamContext = createContext<VideoStreamContextType>({
   isAdminStreaming: false,
   setIsAdminStreaming: () => {},
   peerConnection: null,
-  createOffer: async () => {},
-  createAnswer: async () => {},
-  addICECandidate: async () => {},
   connectToRoom: async () => {},
   disconnectFromRoom: () => {},
   connectionStatus: "Disconnected",
+  sendChatMessage: () => {},
+  chatMessages: [],
 });
 
 const ICE_SERVERS = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
-  { urls: "stun:stun2.l.google.com:19302" },
-  { urls: "stun:stun3.l.google.com:19302" },
-  { urls: "stun:stun4.l.google.com:19302" },
 ];
 
 export const VideoStreamProvider = ({
@@ -54,589 +51,395 @@ export const VideoStreamProvider = ({
   const [isAdminStreaming, setIsAdminStreaming] = useState(false);
   const [peerConnection, setPeerConnection] =
     useState<RTCPeerConnection | null>(null);
-  const [roomId, setRoomId] = useState("");
   const [connectionStatus, setConnectionStatus] = useState("Disconnected");
-  const pendingIceCandidates = useRef<RTCIceCandidateInit[]>([]);
-  const isAdminRef = useRef<boolean>(false);
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const isAdminRef = useRef<boolean>(false);
+  const roomIdRef = useRef<string>("");
+  const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const isConnectingRef = useRef<boolean>(false);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  // Connection management variables
-  const MAX_CONNECTION_ATTEMPTS = 3;
-  const CONNECTION_RESET_TIMEOUT = 30000;
-  const connectionAttempts = useRef(0);
-  const lastResetTime = useRef(Date.now());
+  // Initialize peer connection
+  const initializePeerConnection = useCallback((isAdmin: boolean) => {
+    console.log(
+      `🔄 Initializing peer connection as ${isAdmin ? "admin" : "viewer"}`
+    );
 
-  const initializePeerConnection = () => {
-    if (typeof window === "undefined") return null;
-
-    // Reset connection attempts if it's been a while
-    if (connectionAttempts.current >= MAX_CONNECTION_ATTEMPTS) {
-      const timeSinceLastReset = Date.now() - lastResetTime.current;
-      if (timeSinceLastReset > CONNECTION_RESET_TIMEOUT) {
-        connectionAttempts.current = 0;
-      } else {
-        console.error("Too many connection attempts");
-        return null;
-      }
-    }
-
-    connectionAttempts.current += 1;
-    lastResetTime.current = Date.now();
-
-    // Close existing connection
     if (peerConnectionRef.current) {
+      console.log("🧹 Cleaning up existing peer connection");
       try {
         peerConnectionRef.current.close();
-      } catch (error) {
-        console.warn("Error closing connection:", error);
+      } catch (e) {
+        console.log("Error during cleanup:", e);
       }
     }
 
-    let pc: RTCPeerConnection | null = null;
-
     try {
-      pc = new RTCPeerConnection({
+      const pc = new RTCPeerConnection({
         iceServers: ICE_SERVERS,
         iceCandidatePoolSize: 10,
       });
-      console.log("RTCPeerConnection created successfully");
-    } catch (error) {
-      console.error("Failed to create RTCPeerConnection:", error);
-      setConnectionStatus("Failed to create connection");
-      return null;
-    }
 
-    // Set up event handlers
-    pc.ontrack = (event) => {
-      console.log("Received track", event.track.kind);
-      if (event.streams && event.streams[0]) {
-        console.log("Setting adminStream from ontrack event");
-        setAdminStream(event.streams[0]);
-        setIsAdminStreaming(true);
-        setConnectionStatus("Streaming");
-      } else {
-        console.warn("Received track without associated stream");
+      pc.onicecandidate = (event) => {
+        if (event.candidate && roomIdRef.current) {
+          console.log("🧊 Generated ICE candidate:", event.candidate);
+          signaling.sendICECandidate(
+            event.candidate.toJSON(),
+            roomIdRef.current
+          );
+        } else if (!event.candidate) {
+          console.log("✅ All ICE candidates generated");
+        }
+      };
+
+      pc.ontrack = (event) => {
+        console.log("🎥 Track received:", event.track.kind, event.track.id);
+        if (event.streams && event.streams[0]) {
+          console.log(
+            "📹 Stream received with tracks:",
+            event.streams[0].getTracks().length
+          );
+          setAdminStream(event.streams[0]);
+          setIsAdminStreaming(true);
+          setConnectionStatus("Stream connected");
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        const state = pc.connectionState;
+        setConnectionStatus(state);
+        console.log("🔄 Peer connection state:", state);
+
+        if (state === "connected") {
+          setIsAdminStreaming(true);
+          console.log("✅ WebRTC connection established");
+        } else if (state === "disconnected" || state === "failed") {
+          setIsAdminStreaming(false);
+          setAdminStream(null);
+          console.log("❌ WebRTC connection lost");
+        } else if (state === "closed") {
+          setIsAdminStreaming(false);
+          setAdminStream(null);
+          console.log("🔒 WebRTC connection closed");
+        }
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        console.log("🧊 ICE connection state:", pc.iceConnectionState);
+      };
+
+      pc.onsignalingstatechange = () => {
+        console.log("📡 Signaling state:", pc.signalingState);
+      };
+
+      // If admin, add tracks immediately
+      if (isAdmin && streamRef.current) {
+        console.log("🎥 Admin: Adding tracks to peer connection");
+        streamRef.current.getTracks().forEach((track) => {
+          pc.addTrack(track, streamRef.current!);
+        });
+        console.log("✅ Admin tracks added");
       }
-    };
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate && roomId) {
-        console.log("Generated ICE candidate");
-        signaling.sendICECandidate(event.candidate, roomId);
-      } else if (!event.candidate) {
-        console.log("ICE candidate gathering complete");
-      }
-    };
-
-    pc.onconnectionstatechange = () => {
-      console.log("Connection state changed to", pc.connectionState);
-      setConnectionStatus(pc.connectionState);
-
-      if (pc.connectionState === "connected") {
-        console.log("WebRTC peer connection established successfully");
-      } else if (
-        pc.connectionState === "disconnected" ||
-        pc.connectionState === "failed"
-      ) {
-        console.log("WebRTC peer connection disconnected or failed");
-        setIsAdminStreaming(false);
-        setAdminStream(null);
-      }
-    };
-
-    pc.oniceconnectionstatechange = () => {
-      console.log("ICE connection state changed to:", pc.iceConnectionState);
-      if (pc.iceConnectionState === "failed") {
-        console.error("ICE connection failed - may need to restart ICE");
-      } else if (pc.iceConnectionState === "disconnected") {
-        console.log("ICE connection disconnected - may recover automatically");
-      }
-    };
-
-    pc.onsignalingstatechange = () => {
-      console.log("Signaling state changed to:", pc.signalingState);
-    };
-
-    if (pc) {
       peerConnectionRef.current = pc;
       setPeerConnection(pc);
       return pc;
-    }
-
-    return null;
-  };
-
-  const handleOffer = async (offer: RTCSessionDescriptionInit) => {
-    if (!peerConnectionRef.current || isAdminRef.current) {
-      console.log("Cannot handle offer: not a viewer or no peer connection");
-      return;
-    }
-
-    console.log("Handling offer as viewer");
-    await createAnswer(offer);
-  };
-
-  const handleAnswer = async (answer: RTCSessionDescriptionInit) => {
-    if (!peerConnectionRef.current || !isAdminRef.current) {
-      console.log("Cannot handle answer: not an admin or no peer connection");
-      return;
-    }
-
-    console.log("Handling answer as admin");
-    try {
-      await peerConnectionRef.current.setRemoteDescription(answer);
-      processPendingIceCandidates(peerConnectionRef.current);
     } catch (error) {
-      console.error("Error setting remote description:", error);
+      console.error("❌ Error creating peer connection:", error);
+      return null;
     }
-  };
-
-  const handleICECandidate = async (candidate: RTCIceCandidateInit) => {
-    if (!peerConnectionRef.current) {
-      console.log("Cannot handle ICE candidate: no peer connection");
-      return;
-    }
-
-    console.log("Handling ICE candidate");
-    if (peerConnectionRef.current.remoteDescription) {
-      try {
-        await peerConnectionRef.current.addIceCandidate(candidate);
-      } catch (error) {
-        console.error("Error adding ICE candidate:", error);
-      }
-    } else {
-      pendingIceCandidates.current.push(candidate);
-      console.log("Stored ICE candidate for later processing");
-    }
-  };
-
-  // Add this useEffect to monitor connection status
-  useEffect(() => {
-    const checkConnectionHealth = () => {
-      if (peerConnectionRef.current) {
-        const state = peerConnectionRef.current.connectionState;
-        if (state === "disconnected" || state === "failed") {
-          console.log("Connection unhealthy, attempting to reconnect...");
-          // Implement reconnection logic if needed
-        }
-      }
-    };
-
-    const healthCheckInterval = setInterval(checkConnectionHealth, 5000);
-
-    return () => {
-      clearInterval(healthCheckInterval);
-    };
   }, []);
 
-  useEffect(() => {
-    signaling.onOffer(async (offer, offerRoomId) => {
-      if (
-        offerRoomId === roomId &&
-        peerConnectionRef.current &&
-        !isAdminRef.current
-      ) {
-        console.log("Offer received");
-        await createAnswer(offer);
-      }
-    });
-
-    signaling.onAnswer(async (answer, answerRoomId) => {
-      if (
-        answerRoomId === roomId &&
-        peerConnectionRef.current &&
-        isAdminRef.current
-      ) {
-        console.log("Answer received", answer);
-        try {
-          await peerConnectionRef.current.setRemoteDescription(answer);
-          processPendingIceCandidates(peerConnectionRef.current);
-        } catch (error) {
-          console.error("Error setting remote description:", error);
-        }
-      }
-    });
-
-    signaling.onICECandidate(async (candidate, candidateRoomId) => {
-      if (candidateRoomId === roomId && peerConnectionRef.current) {
-        console.log("ICE candidate received", candidate);
-
-        if (peerConnectionRef.current.remoteDescription) {
+  // Process pending ICE candidates
+  const processPendingCandidates = useCallback(
+    async (pc: RTCPeerConnection) => {
+      if (pendingCandidatesRef.current.length > 0) {
+        console.log(
+          `📨 Processing ${pendingCandidatesRef.current.length} pending ICE candidates`
+        );
+        for (const candidate of pendingCandidatesRef.current) {
           try {
-            await peerConnectionRef.current.addIceCandidate(candidate);
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+            console.log("✅ Added pending ICE candidate");
           } catch (error) {
-            console.error("Error adding ICE candidate:", error);
+            console.error("❌ Error adding pending ICE candidate:", error);
           }
-        } else {
-          pendingIceCandidates.current.push(candidate);
-          console.log("Stored ICE candidate for later processing");
         }
+        pendingCandidatesRef.current = [];
       }
-    });
+    },
+    []
+  );
+
+  // Update the useEffect with signaling callbacks
+  useEffect(() => {
+    const callbacks = {
+      onConnected: () => {
+        console.log("✅ Signaling connected");
+        setConnectionStatus("Connected to signaling");
+      },
+      onDisconnected: () => {
+        console.log("❌ Signaling disconnected");
+        setConnectionStatus("Disconnected from signaling");
+        setIsAdminStreaming(false);
+        setAdminStream(null);
+      },
+      onError: (error: string) => {
+        console.error("❌ Signaling error:", error);
+        setConnectionStatus(`Error: ${error}`);
+      },
+      onJoined: (data: any) => {
+        console.log("✅ Joined room successfully", data);
+        setConnectionStatus("Joined room - waiting for stream");
+
+        // If admin, create offer after joining
+        if (isAdminRef.current) {
+          setTimeout(async () => {
+            try {
+              const pc = peerConnectionRef.current;
+              if (!pc) return;
+
+              console.log("📤 Admin: Creating offer...");
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              signaling.sendOffer(offer, roomIdRef.current);
+              console.log("✅ Admin: Offer created and sent");
+            } catch (error) {
+              console.error("❌ Error creating offer:", error);
+            }
+          }, 1000);
+        }
+      },
+      onUserJoined: (data: any) => {
+        console.log("👤 User joined room:", data);
+        // If admin and a user joins, re-send the offer
+        if (isAdminRef.current && peerConnectionRef.current) {
+          setTimeout(async () => {
+            try {
+              console.log("📤 Admin: Sending offer to new user");
+              const offer = await peerConnectionRef.current!.createOffer();
+              await peerConnectionRef.current!.setLocalDescription(offer);
+              signaling.sendOffer(offer, roomIdRef.current);
+            } catch (error) {
+              console.error("❌ Error sending offer to new user:", error);
+            }
+          }, 500);
+        }
+      },
+      onOffer: async (
+        offer: RTCSessionDescriptionInit,
+        roomId: string,
+        senderId?: string
+      ) => {
+        if (roomId !== roomIdRef.current || isAdminRef.current) return;
+
+        console.log("📨 Offer received from admin:", senderId);
+        try {
+          const pc = peerConnectionRef.current;
+          if (!pc) {
+            console.error("❌ No peer connection available");
+            return;
+          }
+
+          console.log("🔄 Setting remote description...");
+          await pc.setRemoteDescription(new RTCSessionDescription(offer));
+          console.log("✅ Remote description set");
+
+          // Process any pending ICE candidates
+          await processPendingCandidates(pc);
+
+          console.log("📤 Creating answer...");
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          signaling.sendAnswer(answer, roomId);
+          console.log("✅ Answer sent to admin");
+        } catch (error) {
+          console.error("❌ Error handling offer:", error);
+        }
+      },
+      onAnswer: async (
+        answer: RTCSessionDescriptionInit,
+        roomId: string,
+        senderId?: string
+      ) => {
+        if (roomId !== roomIdRef.current || !isAdminRef.current) return;
+
+        console.log("📨 Answer received from user:", senderId);
+        try {
+          const pc = peerConnectionRef.current;
+          if (!pc) return;
+
+          console.log("🔄 Setting remote description...");
+          await pc.setRemoteDescription(new RTCSessionDescription(answer));
+          console.log("✅ Remote description set");
+
+          // Process any pending ICE candidates
+          await processPendingCandidates(pc);
+        } catch (error) {
+          console.error("❌ Error handling answer:", error);
+        }
+      },
+      onIceCandidate: async (
+        candidate: RTCIceCandidateInit,
+        roomId: string,
+        senderId?: string
+      ) => {
+        if (roomId !== roomIdRef.current) return;
+
+        console.log("🧊 ICE candidate received from:", senderId);
+        try {
+          const pc = peerConnectionRef.current;
+          if (pc && pc.remoteDescription) {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+            console.log("✅ ICE candidate added");
+          } else {
+            console.log("📥 Storing ICE candidate for later");
+            pendingCandidatesRef.current.push(candidate);
+          }
+        } catch (error) {
+          console.error("❌ Error adding ICE candidate:", error);
+        }
+      },
+      onChatMessage: (messageData: any, roomId: string) => {
+        if (roomId === roomIdRef.current) {
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              sender: messageData.sender,
+              message: messageData.message,
+              timestamp: new Date(messageData.timestamp),
+              isStaff: messageData.sender === "Admin",
+            },
+          ]);
+        }
+      },
+    };
+
+    signaling.setCallbacks(callbacks);
 
     return () => {
       signaling.disconnect();
     };
-  }, [roomId]);
+  }, [processPendingCandidates]);
 
-  const connectToRoom = async (
-    newRoomId: string,
-    isAdminRole: boolean = false
-  ): Promise<void> => {
-    if (!newRoomId) {
-      console.warn("[DEBUG] Cannot connect to room: roomId is missing");
-      return;
-    }
-
-    console.log(
-      "[DEBUG] Connecting to room",
-      newRoomId,
-      "as",
-      isAdminRole ? "admin" : "client"
-    );
-
-    // Set connection status immediately
-    setConnectionStatus("Connecting to signaling server");
-
-    try {
-      // Check if signaling server is reachable first
-      const isServerReachable = await signaling.checkServerStatus();
-      if (!isServerReachable) {
-        setConnectionStatus("Signaling server offline");
-        throw new Error("Signaling server is not reachable");
-      } else if (signaling.isConnecting()) {
-        console.log(
-          "[DEBUG] Already connecting to signaling server, waiting..."
-        );
-        // Wait for connection to complete or fail
-        await new Promise((resolve, reject) => {
-          const checkInterval = setInterval(() => {
-            if (signaling.isConnected()) {
-              clearInterval(checkInterval);
-              resolve(true);
-            } else if (!signaling.isConnecting()) {
-              clearInterval(checkInterval);
-              reject(new Error("Connection attempt failed"));
-            }
-          }, 500);
-
-          // Timeout after 10 seconds
-          setTimeout(() => {
-            clearInterval(checkInterval);
-            reject(new Error("Timed out waiting for connection"));
-          }, 10000);
-        });
+  const connectToRoom = useCallback(
+    async (roomId: string, isAdmin: boolean = false) => {
+      if (isConnectingRef.current) {
+        console.log("⚠️ Already connecting, skipping...");
+        return;
       }
 
-      // Continue with room connection
-      await continueRoomConnection(newRoomId, isAdminRole);
-    } catch (error) {
-      console.error("[DEBUG] Error in connectToRoom:", error);
-      setConnectionStatus("Connection failed");
-      throw error;
-    }
-  };
+      isConnectingRef.current = true;
+      setConnectionStatus("Connecting...");
 
-  // Improved continueRoomConnection function with better error handling
-  const continueRoomConnection = async (
-    newRoomId: string,
-    isAdminRole: boolean
-  ) => {
-    // Initialize peer connection with retry logic
-    let pc: RTCPeerConnection | null = null;
-    let retryCount = 0;
-    const maxRetries = 2;
-
-    while (!pc && retryCount <= maxRetries) {
       try {
-        pc = initializePeerConnection();
-        if (!pc) {
-          throw new Error("Failed to initialize peer connection");
-        }
-      } catch (error) {
-        retryCount++;
-        console.error(
-          `Peer connection initialization failed (attempt ${retryCount}/${
-            maxRetries + 1
-          }):`,
-          error
+        console.log(
+          `🚀 Connecting to room: ${roomId} as ${isAdmin ? "admin" : "viewer"}`
         );
 
-        if (retryCount <= maxRetries) {
-          console.log(`Retrying peer connection initialization in 1 second...`);
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        } else {
-          setConnectionStatus("Connection failed - browser issue");
-          throw new Error(
-            "Failed to initialize peer connection after multiple attempts"
-          );
+        // Set role and room first
+        isAdminRef.current = isAdmin;
+        roomIdRef.current = roomId;
+
+        // Initialize peer connection with the correct role
+        const pc = initializePeerConnection(isAdmin);
+        if (!pc) {
+          throw new Error("Failed to initialize WebRTC peer connection");
         }
+
+        // Connect to signaling server
+        console.log("🔌 Connecting to signaling server...");
+        await signaling.connect();
+        console.log("✅ Signaling server connected");
+
+        // Join the room
+        console.log(`🎯 Joining room: ${roomId}`);
+        await signaling.joinRoom(roomId, isAdmin);
+
+        setConnectionStatus("Connected to room");
+        console.log("✅ Room connection completed successfully");
+      } catch (error) {
+        console.error("❌ Error connecting to room:", error);
+        setConnectionStatus(
+          `Connection failed: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        );
+        throw error;
+      } finally {
+        isConnectingRef.current = false;
       }
-    }
+    },
+    [initializePeerConnection]
+  );
 
-    setPeerConnection(pc);
-    peerConnectionRef.current = pc;
-    isAdminRef.current = isAdminRole;
-    setRoomId(newRoomId);
+  const disconnectFromRoom = useCallback(() => {
+    console.log("🔌 Disconnecting from room");
 
-    try {
-      // Join the signaling room with retry logic
-      let joinRetryCount = 0;
-      const maxJoinRetries = 2;
-      let joinSuccess = false;
-
-      while (!joinSuccess && joinRetryCount <= maxJoinRetries) {
-        try {
-          await signaling.joinRoom(newRoomId);
-          joinSuccess = true;
-          setConnectionStatus("Connecting");
-        } catch (error) {
-          joinRetryCount++;
-          console.error(
-            `Error joining signaling room (attempt ${joinRetryCount}/${
-              maxJoinRetries + 1
-            }):`,
-            error
-          );
-
-          if (joinRetryCount <= maxJoinRetries) {
-            console.log(`Retrying room join in 1 second...`);
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-          } else {
-            setConnectionStatus("Failed to join room");
-            throw error;
-          }
-        }
-      }
-
-      // Add tracks if admin
-      if (isAdminRef.current && adminStream) {
-        console.log("Admin is adding tracks to peer connection");
-        try {
-          adminStream.getTracks().forEach((track) => {
-            console.log(`Adding track: ${track.kind}`);
-            pc!.addTrack(track, adminStream);
-          });
-
-          if (isAdminRef.current) {
-            createOffer();
-          }
-        } catch (trackError) {
-          console.error("Error adding media tracks:", trackError);
-          // Continue despite track errors - might still work for some tracks
-        }
-      }
-    } catch (error) {
-      console.error("Fatal error in room connection:", error);
-      setConnectionStatus("Connection failed");
-      throw error;
-    }
-  };
-
-  const disconnectFromRoom = () => {
-    console.log("Disconnecting from room:", roomId);
-    setConnectionStatus("Disconnecting...");
-
-    // Clean up peer connection
     if (peerConnectionRef.current) {
       try {
-        // Remove all tracks
-        const senders = peerConnectionRef.current.getSenders();
-        senders.forEach((sender) => {
-          try {
-            peerConnectionRef.current?.removeTrack(sender);
-          } catch (trackError) {
-            console.warn("Error removing track:", trackError);
-          }
-        });
-
-        // Close the connection
         peerConnectionRef.current.close();
-      } catch (error) {
-        console.error("Error closing peer connection:", error);
+      } catch (e) {
+        console.log("Error closing peer connection:", e);
       }
       peerConnectionRef.current = null;
       setPeerConnection(null);
     }
 
-    // Reset streams and state
-    if (adminStream) {
-      try {
-        adminStream.getTracks().forEach((track) => track.stop());
-      } catch (error) {
-        console.warn("Error stopping admin stream tracks:", error);
-      }
-      setAdminStream(null);
-    }
-
-    setIsAdminStreaming(false);
-    setRoomId("");
-    pendingIceCandidates.current = [];
-
-    // Disconnect from signaling server
     signaling.disconnect();
+    setAdminStream(null);
+    setIsAdminStreaming(false);
     setConnectionStatus("Disconnected");
-  };
 
-  const processPendingIceCandidates = async (pc: RTCPeerConnection) => {
-    if (!pc || !pc.remoteDescription) {
-      console.log(
-        "Cannot process ICE candidates: No peer connection or remote description not set"
-      );
-      return;
+    pendingCandidatesRef.current = [];
+    isConnectingRef.current = false;
+    roomIdRef.current = "";
+
+    console.log("✅ Disconnected from room");
+  }, []);
+
+  const sendChatMessage = useCallback((message: string, sender: string) => {
+    if (roomIdRef.current) {
+      signaling.sendChatMessage(message, sender, roomIdRef.current);
     }
+  }, []);
 
-    if (pendingIceCandidates.current.length > 0) {
-      console.log(
-        "Processing",
-        pendingIceCandidates.current.length,
-        "pending ICE candidates"
-      );
+  const setAdminStreamHandler = useCallback((stream: MediaStream | null) => {
+    streamRef.current = stream;
+    setAdminStream(stream);
 
-      // Create a copy of the pending candidates and clear the original array
-      const candidatesToProcess = [...pendingIceCandidates.current];
-      pendingIceCandidates.current = [];
-
-      // Process each candidate
-      const failedCandidates = [];
-      for (const candidate of candidatesToProcess) {
-        try {
-          const iceCandidate = new RTCIceCandidate(candidate);
-          await pc.addIceCandidate(iceCandidate);
-          console.log("Successfully added pending ICE candidate");
-        } catch (error) {
-          console.error("Error adding pending ICE candidate:", error);
-          failedCandidates.push(candidate);
-        }
-      }
-
-      // Add back any failed candidates for future retry
-      if (failedCandidates.length > 0) {
-        console.log(
-          `${failedCandidates.length} candidates failed to add, will retry later`
-        );
-        pendingIceCandidates.current.push(...failedCandidates);
-      }
+    // If we have a stream and are admin, add tracks to existing peer connection
+    if (stream && isAdminRef.current && peerConnectionRef.current) {
+      console.log("🎥 Adding tracks to existing admin peer connection");
+      stream.getTracks().forEach((track) => {
+        peerConnectionRef.current!.addTrack(track, stream);
+      });
     }
-  };
+  }, []);
 
-  const createOffer = async () => {
-    if (!peerConnectionRef.current) {
-      console.error("Cannot create offer: No peer connection");
-      return;
-    }
-
-    try {
-      // Check if connection is stable before creating offer
-      if (peerConnectionRef.current.signalingState === "stable") {
-        console.log("Creating offer...");
-        const offer = await peerConnectionRef.current.createOffer({
-          offerToReceiveAudio: true,
-          offerToReceiveVideo: true,
-          iceRestart: false, // Don't force ICE restart on initial offer
-        });
-
-        await peerConnectionRef.current.setLocalDescription(offer);
-
-        // Wait a short time to ensure ICE gathering is complete
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        // Send the offer with the current local description
-        const currentOffer =
-          peerConnectionRef.current.localDescription || offer;
-        signaling.sendOffer(currentOffer, roomId);
-        console.log("Offer created and sent");
-      } else {
-        console.warn(
-          "Cannot create offer: Signaling state is not stable",
-          peerConnectionRef.current.signalingState
-        );
-      }
-    } catch (error) {
-      console.error("Error creating offer:", error);
-      setConnectionStatus("Error creating connection");
-    }
-  };
-
-  const createAnswer = async (offer: RTCSessionDescriptionInit) => {
-    if (!peerConnectionRef.current) {
-      console.error("Cannot create answer: No peer connection");
-      return;
-    }
-
-    try {
-      console.log("Setting remote description from offer...");
-      await peerConnectionRef.current.setRemoteDescription(
-        new RTCSessionDescription(offer)
-      );
-
-      // Process any pending ICE candidates we received before the offer
-      await processPendingIceCandidates(peerConnectionRef.current);
-
-      // Check if we can create an answer
-      if (
-        peerConnectionRef.current.signalingState === "have-remote-offer" ||
-        peerConnectionRef.current.signalingState === "have-local-pranswer"
-      ) {
-        console.log("Creating answer...");
-        const answer = await peerConnectionRef.current.createAnswer();
-        await peerConnectionRef.current.setLocalDescription(answer);
-
-        // Wait a short time to ensure ICE gathering is complete
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        // Send the answer with the current local description
-        const currentAnswer =
-          peerConnectionRef.current.localDescription || answer;
-        signaling.sendAnswer(currentAnswer, roomId);
-        console.log("Answer created and sent");
-      } else {
-        console.warn(
-          "Cannot create answer: Signaling state is not appropriate",
-          peerConnectionRef.current.signalingState
-        );
-      }
-    } catch (error) {
-      console.error("Error creating answer:", error);
-      setConnectionStatus("Error establishing connection");
-    }
-  };
-
-  const addICECandidate = async (candidate: RTCIceCandidateInit) => {
-    if (!peerConnectionRef.current) {
-      console.error("Cannot add ICE candidate: No peer connection");
-      // Store the candidate for later use when peer connection is established
-      pendingIceCandidates.current.push(candidate);
-      console.log("ICE candidate stored for later use");
-      return;
-    }
-
-    try {
-      // Create proper RTCIceCandidate object
-      const iceCandidate = new RTCIceCandidate(candidate);
-      await peerConnectionRef.current.addIceCandidate(iceCandidate);
-      console.log("ICE candidate added successfully");
-    } catch (error) {
-      console.error("Error adding ICE candidate:", error);
-      // Store failed candidates for retry
-      pendingIceCandidates.current.push(candidate);
-    }
-  };
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      disconnectFromRoom();
+    };
+  }, [disconnectFromRoom]);
 
   return (
     <VideoStreamContext.Provider
       value={{
         adminStream,
-        setAdminStream,
+        setAdminStream: setAdminStreamHandler,
         isAdminStreaming,
         setIsAdminStreaming,
         peerConnection,
-        createOffer,
-        createAnswer,
-        addICECandidate,
         connectToRoom,
         disconnectFromRoom,
         connectionStatus,
+        sendChatMessage,
+        chatMessages,
       }}
     >
       {children}

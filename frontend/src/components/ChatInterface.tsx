@@ -34,7 +34,7 @@ interface PetMatch {
   age: string;
   gender: string;
   image?: string;
-  images?: string[];
+  images?: Array<{ url: string; public_id: string; format: string }> | string[];
   description: string;
   adoptionStatus: string;
 }
@@ -503,11 +503,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
         // Get the first valid image URL
         const getPetImage = (pet: PetMatch) => {
           if (pet.images && pet.images.length > 0 && pet.images[0]) {
+            // Check if it's an object with url property (from Cloudinary)
+            if (typeof pet.images[0] === "object" && "url" in pet.images[0]) {
+              return pet.images[0].url;
+            }
             // Check if it's a base64 string or URL
-            if (pet.images[0].startsWith("data:image")) {
+            if (
+              typeof pet.images[0] === "string" &&
+              pet.images[0].startsWith("data:image")
+            ) {
               return pet.images[0];
             }
-            return `${BASE_URL}${pet.images[0]}`;
+            if (typeof pet.images[0] === "string") {
+              return `${BASE_URL}${pet.images[0]}`;
+            }
           }
           if (pet.image) {
             if (pet.image.startsWith("data:image")) {
@@ -605,11 +614,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
       // Get the first valid image URL
       const getPetImage = (pet: PetMatch) => {
         if (pet.images && pet.images.length > 0 && pet.images[0]) {
+          // Check if it's an object with url property (from Cloudinary)
+          if (typeof pet.images[0] === "object" && "url" in pet.images[0]) {
+            return pet.images[0].url;
+          }
           // Check if it's a base64 string or URL
-          if (pet.images[0].startsWith("data:image")) {
+          if (
+            typeof pet.images[0] === "string" &&
+            pet.images[0].startsWith("data:image")
+          ) {
             return pet.images[0];
           }
-          return `${BASE_URL}${pet.images[0]}`;
+          if (typeof pet.images[0] === "string") {
+            return `${BASE_URL}${pet.images[0]}`;
+          }
         }
         if (pet.image) {
           if (pet.image.startsWith("data:image")) {

@@ -10,18 +10,18 @@ import { useRouter } from "next/navigation";
 import Loader from "@/components/Loader";
 import axiosInstance from "@/lib/axiosInstance";
 import { BASE_URL } from "@/utils/constants";
-// console imports removed
 import { toast } from "react-toastify";
 
 export default function SignUp() {
   const router = useRouter();
-  // Using react-consoleify directly
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     fullname: "",
     email: "",
     password: "",
+    confirmPassword: "",
   });
+  const [passwordError, setPasswordError] = useState("");
   const [loadingMessage, setLoadingMessage] = useState("");
 
   useEffect(() => {
@@ -40,15 +40,12 @@ export default function SignUp() {
           }, 3000);
         }
       } catch (error) {
-        // Check if this is a 400 error with "User not found" message
-        // This is expected for new signups and should not be treated as an error
         if (
           (error as any).response &&
           (error as any).response?.status === 400 &&
           (error as any).response?.data?.message === "User not found"
         ) {
           console.log("New user signup - email not found in system");
-          // Continue with signup process - this is expected for new users
         } else {
           console.error("Error checking verification:", error);
         }
@@ -61,18 +58,41 @@ export default function SignUp() {
   }, [formData.email, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+
+    // Validate password match in real-time
+    // if (name === "confirmPassword" || name === "password") {
+    //   if (formData.password && formData.confirmPassword) {
+    //     if (formData.password !== formData.confirmPassword) {
+    //       setPasswordError("Passwords do not match");
+    //     } else {
+    //       setPasswordError("");
+    //     }
+    //   }
+    // }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate password match before submitting
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       const res = await fetch(`${BASE_URL}/api/users/createAccount`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          fullname: formData.fullname,
+          email: formData.email,
+          password: formData.password,
+        }),
       });
 
       const data = await res.json();
@@ -153,9 +173,23 @@ export default function SignUp() {
                 className="bg-white/10 border-gray-300 focus:border-orange-500 text-black placeholder:text-gray-500 rounded-xl py-6"
                 required
               />
+              <div>
+                <PasswordInput
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  placeholder="Confirm Password"
+                  className="bg-white/10 border-gray-300 focus:border-orange-500 text-black placeholder:text-gray-500 rounded-xl py-6"
+                  required
+                />
+                {passwordError && (
+                  <p className="text-red-500 text-sm mt-1">{passwordError}</p>
+                )}
+              </div>
               <Button
                 type="submit"
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 text-lg rounded-xl transition-all duration-300 font-medium"
+                disabled={!!passwordError}
               >
                 Sign Up
               </Button>

@@ -10,7 +10,15 @@ import axiosInstance from "@/lib/axiosInstance";
 import { BASE_URL } from "@/utils/constants";
 import Loader from "@/components/Loader";
 import AdminAuthWrapper from "@/components/AdminAuthWrapper";
-import { Search, RefreshCw, Shield, Trash2, Pencil, Plus } from "lucide-react";
+import {
+  Search,
+  RefreshCw,
+  Shield,
+  Trash2,
+  Pencil,
+  Plus,
+  X,
+} from "lucide-react";
 import {
   Table,
   TableBody,
@@ -41,6 +49,7 @@ interface User {
   verified: boolean;
   isAdmin: boolean;
   createdAt: string;
+  isArchived?: boolean; // Add archive flag
 }
 
 export default function AdminUsersPage() {
@@ -49,6 +58,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(false);
 
   // Modal state for Add/Edit
   const [modalOpen, setModalOpen] = useState(false);
@@ -63,10 +73,29 @@ export default function AdminUsersPage() {
   // Current user profile
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
+  // View user modal state
+  const [viewUser, setViewUser] = useState<User | null>(null);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [viewUserAdoptions, setViewUserAdoptions] = useState<any[]>([]);
+
   useEffect(() => {
     fetchUsers();
     fetchCurrentUser();
+
+    // Check initial orientation
+    checkOrientation();
+
+    // Add event listener for orientation changes
+    window.addEventListener("resize", checkOrientation);
+
+    return () => {
+      window.removeEventListener("resize", checkOrientation);
+    };
   }, []);
+
+  const checkOrientation = () => {
+    setIsLandscape(window.innerWidth > window.innerHeight);
+  };
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -123,6 +152,46 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleArchiveUser = async (userId: string) => {
+    setIsDeleting(true);
+    try {
+      const response = await axiosInstance.patch(
+        `${BASE_URL}/api/admin/users/${userId}/archive`
+      );
+      if (response.data.success) {
+        setUsers(
+          users.map((user) =>
+            user._id === userId ? { ...user, isArchived: true } : user
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Error archiving user:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleRestoreUser = async (userId: string) => {
+    setIsDeleting(true);
+    try {
+      const response = await axiosInstance.patch(
+        `${BASE_URL}/api/admin/users/${userId}/restore`
+      );
+      if (response.data.success) {
+        setUsers(
+          users.map((user) =>
+            user._id === userId ? { ...user, isArchived: false } : user
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Error restoring user:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleDeleteUser = async (userId: string) => {
     setIsDeleting(true);
     try {
@@ -174,13 +243,41 @@ export default function AdminUsersPage() {
     }
   };
 
+  // Fetch adoptions for a user
+  const fetchUserAdoptions = async (userId: string) => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const response = await axiosInstance.get(
+        `${BASE_URL}/api/admin/adoptions?userId=${userId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (response.data.success) {
+        setViewUserAdoptions(response.data.adoptions);
+      }
+    } catch (error) {
+      setViewUserAdoptions([]);
+    }
+  };
+
+  const handleViewUser = async (user: User) => {
+    setViewUser(user);
+    setViewModalOpen(true);
+    if (user._id) {
+      await fetchUserAdoptions(user._id);
+    }
+  };
+
+  // Filter users by archive status
   const filteredUsers = searchQuery
     ? users.filter(
         (user) =>
-          user.fullname.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          user.email.toLowerCase().includes(searchQuery.toLowerCase())
+          (user.fullname.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            user.email.toLowerCase().includes(searchQuery.toLowerCase())) &&
+          !user.isArchived // Only show active by default
       )
-    : users;
+    : users.filter((user) => !user.isArchived);
 
   return (
     <AdminAuthWrapper>
@@ -275,7 +372,10 @@ export default function AdminUsersPage() {
                           filteredUsers.map((user) => (
                             <tr
                               key={user._id}
-                              className="border-t border-gray-100 hover:bg-gray-50 transition"
+                              className={`border-t border-gray-100 hover:bg-gray-50 transition ${
+                                user.isArchived ? "opacity-60" : ""
+                              } cursor-pointer`}
+                              onClick={() => handleViewUser(user)}
                             >
                               <td className="py-3">
                                 <div className="flex items-center gap-3">
@@ -335,62 +435,82 @@ export default function AdminUsersPage() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    onClick={() => handleEdit(user)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEdit(user);
+                                    }}
                                     title="Edit user"
                                     className="h-8 w-8"
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </Button>
-                                  <Button
+                                  {/* <Button
                                     variant="ghost"
                                     size="icon"
-                                    onClick={() =>
-                                      handleToggleAdmin(user._id, user.isAdmin)
-                                    }
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleAdmin(user._id, user.isAdmin);
+                                    }}
                                     title="Toggle admin status"
                                     className="h-8 w-8"
                                   >
                                     <Shield className="h-4 w-4" />
-                                  </Button>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                        disabled={isDeleting}
-                                        title="Delete user"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>
-                                          Are you sure you want to delete this
-                                          user?
-                                        </AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          This action cannot be undone. This
-                                          will permanently delete the user
-                                          account and all associated data.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>
-                                          Cancel
-                                        </AlertDialogCancel>
-                                        <AlertDialogAction
-                                          className="bg-red-500 hover:bg-red-600"
-                                          onClick={() =>
-                                            handleDeleteUser(user._id)
-                                          }
+                                  </Button> */}
+                                  {!user.isArchived ? (
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                          disabled={isDeleting}
+                                          title="Archive user"
+                                          onClick={(e) => e.stopPropagation()}
                                         >
-                                          Delete
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>
+                                            Archive this user?
+                                          </AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            This will remove the user from
+                                            active users but keep their data for
+                                            records.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>
+                                            Cancel
+                                          </AlertDialogCancel>
+                                          <AlertDialogAction
+                                            className="bg-red-500 hover:bg-red-600"
+                                            onClick={() =>
+                                              handleArchiveUser(user._id)
+                                            }
+                                          >
+                                            Archive
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  ) : (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRestoreUser(user._id);
+                                      }}
+                                      disabled={isDeleting}
+                                      title="Restore user"
+                                      className="h-8 w-8 text-green-500 hover:text-green-700 hover:bg-green-50"
+                                    >
+                                      Restore
+                                    </Button>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -469,6 +589,137 @@ export default function AdminUsersPage() {
                     </Button>
                   </div>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {/* User View Modal - Landscape layout when in landscape mode */}
+          {viewModalOpen && viewUser && (
+            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
+              <div
+                className={`bg-white rounded-2xl shadow-lg p-20 w-full max-w-4xl ${
+                  isLandscape ? "flex gap-8" : ""
+                } relative`}
+              >
+                <h3 className="font-bold text-2xl mb-8 text-[#0a1629] text-center absolute top-6 left-6">
+                  User Details
+                </h3>
+
+                <div
+                  className={`flex ${
+                    isLandscape
+                      ? "flex-col items-center gap-6 w-1/3"
+                      : "flex-col items-center gap-6 mb-8"
+                  }`}
+                >
+                  <Avatar
+                    className={`${
+                      isLandscape ? "h-24 w-24" : "h-28 w-28"
+                    } border-4 border-orange-200 shadow-lg`}
+                  >
+                    <AvatarImage
+                      src={
+                        viewUser.profilePicture &&
+                        viewUser.profilePicture.trim() !== ""
+                          ? viewUser.profilePicture
+                          : "/placeholder-user.png"
+                      }
+                      alt={viewUser.fullname}
+                    />
+                    <AvatarFallback>
+                      {viewUser.fullname.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="font-semibold text-xl">
+                      {viewUser.fullname}
+                    </div>
+                    <div className="text-gray-500 text-base">
+                      {viewUser.email}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Joined:{" "}
+                      {new Date(viewUser.createdAt).toLocaleDateString()}
+                    </div>
+                    <div className="flex gap-2 mt-2 flex-wrap justify-center">
+                      <Badge
+                        className={
+                          viewUser.verified
+                            ? "bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-full text-xs font-semibold"
+                            : "bg-red-50 text-red-700 border border-red-200 px-3 py-1 rounded-full text-xs font-semibold"
+                        }
+                      >
+                        {viewUser.verified ? "Verified" : "Unverified"}
+                      </Badge>
+                      <Badge
+                        className={
+                          viewUser.isAdmin
+                            ? "bg-orange-50 text-orange-700 border-orange-200 px-3 py-1 rounded-full text-xs font-semibold"
+                            : "bg-gray-50 text-gray-700 border-green-200 px-3 py-1 rounded-full text-xs font-semibold"
+                        }
+                      >
+                        {viewUser.isAdmin ? "Admin" : "User"}
+                      </Badge>
+                      {viewUser.isArchived && (
+                        <Badge className="bg-gray-50 text-gray-700 border-gray-200 px-3 py-1 rounded-full text-xs font-semibold">
+                          Archived
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className={`${isLandscape ? "w-2/3" : ""}`}>
+                  <h4 className="font-semibold text-lg mb-3 text-[#0a1629]">
+                    Adoption Forms Submitted
+                  </h4>
+                  {viewUserAdoptions.length === 0 ? (
+                    <div className="text-gray-500 text-sm">
+                      No adoption forms submitted.
+                    </div>
+                  ) : (
+                    <div
+                      className={`${
+                        isLandscape ? "max-h-64 overflow-y-auto" : ""
+                      }`}
+                    >
+                      <ul className="space-y-3">
+                        {viewUserAdoptions.map((adoption) => (
+                          <li
+                            key={adoption._id}
+                            className="bg-gray-50 rounded-lg p-3 flex flex-col"
+                          >
+                            <span className="font-medium text-[#0a1629]">
+                              {adoption.pet?.name || adoption.petName}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              Status: {adoption.status}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              Date:{" "}
+                              {new Date(
+                                adoption.createdAt
+                              ).toLocaleDateString()}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {/* Close button at the bottom */}
+                <div className="absolute top-6 right-6">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="rounded-full h-10 w-10 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border-red-200"
+                    onClick={() => setViewModalOpen(false)}
+                    title="Close"
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
               </div>
             </div>
           )}

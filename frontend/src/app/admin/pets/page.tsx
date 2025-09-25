@@ -936,13 +936,23 @@ export default function AdminPetsPage() {
 
             {/* View Pet Dialog */}
             <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
+              <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-8">
+                {/* Close Button */}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="absolute top-4 right-4 rounded-full h-10 w-10 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border-red-200 z-10"
+                  onClick={() => setViewDialogOpen(false)}
+                  title="Close"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
                 {/* Add DialogTitle for accessibility */}
                 <DialogTitle className="sr-only">
                   {selectedPet ? `View Pet: ${selectedPet.name}` : "View Pet"}
                 </DialogTitle>
                 {selectedPet && (
-                  <div className="w-full flex flex-col lg:flex-row gap-8 p-6">
+                  <div className="w-full flex flex-col lg:flex-row gap-8 p-6 relative">
                     {/* Left: Image Gallery */}
                     <div className="flex-1 flex flex-col gap-6">
                       <Card className="rounded-xl shadow-lg overflow-hidden border-none">

@@ -10,7 +10,7 @@ import axiosInstance from "@/lib/axiosInstance";
 import { BASE_URL } from "@/utils/constants";
 import Loader from "@/components/Loader";
 import AdminAuthWrapper from "@/components/AdminAuthWrapper";
-import { Search, RefreshCw, Pencil, Trash2, Plus } from "lucide-react";
+import { Search, RefreshCw, Pencil, Trash2, Plus, X } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -53,7 +53,13 @@ interface Adoption {
     profilePicture?: string;
   };
   pet?: {
-    images?: string[];
+    _id: string;
+    name?: string;
+    breed?: string;
+    type?: string;
+    age?: string;
+    gender?: string;
+    images?: Array<{ url: string } | string>;
     [key: string]: any;
   };
 }
@@ -88,11 +94,25 @@ export default function AdminAdoptionsPage() {
     email: string;
     profilePicture?: string;
   } | null>(null);
+  const [viewPet, setViewPet] = useState<any>(null);
 
   useEffect(() => {
     fetchAdoptions();
     fetchCurrentUser();
   }, []);
+
+  // Prevent background scrolling when modals are open
+  useEffect(() => {
+    if (modalOpen || viewAdoption) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [modalOpen, viewAdoption]);
 
   const fetchAdoptions = async () => {
     setIsLoading(true);
@@ -142,8 +162,12 @@ export default function AdminAdoptionsPage() {
   const handleDeleteAdoption = async (adoptionId: string) => {
     setIsDeleting(true);
     try {
+      const token = localStorage.getItem("accessToken");
       const response = await axiosInstance.delete(
-        `${BASE_URL}/api/admin/adoptions/${adoptionId}`
+        `${BASE_URL}/api/admin/adoptions/${adoptionId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
       if (response.data.success) {
         setAdoptions(adoptions.filter((a) => a._id !== adoptionId));
@@ -172,16 +196,24 @@ export default function AdminAdoptionsPage() {
     setModalOpen(true);
   };
 
-  const handleSubmit = async (e: any) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) throw new Error("No access token found");
+
       if (editAdoption) {
         await axiosInstance.put(
           `${BASE_URL}/api/admin/adoptions/${editAdoption._id}`,
-          form
+          form,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
         );
       } else {
-        await axiosInstance.post(`${BASE_URL}/api/admin/adoptions`, form);
+        await axiosInstance.post(`${BASE_URL}/api/admin/adoptions`, form, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
       }
       setModalOpen(false);
       fetchAdoptions();
@@ -215,40 +247,14 @@ export default function AdminAdoptionsPage() {
     }${profilePicture}`;
   };
 
-  // Helper function to get Cloudinary profile picture URL
-  const getCloudinaryProfilePictureUrl = (
-    profilePicture: string | undefined | null
-  ): string | null => {
-    if (
-      !profilePicture ||
-      profilePicture === "undefined" ||
-      profilePicture.trim() === ""
-    ) {
-      return null;
-    }
-    // If it's a Cloudinary URL
-    if (
-      profilePicture.startsWith("https://res.cloudinary.com") ||
-      profilePicture.startsWith("//res.cloudinary.com")
-    ) {
-      return profilePicture;
-    }
-    return null;
-  };
-
   const filteredAdoptions = searchQuery
     ? adoptions.filter(
         (a) =>
           a.adopterName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          "" ||
           a.adopterEmail?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          "" ||
           a.petName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          "" ||
           a.user?.fullname?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          "" ||
-          a.user?.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          ""
+          a.user?.email?.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : adoptions;
 
@@ -274,6 +280,38 @@ export default function AdminAdoptionsPage() {
     }
   };
 
+  // Fetch pet details for modal
+  const fetchPetDetails = async (petId: string) => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const response = await axiosInstance.get(
+        `${BASE_URL}/api/pets/${petId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (response.data.success && response.data.pet) {
+        setViewPet(response.data.pet);
+      }
+    } catch (error) {
+      setViewPet(null);
+    }
+  };
+
+  // Helper function to get pet image URL
+  const getPetImageUrl = (pet: any, adoption: Adoption): string => {
+    if (pet?.images && pet.images.length > 0) {
+      const firstImage = pet.images[0];
+      return typeof firstImage === "object" && firstImage.url
+        ? firstImage.url
+        : typeof firstImage === "string"
+        ? firstImage
+        : "/placeholder-pet.jpg";
+    }
+
+    return adoption.petImage || "/placeholder-pet.jpg";
+  };
+
   return (
     <AdminAuthWrapper>
       <div className="min-h-screen bg-[#f8fafc] pb-8">
@@ -282,20 +320,9 @@ export default function AdminAdoptionsPage() {
           <div className="flex justify-end mb-2">
             {currentUser && (
               <div className="flex items-center gap-2">
-                {/* <Avatar className="h-8 w-8">
-                  <AvatarImage
-                    src={getProfilePictureUrl(currentUser.profilePicture)}
-                    alt={currentUser.fullname}
-                  />
-                  <AvatarFallback>
-                    {currentUser.fullname
-                      ? currentUser.fullname.charAt(0).toUpperCase()
-                      : "U"}
-                  </AvatarFallback>
-                </Avatar> */}
-                {/* <span className="text-sm font-medium text-[#0a1629]">
+                <span className="text-sm font-medium text-[#0a1629]">
                   {currentUser.fullname}
-                </span> */}
+                </span>
               </div>
             )}
           </div>
@@ -398,62 +425,52 @@ export default function AdminAdoptionsPage() {
                                   adoption.profilePicture.trim() !== ""
                                 ? adoption.profilePicture
                                 : "/placeholder-user.png";
-                            const cloudinaryUrl =
-                              getCloudinaryProfilePictureUrl(
-                                adopterProfilePicture
-                              );
 
                             return (
                               <TableRow
                                 key={adoption._id}
-                                className="hover:bg-gray-50 transition"
+                                className="hover:bg-gray-50 transition cursor-pointer"
+                                onClick={async () => {
+                                  setViewAdoption(adoption);
+                                  if (adoption.user?._id) {
+                                    await fetchUserProfile(adoption.user._id);
+                                  } else {
+                                    setViewUser(null);
+                                  }
+                                  if (adoption.pet?._id) {
+                                    await fetchPetDetails(adoption.pet._id);
+                                  } else {
+                                    setViewPet(null);
+                                  }
+                                }}
                               >
                                 {/* Pet column: show pet image and name */}
                                 <TableCell>
                                   <div className="flex items-center gap-3">
                                     <Avatar>
                                       <AvatarImage
-                                        src={
-                                          // FIX: Use Cloudinary image url like dashboard page
-                                          adoption.pet?.images &&
-                                          Array.isArray(adoption.pet.images) &&
-                                          adoption.pet.images.length > 0
-                                            ? typeof adoption.pet.images[0] ===
-                                                "object" &&
-                                              "url" in adoption.pet.images[0]
-                                              ? (
-                                                  adoption.pet.images[0] as {
-                                                    url: string;
-                                                  }
-                                                ).url
-                                              : typeof adoption.pet
-                                                  .images[0] === "string"
-                                              ? (adoption.pet
-                                                  .images[0] as string)
-                                              : adoption.petImage
-                                            : adoption.petImage
-                                            ? adoption.petImage
-                                            : "/placeholder-pet.jpg"
-                                        }
+                                        src={getPetImageUrl(
+                                          adoption.pet,
+                                          adoption
+                                        )}
                                         alt={
-                                          adoption.pet?.name
-                                            ? adoption.pet.name
-                                            : adoption.petName
+                                          adoption.pet?.name ||
+                                          adoption.petName ||
+                                          "Pet"
                                         }
                                       />
                                       <AvatarFallback>
-                                        {(adoption.pet?.name
-                                          ? adoption.pet.name
-                                          : adoption.petName
+                                        {(
+                                          adoption.pet?.name ||
+                                          adoption.petName ||
+                                          "P"
                                         )
                                           ?.charAt(0)
-                                          ?.toUpperCase() || "P"}
+                                          ?.toUpperCase()}
                                       </AvatarFallback>
                                     </Avatar>
                                     <span className="font-medium text-[#0a1629]">
-                                      {adoption.pet?.name
-                                        ? adoption.pet.name
-                                        : adoption.petName}
+                                      {adoption.pet?.name || adoption.petName}
                                     </span>
                                   </div>
                                 </TableCell>
@@ -462,7 +479,9 @@ export default function AdminAdoptionsPage() {
                                   <div className="flex items-center gap-2">
                                     <Avatar className="h-8 w-8">
                                       <AvatarImage
-                                        src={adopterProfilePicture}
+                                        src={getProfilePictureUrl(
+                                          adopterProfilePicture
+                                        )}
                                         alt={
                                           adoption.user?.fullname ||
                                           adoption.fullname ||
@@ -530,26 +549,12 @@ export default function AdminAdoptionsPage() {
                                 <TableCell>
                                   <div className="flex items-center gap-2">
                                     <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={async () => {
-                                        setViewAdoption(adoption);
-                                        if (adoption.user?._id) {
-                                          await fetchUserProfile(
-                                            adoption.user._id
-                                          );
-                                        } else {
-                                          setViewUser(null);
-                                        }
-                                      }}
-                                      className="px-3"
-                                    >
-                                      View
-                                    </Button>
-                                    <Button
                                       variant="ghost"
                                       size="icon"
-                                      onClick={() => handleEdit(adoption)}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEdit(adoption);
+                                      }}
                                       title="Edit adoption"
                                       className="h-8 w-8"
                                     >
@@ -563,6 +568,7 @@ export default function AdminAdoptionsPage() {
                                           className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
                                           disabled={isDeleting}
                                           title="Delete adoption"
+                                          onClick={(e) => e.stopPropagation()}
                                         >
                                           <Trash2 className="h-4 w-4" />
                                         </Button>
@@ -680,94 +686,137 @@ export default function AdminAdoptionsPage() {
           {/* Adoption View Modal */}
           {viewAdoption && (
             <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-              <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
-                <h3 className="font-bold text-lg mb-4 text-[#0a1629]">
+              <div className="bg-white rounded-2xl shadow-lg p-10 w-full max-w-2xl relative">
+                {/* Close Button */}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="absolute top-4 right-4 rounded-full h-10 w-10 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border-red-200"
+                  onClick={() => {
+                    setViewAdoption(null);
+                    setViewUser(null);
+                    setViewPet(null);
+                  }}
+                  title="Close"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+
+                <h3 className="font-bold text-2xl mb-8 text-[#0a1629] text-center">
                   Adoption Application Details
                 </h3>
-                <div className="flex items-center gap-3 mb-4">
-                  {(() => {
-                    // Get profile picture for view modal
-                    const viewProfilePicture =
-                      viewUser?.profilePicture &&
-                      viewUser.profilePicture.trim() !== ""
-                        ? viewUser.profilePicture
-                        : viewAdoption.user?.profilePicture &&
-                          viewAdoption.user.profilePicture.trim() !== ""
-                        ? viewAdoption.user.profilePicture
-                        : "/placeholder-user.png";
-                    const viewCloudinaryUrl =
-                      getCloudinaryProfilePictureUrl(viewProfilePicture);
-
-                    return (
-                      <>
-                        <Avatar className="h-12 w-12">
-                          <AvatarImage
-                            src={viewProfilePicture}
-                            alt={
-                              viewUser?.fullname ||
-                              viewAdoption.user?.fullname ||
-                              "Adopter"
-                            }
-                          />
-                          <AvatarFallback>
-                            {
-                              (viewUser?.fullname ||
-                                viewAdoption.user?.fullname ||
-                                viewAdoption.fullname ||
-                                viewAdoption.adopterName ||
-                                "U")[0]
-                            }
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-semibold text-lg">
-                            {viewUser?.fullname ||
-                              viewAdoption.user?.fullname ||
-                              viewAdoption.fullname ||
-                              viewAdoption.adopterName ||
-                              "Unknown User"}
-                          </div>
-                          <div className="text-gray-500 text-sm">
-                            {viewUser?.email ||
-                              viewAdoption.user?.email ||
-                              viewAdoption.email ||
-                              viewAdoption.adopterEmail}
-                          </div>
-                          {viewCloudinaryUrl && (
-                            <div className="text-[10px] text-blue-500 break-all">
-                              {viewCloudinaryUrl}
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
-                <div className="mb-2">
-                  <span className="font-medium">Phone:</span>{" "}
-                  {viewAdoption.phone || "-"}
-                </div>
-                <div className="mb-2">
-                  <span className="font-medium">Address:</span>{" "}
-                  {viewAdoption.address || "-"}
-                </div>
-                <div className="mb-2">
-                  <span className="font-medium">Message:</span>
-                  <div className="bg-gray-50 rounded p-2 mt-1 text-gray-700">
-                    {viewAdoption.message || "-"}
+                <div className="flex flex-col md:flex-row gap-8 mb-8">
+                  {/* Adopter Info */}
+                  <div className="flex-1 flex flex-col items-center gap-6">
+                    <Avatar className="h-28 w-28 border-4 border-orange-200 shadow-lg">
+                      <AvatarImage
+                        src={getProfilePictureUrl(
+                          viewUser?.profilePicture ||
+                            viewAdoption.user?.profilePicture ||
+                            viewAdoption.profilePicture
+                        )}
+                        alt={
+                          viewUser?.fullname ||
+                          viewAdoption.user?.fullname ||
+                          viewAdoption.fullname ||
+                          viewAdoption.adopterName ||
+                          "Unknown User"
+                        }
+                      />
+                      <AvatarFallback>
+                        {
+                          (viewUser?.fullname ||
+                            viewAdoption.user?.fullname ||
+                            viewAdoption.fullname ||
+                            viewAdoption.adopterName ||
+                            "U")[0]
+                        }
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col items-center gap-2">
+                      Adopter
+                      <div className="font-semibold text-xl">
+                        {viewUser?.fullname ||
+                          viewAdoption.user?.fullname ||
+                          viewAdoption.fullname ||
+                          viewAdoption.adopterName ||
+                          "Unknown User"}
+                      </div>
+                      <div className="text-gray-500 text-base">
+                        {viewUser?.email ||
+                          viewAdoption.user?.email ||
+                          viewAdoption.email ||
+                          viewAdoption.adopterEmail}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {viewAdoption.phone && <>Phone: {viewAdoption.phone}</>}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {viewAdoption.address && (
+                          <>Address: {viewAdoption.address}</>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Pet Info */}
+                  <div className="flex-1 flex flex-col items-center gap-6">
+                    <Avatar className="h-28 w-28 border-4 border-blue-200 shadow-lg">
+                      <AvatarImage
+                        src={getPetImageUrl(viewPet, viewAdoption)}
+                        alt={
+                          viewPet?.name ||
+                          viewAdoption.pet?.name ||
+                          viewAdoption.petName ||
+                          "Pet"
+                        }
+                      />
+                      <AvatarFallback>
+                        {
+                          (viewPet?.name ||
+                            viewAdoption.pet?.name ||
+                            viewAdoption.petName ||
+                            "P")[0]
+                        }
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col items-center gap-2 font-medium text-base">
+                      Pet
+                      <div className="font-semibold text-xl">
+                        {viewPet?.name ||
+                          viewAdoption.pet?.name ||
+                          viewAdoption.petName ||
+                          "Unknown Pet"}
+                      </div>
+                      <div className="text-gray-500 text-base">
+                        {viewPet?.breed ||
+                          viewAdoption.pet?.breed ||
+                          "Breed: Unknown"}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {viewPet?.type ||
+                          viewAdoption.pet?.type ||
+                          "Type: Unknown"}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {viewPet?.age ||
+                          viewAdoption.pet?.age ||
+                          "Age: Unknown"}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {viewPet?.gender ||
+                          viewAdoption.pet?.gender ||
+                          "Gender: Unknown"}
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="flex gap-2 justify-end mt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setViewAdoption(null);
-                      setViewUser(null);
-                    }}
-                  >
-                    Close
-                  </Button>
+                <div className="mb-8">
+                  <h4 className="font-semibold text-lg mb-3 text-[#0a1629]">
+                    Message from Adopter
+                  </h4>
+                  <div className="bg-gray-50 rounded p-3 text-gray-700">
+                    {viewAdoption.message || "-"}
+                  </div>
                 </div>
               </div>
             </div>

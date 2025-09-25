@@ -53,6 +53,10 @@ export default function Profile() {
     | "settings"
   >("main");
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [adoptions, setAdoptions] = useState<any[]>([]);
+  const [sidebarView, setSidebarView] = useState<"profile" | "adoptions">(
+    "profile"
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -63,6 +67,25 @@ export default function Profile() {
     } else {
       fetchUserData(token);
     }
+  }, [router]);
+
+  useEffect(() => {
+    // Fetch user's adoptions
+    const fetchUserAdoptions = async () => {
+      try {
+        const token = localStorage.getItem("accessToken");
+        if (!token) return;
+        const res = await axios.get(`${BASE_URL}/api/adoptions/my`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.data.success) {
+          setAdoptions(res.data.adoptions);
+        }
+      } catch (err) {
+        // ignore
+      }
+    };
+    fetchUserAdoptions();
   }, [router]);
 
   const fetchUserData = async (token: string) => {
@@ -422,7 +445,6 @@ export default function Profile() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex pt-28 pb-32 flex-col items-center justify-center px-4">
-
       <AnimatePresence mode="wait">
         <motion.div
           key={view}
@@ -701,6 +723,24 @@ export default function Profile() {
                             Account Settings
                           </h4>
                           <button
+                            onClick={() => setSidebarView("profile")}
+                            className={`w-full flex items-center gap-3 p-3 text-left rounded-xl hover:bg-white hover:shadow-sm transition-all text-gray-700 font-medium ${
+                              sidebarView === "profile" ? "bg-orange-50" : ""
+                            }`}
+                          >
+                            <FaUser className="text-orange-500" size={16} />
+                            <span>Profile</span>
+                          </button>
+                          <button
+                            onClick={() => setSidebarView("adoptions")}
+                            className={`w-full flex items-center gap-3 p-3 text-left rounded-xl hover:bg-white hover:shadow-sm transition-all text-gray-700 font-medium ${
+                              sidebarView === "adoptions" ? "bg-orange-50" : ""
+                            }`}
+                          >
+                            <FaEnvelope className="text-orange-500" size={16} />
+                            <span>Forms</span>
+                          </button>
+                          <button
                             onClick={() => setView("settings")}
                             className="w-full flex items-center gap-3 p-3 text-left rounded-xl hover:bg-white hover:shadow-sm transition-all text-gray-700 font-medium"
                           >
@@ -728,99 +768,141 @@ export default function Profile() {
 
               {/* Right Column - Profile Information */}
               <div className="md:w-3/4 p-8">
-                <h2 className="text-2xl font-bold text-gray-800 mb-6">
-                  My Profile
-                </h2>
+                {sidebarView === "profile" ? (
+                  <>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                      My Profile
+                    </h2>
 
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                  {/* Profile Information Card */}
-                  <div className="p-6 border-b border-gray-100">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                      Personal Information
-                    </h3>
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                      {/* Profile Information Card */}
+                      <div className="p-6 border-b border-gray-100">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                          Personal Information
+                        </h3>
 
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                        <div className="flex items-center">
-                          <div className="bg-orange-50 p-2.5 rounded-full mr-4">
-                            <FaUser className="text-orange-500" size={18} />
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                            <div className="flex items-center">
+                              <div className="bg-orange-50 p-2.5 rounded-full mr-4">
+                                <FaUser className="text-orange-500" size={18} />
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-500 font-medium">
+                                  Full Name
+                                </p>
+                                <p className="text-gray-800 font-medium">
+                                  {formData.fullname}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setView("account")}
+                              className="p-2 text-gray-500 hover:text-orange-500 transition-colors"
+                              aria-label="Edit name"
+                            >
+                              <FaEdit size={16} />
+                            </button>
                           </div>
-                          <div>
-                            <p className="text-xs text-gray-500 font-medium">
-                              Full Name
-                            </p>
-                            <p className="text-gray-800 font-medium">
-                              {formData.fullname}
-                            </p>
+
+                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                            <div className="flex items-center">
+                              <div className="bg-orange-50 p-2.5 rounded-full mr-4">
+                                <FaEnvelope
+                                  className="text-orange-500"
+                                  size={18}
+                                />
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-500 font-medium">
+                                  Email Address
+                                </p>
+                                <p className="text-gray-800 font-medium">
+                                  {formData.email}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={handleSendOtpForEmail}
+                              className="p-2 text-gray-500 hover:text-orange-500 transition-colors"
+                              aria-label="Edit email"
+                            >
+                              <FaEdit size={16} />
+                            </button>
+                          </div>
+
+                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                            <div className="flex items-center">
+                              <div className="bg-orange-50 p-2.5 rounded-full mr-4">
+                                <FaLock className="text-orange-500" size={18} />
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-500 font-medium">
+                                  Password
+                                </p>
+                                <p className="text-gray-800 font-medium">
+                                  ••••••••
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={handleSendOtpForPassword}
+                              className="p-2 text-gray-500 hover:text-orange-500 transition-colors"
+                              aria-label="Edit password"
+                            >
+                              <FaEdit size={16} />
+                            </button>
                           </div>
                         </div>
-                        <button
-                          onClick={() => setView("account")}
-                          className="p-2 text-gray-500 hover:text-orange-500 transition-colors"
-                          aria-label="Edit name"
-                        >
-                          <FaEdit size={16} />
-                        </button>
                       </div>
 
-                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                        <div className="flex items-center">
-                          <div className="bg-orange-50 p-2.5 rounded-full mr-4">
-                            <FaEnvelope className="text-orange-500" size={18} />
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-500 font-medium">
-                              Email Address
-                            </p>
-                            <p className="text-gray-800 font-medium">
-                              {formData.email}
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={handleSendOtpForEmail}
-                          className="p-2 text-gray-500 hover:text-orange-500 transition-colors"
-                          aria-label="Edit email"
-                        >
-                          <FaEdit size={16} />
-                        </button>
-                      </div>
-
-                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                        <div className="flex items-center">
-                          <div className="bg-orange-50 p-2.5 rounded-full mr-4">
-                            <FaLock className="text-orange-500" size={18} />
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-500 font-medium">
-                              Password
-                            </p>
-                            <p className="text-gray-800 font-medium">
-                              ••••••••
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={handleSendOtpForPassword}
-                          className="p-2 text-gray-500 hover:text-orange-500 transition-colors"
-                          aria-label="Edit password"
-                        >
-                          <FaEdit size={16} />
-                        </button>
+                      {/* Additional Information Section - Can be expanded in the future */}
+                      <div className="p-6">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                          Account Information
+                        </h3>
+                        <p className="text-gray-600 text-sm">
+                          Your account is active and in good standing.
+                        </p>
                       </div>
                     </div>
+                  </>
+                ) : (
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                      My Adoption Forms
+                    </h2>
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden p-6">
+                      {adoptions.length === 0 ? (
+                        <div className="text-gray-500 text-sm">
+                          No adoption forms submitted.
+                        </div>
+                      ) : (
+                        <ul className="space-y-4">
+                          {adoptions.map((adoption) => (
+                            <li
+                              key={adoption._id}
+                              className="bg-gray-50 rounded-lg p-4 flex flex-col"
+                            >
+                              <span className="font-medium text-[#0a1629]">
+                                {adoption.pet?.name || adoption.petName}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                Status: {adoption.status}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                Date:{" "}
+                                {new Date(
+                                  adoption.createdAt
+                                ).toLocaleDateString()}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   </div>
-
-                  {/* Additional Information Section - Can be expanded in the future */}
-                  <div className="p-6">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                      Account Information
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      Your account is active and in good standing.
-                    </p>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           ) : null}

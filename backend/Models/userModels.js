@@ -3,9 +3,9 @@ const schema = mongoose.Schema;
 
 const userSchema = new schema(
   {
-    profilePicture: { 
-      type: String, 
-      default: "" 
+    profilePicture: {
+      type: String,
+      default: "",
     },
     fullname: {
       type: String,
@@ -25,6 +25,10 @@ const userSchema = new schema(
       default: false,
     },
     isAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    isArchived: {
       type: Boolean,
       default: false,
     },

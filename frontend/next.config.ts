@@ -38,21 +38,16 @@ const nextConfig: NextConfig = {
   },
   webpack: (config, { isServer }) => {
     // Fix WebSocket and other Node.js module issues on client side
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-        dns: false,
-        child_process: false,
-      };
+    if (isServer) {
+      config.externals.push({
+        'ws': 'commonjs ws',
+      });
     }
-
     return config;
   },
-  // External packages configuration for server components
-  serverExternalPackages: ["ws"],
+  // Explicitly list external packages
+  serverExternalPackages: ['ws'],
+
   
   // Configure Turbopack to resolve workspace root warning
   turbopack: {

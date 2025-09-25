@@ -59,7 +59,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen pt-5 bg-white">
-   
       {/* Hero Section */}
       <div className="relative min-h-screen bg-gradient-to-b from-background to-background/95">
         {/* Background Pattern */}
@@ -433,8 +432,11 @@ export default function Home() {
                     <div className="h-56 rounded-xl mb-5 relative overflow-hidden group-hover:shadow-md transition-all duration-300">
                       <img
                         src={
-                          (pet as any).images && (pet as any).images.length > 0
-                            ? (pet as any).images[0]
+                          (pet as any).images &&
+                          Array.isArray((pet as any).images) &&
+                          (pet as any).images.length > 0 &&
+                          (pet as any).images[0]?.url
+                            ? (pet as any).images[0].url
                             : "https://images.unsplash.com/photo-1543466835-00a7907e9de1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1074&q=80"
                         }
                         alt={(pet as any).name}

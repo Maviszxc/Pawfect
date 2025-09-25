@@ -1,3 +1,4 @@
+// app/live/page.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -9,132 +10,94 @@ import { useVideoStream } from "@/context/VideoStreamContext";
 import Navigation from "@/components/Navigation";
 import AuthNavigation from "@/components/authNavigation";
 
-interface ChatMessage {
-  id: string;
-  sender: string;
-  message: string;
-  timestamp: Date;
-  isStaff: boolean;
-}
-
 export default function LivePage() {
   const chatInputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState("Disconnected");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const {
     adminStream,
     isAdminStreaming,
     connectToRoom,
     disconnectFromRoom,
-    connectionStatus: webrtcStatus,
+    connectionStatus,
+    sendChatMessage,
+    chatMessages,
   } = useVideoStream();
 
   const roomId = "pet-live-room";
-
-  useEffect(() => {
-    setConnectionStatus(webrtcStatus);
-    setIsConnected(
-      webrtcStatus === "connected" || webrtcStatus === "Connecting"
-    );
-  }, [webrtcStatus]);
-
-  useEffect(() => {
-    if (videoRef.current && adminStream) {
-      videoRef.current.srcObject = adminStream;
-      videoRef.current.play().catch((error) => {
-        console.error("Error playing video:", error);
-      });
-    }
-  }, [adminStream]);
-
-  // Update the useEffect for connection
-  useEffect(() => {
-    let isMounted = true;
-    let retryTimeout: NodeJS.Timeout;
-
-    const connectWithRetry = async (attempt = 1) => {
-      if (!isMounted) return;
-
-      try {
-        setConnectionStatus(`Connecting (${attempt})`);
-        await connectToRoom(roomId, false);
-        console.log("Connected successfully");
-      } catch (error) {
-        if (!isMounted) return;
-
-        console.error(`Connection attempt ${attempt} failed:`, error);
-
-        if (attempt < 5) {
-          const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
-          retryTimeout = setTimeout(() => connectWithRetry(attempt + 1), delay);
-        } else {
-          setConnectionStatus("Connection failed");
-        }
-      }
-    };
-
-    connectWithRetry();
-
-    return () => {
-      isMounted = false;
-      if (retryTimeout) clearTimeout(retryTimeout);
-      disconnectFromRoom();
-    };
-  }, [roomId, connectToRoom, disconnectFromRoom]);
-
-  const handleSendMessage = () => {
-    if (chatInputRef.current?.value.trim()) {
-      const newMessage: ChatMessage = {
-        id: Date.now().toString(),
-        sender: "You",
-        message: chatInputRef.current.value,
-        timestamp: new Date(),
-        isStaff: false,
-      };
-      setChatMessages((prev) => [...prev, newMessage]);
-      chatInputRef.current.value = "";
-
-      // Auto-scroll to bottom
-      if (chatContainerRef.current) {
-        chatContainerRef.current.scrollTop =
-          chatContainerRef.current.scrollHeight;
-      }
-    }
-  };
-
-  const reconnect = async () => {
-    try {
-      setIsRefreshing(true);
-      setConnectionStatus("Reconnecting");
-      await disconnectFromRoom();
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Brief delay
-      await connectToRoom(roomId, false);
-    } catch (error) {
-      console.error("Reconnection failed:", error);
-      setConnectionStatus("Reconnection failed");
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  // Check if user is logged in
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     const token = localStorage?.getItem("accessToken");
     setIsLoggedIn(!!token);
   }, []);
 
+  // Connect to room on component mount
+  useEffect(() => {
+    console.log("👤 User: Connecting to room...");
+    connectToRoom(roomId, false);
+
+    return () => {
+      console.log("👤 User: Disconnecting from room...");
+      disconnectFromRoom();
+    };
+  }, [roomId, connectToRoom, disconnectFromRoom]);
+
+  // Update video element when stream changes
+  useEffect(() => {
+    if (videoRef.current && adminStream) {
+      console.log("🎥 User: Setting video stream");
+      videoRef.current.srcObject = adminStream;
+
+      // Play the video
+      videoRef.current.play().catch((error) => {
+        console.error("Error playing video:", error);
+      });
+    } else if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, [adminStream]);
+
+  const handleSendMessage = () => {
+    const message = chatInputRef.current?.value.trim();
+    if (message) {
+      sendChatMessage(message, "User");
+
+      // Clear input
+      if (chatInputRef.current) {
+        chatInputRef.current.value = "";
+      }
+    }
+  };
+
+  const reconnect = async () => {
+    setIsRefreshing(true);
+    try {
+      await disconnectFromRoom();
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await connectToRoom(roomId, false);
+    } catch (error) {
+      console.error("Reconnection failed:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Auto-scroll chat
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop =
+        chatContainerRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
   return (
     <>
       {isLoggedIn ? <AuthNavigation /> : <Navigation />}
       <div className="min-h-screen bg-[#f8fafc] pb-8">
-        <div className="container mx-auto p-20 pt-32 space-y-6">
+        <div className="container mx-auto p-4 pt-24 space-y-6">
           <div className="flex justify-between items-center">
             <h1 className="text-3xl font-bold text-[#0a1629]">
               Live Pet Camera
@@ -148,8 +111,21 @@ export default function LivePage() {
               <RefreshCw
                 className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
               />
-              Refresh Connection
+              Refresh
             </Button>
+          </div>
+
+          {/* Connection Status */}
+          <div
+            className={`p-3 rounded-lg ${
+              connectionStatus.includes("connected")
+                ? "bg-green-100 text-green-800"
+                : connectionStatus.includes("Error")
+                ? "bg-red-100 text-red-800"
+                : "bg-yellow-100 text-yellow-800"
+            }`}
+          >
+            Status: {connectionStatus}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -161,45 +137,42 @@ export default function LivePage() {
                 </h2>
                 <div className="space-y-4">
                   <div className="relative aspect-video bg-black rounded-xl overflow-hidden">
-                    {isAdminStreaming && adminStream ? (
+                    {isAdminStreaming ? (
                       <video
                         ref={videoRef}
                         autoPlay
                         playsInline
-                        controls
+                        muted
                         className="w-full h-full object-cover"
                       />
                     ) : (
                       <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
                         <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mb-4"></div>
                         <p className="text-center">
-                          {connectionStatus === "Connecting"
+                          {connectionStatus.includes("connecting")
                             ? "Connecting to stream..."
-                            : connectionStatus === "Connection failed"
-                            ? "Connection failed. Please try again."
                             : "Waiting for stream to start..."}
                         </p>
-                        {connectionStatus === "Connection failed" && (
-                          <Button
-                            onClick={reconnect}
-                            variant="outline"
-                            className="mt-4 text-white border-white hover:bg-white hover:text-black"
-                          >
-                            Retry Connection
-                          </Button>
-                        )}
+                        <p className="text-sm opacity-75 mt-2">
+                          Make sure an admin has started the camera
+                        </p>
                       </div>
                     )}
                   </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">
+                  <div className="flex items-center justify-between text-sm">
+                    <span
+                      className={
+                        connectionStatus.includes("connected")
+                          ? "text-green-600"
+                          : connectionStatus.includes("Error")
+                          ? "text-red-600"
+                          : "text-yellow-600"
+                      }
+                    >
                       Status: {connectionStatus}
                     </span>
-                    {isConnected && (
-                      <span className="text-sm text-green-600">
-                        {isAdminStreaming ? "Live" : "Connected"}
-                      </span>
+                    {isAdminStreaming && (
+                      <span className="text-green-600">● Live</span>
                     )}
                   </div>
                 </div>
@@ -250,12 +223,12 @@ export default function LivePage() {
                       onKeyPress={(e) => {
                         if (e.key === "Enter") handleSendMessage();
                       }}
-                      disabled={!isConnected}
+                      disabled={!isAdminStreaming}
                       className="rounded-xl"
                     />
                     <Button
                       onClick={handleSendMessage}
-                      disabled={!isConnected}
+                      disabled={!isAdminStreaming}
                       className="bg-orange-500 hover:bg-orange-600 rounded-xl"
                     >
                       <Send className="w-4 h-4" />

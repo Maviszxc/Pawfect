@@ -1,3 +1,4 @@
+// app/admin/live/page.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -8,57 +9,29 @@ import { Send, Camera, CameraOff, RefreshCw } from "lucide-react";
 import AdminAuthWrapper from "@/components/AdminAuthWrapper";
 import { useVideoStream } from "@/context/VideoStreamContext";
 
-interface ChatMessage {
-  id: string;
-  sender: string;
-  message: string;
-  timestamp: Date;
-  isStaff: boolean;
-}
-
 export default function AdminLivePage() {
   const chatInputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [hasCamera, setHasCamera] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState("");
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const cameraVideoRef = useRef<HTMLVideoElement>(null);
-  const [serverStatus, setServerStatus] = useState<
-    "unknown" | "online" | "offline"
-  >("unknown");
 
   const {
     setAdminStream,
-    setIsAdminStreaming,
     connectToRoom,
     disconnectFromRoom,
     connectionStatus,
+    chatMessages,
+    sendChatMessage,
   } = useVideoStream();
 
   const roomId = "pet-live-room";
 
   useEffect(() => {
-    checkServerStatus();
-  }, []);
-
-  const checkServerStatus = async () => {
-    try {
-      // Simple check if WebSocket server might be running
-      const response = await fetch("http://localhost:3001", {
-        method: "HEAD",
-        mode: "no-cors",
-      }).catch(() => null);
-
-      setServerStatus(response !== null ? "online" : "offline");
-    } catch (error) {
-      setServerStatus("offline");
-    }
-  };
-
-  useEffect(() => {
+    // Check if camera is available
     if (
       navigator.mediaDevices &&
       typeof navigator.mediaDevices.getUserMedia === "function"
@@ -78,6 +51,8 @@ export default function AdminLivePage() {
   const startCamera = async () => {
     try {
       setCameraError("");
+
+      // Get camera stream
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 1280 },
@@ -91,36 +66,15 @@ export default function AdminLivePage() {
       setAdminStream(stream);
       setIsCameraActive(true);
 
-      // Connect to room with retry logic
-      let connected = false;
-      let attempts = 0;
-      const maxAttempts = 3;
-
-      while (!connected && attempts < maxAttempts) {
-        try {
-          attempts++;
-          await connectToRoom(roomId, true);
-          connected = true;
-          console.log("Connected to room as admin");
-        } catch (error) {
-          console.warn(`Connection attempt ${attempts} failed:`, error);
-          if (attempts >= maxAttempts) {
-            console.warn(
-              "All connection attempts failed, continuing with local camera only"
-            );
-            // Don't show error - just work locally
-          } else {
-            await new Promise((resolve) =>
-              setTimeout(resolve, 1000 * attempts)
-            );
-          }
-        }
-      }
+      // Connect to room as admin
+      await connectToRoom(roomId, true);
+      console.log("✅ Camera started and connected to room");
     } catch (error) {
-      console.error("Error accessing camera:", error);
+      console.error("❌ Error accessing camera:", error);
       setCameraError(
         "Failed to access camera. Please check permissions and try again."
       );
+      stopCamera();
     }
   };
 
@@ -129,28 +83,19 @@ export default function AdminLivePage() {
       cameraStream.getTracks().forEach((track) => track.stop());
       setCameraStream(null);
       setAdminStream(null);
-      setIsAdminStreaming(false);
       setIsCameraActive(false);
       disconnectFromRoom();
     }
   };
 
   const handleSendMessage = () => {
-    if (chatInputRef.current?.value.trim()) {
-      const newMessage: ChatMessage = {
-        id: Date.now().toString(),
-        sender: "Admin",
-        message: chatInputRef.current.value,
-        timestamp: new Date(),
-        isStaff: true,
-      };
-      setChatMessages((prev) => [...prev, newMessage]);
-      chatInputRef.current.value = "";
+    const message = chatInputRef.current?.value.trim();
+    if (message) {
+      sendChatMessage(message, "Admin");
 
-      // Auto-scroll to bottom
-      if (chatContainerRef.current) {
-        chatContainerRef.current.scrollTop =
-          chatContainerRef.current.scrollHeight;
+      // Clear input
+      if (chatInputRef.current) {
+        chatInputRef.current.value = "";
       }
     }
   };
@@ -170,26 +115,18 @@ export default function AdminLivePage() {
     }
   };
 
+  // Auto-scroll chat
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop =
+        chatContainerRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
   return (
     <AdminAuthWrapper>
       <div className="min-h-screen bg-[#f8fafc] pb-8">
-        <div className="container mx-auto p-20 pt-10 space-y-6">
-          {/* Server Status Banner */}
-          {serverStatus === "offline" && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-              <strong>WebSocket Server Offline</strong>
-              <p>
-                Please make sure the WebSocket server is running on port 3001.
-              </p>
-              <button
-                onClick={checkServerStatus}
-                className="mt-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
-              >
-                Check Again
-              </button>
-            </div>
-          )}
-
+        <div className="container mx-auto p-4 pt-24 space-y-6">
           <div className="flex justify-between items-center">
             <h1 className="text-3xl font-bold text-[#0a1629]">
               Live Stream Admin
@@ -263,7 +200,7 @@ export default function AdminLivePage() {
                           Status: {connectionStatus}
                         </span>
                         <span className="text-sm text-green-600">
-                          Camera is active and streaming
+                          ● Streaming active
                         </span>
                       </div>
                     )}

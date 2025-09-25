@@ -19,7 +19,7 @@ const navItems: NavItem[] = [
   { label: "Adoption", href: "/adoption" },
   { label: "Articles", href: "/articles" },
   { label: "Merchandise", href: "/merchandise" },
-  { label: "Live", href: "/pet/live" },
+  { label: "Live", href: "/live" },
 ];
 
 export default function AuthNavigation() {
