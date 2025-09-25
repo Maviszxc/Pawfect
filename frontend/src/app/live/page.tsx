@@ -71,18 +71,31 @@ export default function LivePage() {
 
   // Update video element when stream changes
   useEffect(() => {
-    if (videoRef.current && adminStream) {
-      console.log("User: Setting video stream");
-      videoRef.current.srcObject = adminStream;
+    if (videoRef.current) {
+      // Pause before changing srcObject to avoid AbortError
+      videoRef.current.pause();
 
-      // Only play if user has interacted
-      if (hasUserInteracted) {
-        videoRef.current.play().catch((error) => {
-          console.error("Error playing video:", error);
-        });
+      if (adminStream) {
+        console.log("User: Setting video stream");
+        videoRef.current.srcObject = adminStream;
+
+        // Only play if user has interacted
+        if (hasUserInteracted) {
+          // Wait for loadedmetadata before playing
+          const playOnReady = () => {
+            videoRef.current?.play().catch((error) => {
+              console.error("Error playing video:", error);
+            });
+            videoRef.current?.removeEventListener(
+              "loadedmetadata",
+              playOnReady
+            );
+          };
+          videoRef.current.addEventListener("loadedmetadata", playOnReady);
+        }
+      } else {
+        videoRef.current.srcObject = null;
       }
-    } else if (videoRef.current) {
-      videoRef.current.srcObject = null;
     }
   }, [adminStream, hasUserInteracted]);
 
@@ -305,11 +318,13 @@ export default function LivePage() {
                       key={msg.id}
                       className={`p-3 rounded-xl flex items-start gap-3 ${
                         msg.isStaff
-                          ? "bg-blue-100 text-blue-800 ml-8 border border-blue-200"
+                          ? "bg-blue-100 text-blue-800 mr-8 border border-blue-200"
                           : msg.senderId === currentUser?._id
-                          ? "bg-orange-50 text-orange-800 ml-8 border border-orange-200"
-                          : "bg-white text-gray-800 mr-8 border border-gray-200"
+                          ? "bg-orange-50 text-orange-800 mr-8 border border-orange-200"
+                          : "bg-white text-gray-800 ml-8 border border-gray-200"
+                          
                       }`}
+                  
                     >
                       <Avatar className="h-8 w-8 flex-shrink-0 mt-1">
                         <AvatarImage
@@ -325,7 +340,7 @@ export default function LivePage() {
                           <span className="font-semibold text-sm">
                             {msg.sender}
                             {msg.senderId === currentUser?._id && " (You)"}
-                            {msg.isStaff && " (Staff)"}
+                            {msg.isStaff && " (Admin)"}
                           </span>
                           <span className="text-xs opacity-70">
                             {msg.timestamp.toLocaleTimeString()}
