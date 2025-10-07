@@ -310,12 +310,6 @@ export default function AdminUsersPage() {
                       />
                       Refresh
                     </Button>
-                    <Button
-                      className="bg-orange-500 hover:bg-orange-600 text-white"
-                      onClick={handleAdd}
-                    >
-                      <Plus className="h-4 w-4 mr-2" /> Add User
-                    </Button>
                   </div>
                 </div>
 
@@ -355,7 +349,7 @@ export default function AdminUsersPage() {
                           <th className="py-2 font-medium">Email</th>
                           <th className="py-2 font-medium">Status</th>
                           <th className="py-2 font-medium">Admin</th>
-                          <th className="py-2 font-medium">Actions</th>
+                          {/* <th className="py-2 font-medium">Actions</th> */}
                         </tr>
                       </thead>
                       <tbody>
@@ -432,7 +426,7 @@ export default function AdminUsersPage() {
                               </td>
                               <td className="py-3">
                                 <div className="flex items-center gap-2">
-                                  <Button
+                                  {/* <Button
                                     variant="ghost"
                                     size="icon"
                                     onClick={(e) => {
@@ -443,7 +437,7 @@ export default function AdminUsersPage() {
                                     className="h-8 w-8"
                                   >
                                     <Pencil className="h-4 w-4" />
-                                  </Button>
+                                  </Button> */}
                                   {/* <Button
                                     variant="ghost"
                                     size="icon"
@@ -456,7 +450,7 @@ export default function AdminUsersPage() {
                                   >
                                     <Shield className="h-4 w-4" />
                                   </Button> */}
-                                  {!user.isArchived ? (
+                                  {/* {!user.isArchived ? (
                                     <AlertDialog>
                                       <AlertDialogTrigger asChild>
                                         <Button
@@ -510,7 +504,7 @@ export default function AdminUsersPage() {
                                     >
                                       Restore
                                     </Button>
-                                  )}
+                                  )} */}
                                 </div>
                               </td>
                             </tr>

@@ -15,6 +15,7 @@ import {
   faVirus,
 } from "@fortawesome/free-solid-svg-icons";
 import Loader from "@/components/Loader";
+import Footer from "@/components/Footer";
 
 export default function Services() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -468,6 +469,7 @@ export default function Services() {
           </div>
         </motion.div>
       </div>
+      <Footer />
 
       {/* Floating About Button */}
       <Link

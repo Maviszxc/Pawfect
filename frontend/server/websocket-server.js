@@ -2,7 +2,7 @@ const WebSocket = require("ws");
 const http = require("http");
 const { v4: uuidv4 } = require("uuid");
 
-const PORT = 3001;
+const PORT = 3000;
 
 // Create HTTP server with proper CORS
 const server = http.createServer((req, res) => {

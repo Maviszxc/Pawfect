@@ -46,6 +46,10 @@ const adoptionSchema = new Schema(
       type: String,
       default: "",
     },
+    isArchived: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

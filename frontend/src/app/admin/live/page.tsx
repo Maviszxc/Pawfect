@@ -163,7 +163,7 @@ export default function AdminLivePage() {
   return (
     <AdminAuthWrapper>
       <div className="min-h-screen bg-[#f8fafc] ">
-        <div className="container mx-auto p-7 pt-2 space-y-6">
+        <div className="container mx-auto px-7 pt-2 space-y-6">
           {/* Stream Statistics Card */}
           <Card className="w-full rounded-2xl bg-orange-500 border border-orange-200">
             <CardContent className="p-6">

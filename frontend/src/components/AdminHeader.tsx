@@ -76,19 +76,8 @@ const AdminHeader = () => {
   return (
     <div className="w-full px-4 py-6 flex justify-center">
       <div className="w-full max-w-6xl flex flex-wrap md:flex-nowrap items-center bg-white rounded-2xl shadow px-4 sm:px-6 py-4 gap-4 md:space-x-6">
-        {/* Search */}
-        <div className="w-full md:flex-1 md:max-w-xs relative">
-          <Input
-            className="w-full pl-10 pr-3 py-2 rounded-full border border-gray-200 text-sm bg-[#f8fafc] focus-visible:ring-0 focus:border-black"
-            placeholder="Search"
-            type="search"
-          />
-          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
-          </div>
-        </div>
         {/* Date at the very right */}
-        <div className="w-full md:flex-1 flex justify-between md:justify-end items-center gap-2 md:gap-8">
+        <div className="w-full md:flex-1 flex justify-between items-center gap-2 md:gap-8">
           <div className="flex items-center text-gray-600 text-sm md:text-base font-medium">
             {dateString}
           </div>
@@ -97,7 +86,7 @@ const AdminHeader = () => {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="p-0 h-10 w-10 rounded-full border border-orange-500 hover:bg-orange-100 transition-colors duration-150"
+                className="p-0 h-10 w-10 rounded-full md:justify-end border border-orange-500 hover:bg-orange-100 transition-colors duration-150"
                 style={{ transition: "background 0.15s" }}
               >
                 <Avatar className="h-9 w-9">

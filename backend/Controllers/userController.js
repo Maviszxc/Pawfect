@@ -661,6 +661,8 @@ const uploadProfilePicture = async (req, res) => {
   }
 };
 
+
+
 module.exports = {
   createAccount,
   sendOtp,

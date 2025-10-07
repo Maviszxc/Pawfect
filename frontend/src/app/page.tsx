@@ -11,6 +11,9 @@ import { motion } from "framer-motion";
 import axios from "axios";
 import { BASE_URL } from "@/utils/constants";
 import Loader from "@/components/Loader";
+import DonateModal from "@/components/DonateModal";
+import ContactModal from "@/components/ContactModal";
+import Footer from "@/components/Footer";
 
 // Dynamically import FloatingBotDemo with SSR disabled
 const FloatingBotDemo = dynamic(() => import("@/components/FloatingBotDemo"), {
@@ -35,6 +38,20 @@ export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [featuredPets, setFeaturedPets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showDonateModal, setShowDonateModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<"local" | "international">(
+    "local"
+  );
+  const [donationForm, setDonationForm] = useState({
+    name: "",
+    mobileNumber: "",
+    email: "",
+    amount: "",
+    donationFor: "general",
+    receiveUpdates: false,
+    notRobot: false,
+  });
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
@@ -57,8 +74,42 @@ export default function Home() {
     fetchPets();
   }, []);
 
+  const handleDonationSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Handle donation confirmation logic here
+    console.log("Donation confirmed:", donationForm);
+    // You can add API call to submit donation confirmation
+    setShowDonateModal(false);
+    setDonationForm({
+      name: "",
+      mobileNumber: "",
+      email: "",
+      amount: "",
+      donationFor: "general",
+      receiveUpdates: false,
+      notRobot: false,
+    });
+  };
+
   return (
     <main className="min-h-screen pt-5 bg-white">
+      {/* Donate Modal */}
+      <DonateModal
+        showDonateModal={showDonateModal}
+        setShowDonateModal={setShowDonateModal}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        donationForm={donationForm}
+        setDonationForm={setDonationForm}
+        handleDonationSubmit={handleDonationSubmit}
+      />
+
+      {/* Contact Modal */}
+      <ContactModal
+        showContactModal={showContactModal}
+        setShowContactModal={setShowContactModal}
+      />
+
       {/* Hero Section */}
       <div className="relative min-h-screen bg-gradient-to-b from-background to-background/95">
         {/* Background Pattern */}
@@ -107,28 +158,26 @@ export default function Home() {
               your journey of companionship today.
             </motion.p>
 
-            {/* Search bar removed and moved to navbar */}
-
             <motion.div
               variants={fadeInUp}
               className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start"
             >
-              <Link href="/adoption">
-                <Button
-                  size="lg"
-                  className="bg-orange-500 hover:bg-orange-600 text-white rounded-xl px-8 py-6 text-lg shadow-lg shadow-orange-500/25 flex items-center gap-2 transition-all duration-300"
-                >
-                  <i className="bi bi-search-heart"></i>
-                  <span>Browse Pets</span>
-                </Button>
-              </Link>
+              <Button
+                onClick={() => setShowDonateModal(true)}
+                size="lg"
+                className="bg-orange-500 hover:bg-orange-600 text-white rounded-xl px-8 py-6 text-lg shadow-lg shadow-orange-500/25 flex items-center gap-2 transition-all duration-300"
+              >
+                <i className="bi bi-heart-fill"></i>
+                <span>Donate</span>
+              </Button>
               <Button
                 size="lg"
                 variant="outline"
                 className="rounded-xl px-8 py-6 text-lg border-2 border-orange-500/20 hover:bg-orange-500/5 flex items-center gap-2 transition-all duration-300"
+                onClick={() => setShowContactModal(true)}
               >
                 <i className="bi bi-info-circle"></i>
-                <span>How It Works</span>
+                <span>Get in Touch</span>
               </Button>
             </motion.div>
           </motion.div>
@@ -182,8 +231,8 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Stats Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Stats Section */}
         <style jsx global>{`
           :root {
             --d: 700ms;
@@ -596,6 +645,7 @@ export default function Home() {
           </div>
         </section>
       </div>
+      <Footer />
 
       {/* Floating About Button */}
       <Link

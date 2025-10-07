@@ -13,18 +13,40 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import AdminAuthWrapper from "@/components/AdminAuthWrapper";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-} from "recharts";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import axiosInstance from "@/lib/axiosInstance";
 import { BASE_URL } from "@/utils/constants";
 import Loader from "@/components/Loader";
+
+// Chart.js imports
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+  ArcElement,
+} from "chart.js";
+import { Line, Bar, Doughnut } from "react-chartjs-2";
+
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+  ArcElement
+);
 
 interface Pet {
   _id: string;
@@ -38,7 +60,7 @@ interface Pet {
   adoptionStatus: string;
   owner?: string;
   createdAt?: string;
-  images?: { url: string }[]; // <-- update type
+  images?: { url: string }[];
 }
 
 interface User {
@@ -73,16 +95,191 @@ interface Adoption {
   };
 }
 
-// Sample data for productivity chart
-const productivityData = [
-  { name: "Mon", Adoptions: 2, Applications: 5 },
-  { name: "Tue", Adoptions: 3, Applications: 7 },
-  { name: "Wed", Adoptions: 2, Applications: 4 },
-  { name: "Thu", Adoptions: 4, Applications: 6 },
-  { name: "Fri", Adoptions: 3, Applications: 8 },
-  { name: "Sat", Adoptions: 5, Applications: 9 },
-  { name: "Sun", Adoptions: 4, Applications: 7 },
-];
+interface DashboardStats {
+  totalPets: number;
+  totalUsers: number;
+  adoptedPets: number;
+  pendingAdoptions: number;
+  petTypes: { name: string; value: number }[];
+  monthlyAdoptions: { name: string; adoptions: number }[];
+}
+
+// Chart options for different chart types
+const lineChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: "top" as const,
+      labels: {
+        usePointStyle: true,
+        padding: 15,
+        color: "#6b7280",
+        font: {
+          size: 12,
+          family: "'Inter', sans-serif",
+        },
+      },
+    },
+    title: {
+      display: false,
+    },
+    tooltip: {
+      backgroundColor: "rgba(0, 0, 0, 0.8)",
+      titleColor: "#fff",
+      bodyColor: "#fff",
+      borderColor: "#4f46e5",
+      borderWidth: 1,
+      cornerRadius: 8,
+      displayColors: true,
+      usePointStyle: true,
+    },
+  },
+  scales: {
+    x: {
+      grid: {
+        display: false,
+      },
+      ticks: {
+        color: "#6b7280",
+        font: {
+          size: 11,
+        },
+      },
+      border: {
+        display: false,
+      },
+    },
+    y: {
+      grid: {
+        color: "rgba(107, 114, 128, 0.1)",
+        drawBorder: false,
+      },
+      ticks: {
+        color: "#6b7280",
+        font: {
+          size: 11,
+        },
+        precision: 0,
+      },
+      border: {
+        display: false,
+      },
+      beginAtZero: true,
+    },
+  },
+  elements: {
+    line: {
+      tension: 0.4,
+    },
+    point: {
+      radius: 4,
+      hoverRadius: 6,
+      backgroundColor: "#fff",
+      borderWidth: 2,
+    },
+  },
+};
+
+const barChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: "top" as const,
+      labels: {
+        usePointStyle: true,
+        padding: 15,
+        color: "#6b7280",
+        font: {
+          size: 12,
+          family: "'Inter', sans-serif",
+        },
+      },
+    },
+    title: {
+      display: false,
+    },
+    tooltip: {
+      backgroundColor: "rgba(0, 0, 0, 0.8)",
+      titleColor: "#fff",
+      bodyColor: "#fff",
+      borderColor: "#4f46e5",
+      borderWidth: 1,
+      cornerRadius: 8,
+      displayColors: true,
+    },
+  },
+  scales: {
+    x: {
+      grid: {
+        display: false,
+      },
+      ticks: {
+        color: "#6b7280",
+        font: {
+          size: 11,
+        },
+      },
+      border: {
+        display: false,
+      },
+    },
+    y: {
+      grid: {
+        color: "rgba(107, 114, 128, 0.1)",
+        drawBorder: false,
+      },
+      ticks: {
+        color: "#6b7280",
+        font: {
+          size: 11,
+        },
+        precision: 0,
+      },
+      border: {
+        display: false,
+      },
+      beginAtZero: true,
+    },
+  },
+  elements: {
+    bar: {
+      borderRadius: 6,
+      borderSkipped: false,
+    },
+  },
+};
+
+const doughnutOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: "bottom" as const,
+      labels: {
+        usePointStyle: true,
+        padding: 15,
+        color: "#6b7280",
+        font: {
+          size: 11,
+          family: "'Inter', sans-serif",
+        },
+        boxWidth: 8,
+      },
+    },
+    tooltip: {
+      backgroundColor: "rgba(0, 0, 0, 0.8)",
+      titleColor: "#fff",
+      bodyColor: "#fff",
+      borderColor: "#4f46e5",
+      borderWidth: 1,
+      cornerRadius: 8,
+      displayColors: false,
+    },
+  },
+  cutout: "65%",
+};
 
 export default function AdminDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -96,10 +293,31 @@ export default function AdminDashboardPage() {
     availablePets: 0,
     pendingAdoptions: 0,
   });
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
+    totalPets: 0,
+    totalUsers: 0,
+    adoptedPets: 0,
+    pendingAdoptions: 0,
+    petTypes: [],
+    monthlyAdoptions: [],
+  });
+
+  // Chart data states
+  const [adoptionTrendsData, setAdoptionTrendsData] = useState<any>(null);
+  const [applicationStatusData, setApplicationStatusData] = useState<any>(null);
+  const [adoptionByPetTypeData, setAdoptionByPetTypeData] = useState<any>(null);
 
   useEffect(() => {
     fetchDashboardData();
+    fetchDashboardStats();
   }, []);
+
+  // Recalculate chart data when adoptions or dashboard stats change
+  useEffect(() => {
+    if (adoptions.length > 0 || dashboardStats.petTypes.length > 0) {
+      prepareChartData();
+    }
+  }, [adoptions, dashboardStats]);
 
   const fetchDashboardData = async () => {
     setIsLoading(true);
@@ -147,7 +365,7 @@ export default function AdminDashboardPage() {
 
       // Fetch adoptions with user and pet populated
       const adoptionsResponse = await axiosInstance.get(
-        `${BASE_URL}/api/admin/adoptions?populate=user,pet`,
+        `${BASE_URL}/api/admin/adoptions`,
         {
           headers: { Authorization: `Bearer ${token}` },
           timeout: 30000,
@@ -156,7 +374,7 @@ export default function AdminDashboardPage() {
       if (adoptionsResponse.data.success) {
         setAdoptions(adoptionsResponse.data.adoptions);
         const pendingAdoptions = adoptionsResponse.data.adoptions.filter(
-          (adoption: Adoption) => adoption.status === "pending"
+          (adoption: Adoption) => adoption.status === "Pending"
         ).length;
         setStats((prev) => ({
           ...prev,
@@ -171,6 +389,140 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const fetchDashboardStats = async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        throw new Error("No access token found");
+      }
+
+      const statsResponse = await axiosInstance.get(
+        `${BASE_URL}/api/admin/stats`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 30000,
+        }
+      );
+
+      if (statsResponse.data.success) {
+        const statsData = statsResponse.data.stats;
+        setDashboardStats(statsData);
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error);
+    }
+  };
+
+  const prepareChartData = () => {
+    console.log("Preparing chart data with adoptions:", adoptions.length);
+
+    // Adoption Trends - Monthly Adoptions
+    const monthlyAdoptionsData = {
+      labels: dashboardStats.monthlyAdoptions.map((item) => item.name),
+      datasets: [
+        {
+          label: "Completed Adoptions",
+          data: dashboardStats.monthlyAdoptions.map((item) => item.adoptions),
+          borderColor: "#10b981",
+          backgroundColor: "rgba(16, 185, 129, 0.1)",
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: "#fff",
+          pointBorderColor: "#10b981",
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        },
+      ],
+    };
+
+    // Application Status - Calculate from adoptions
+    const statusCounts = {
+      Approved: adoptions.filter((a) => a.status === "Approved").length,
+      Pending: adoptions.filter((a) => a.status === "Pending").length,
+      Rejected: adoptions.filter((a) => a.status === "Rejected").length,
+      Completed: adoptions.filter((a) => a.status === "Completed").length,
+    };
+
+    console.log("Application status counts:", statusCounts);
+
+    const applicationStatusChartData = {
+      labels: ["Approved", "Pending", "Rejected", "Completed"],
+      datasets: [
+        {
+          data: [
+            statusCounts.Approved,
+            statusCounts.Pending,
+            statusCounts.Rejected,
+            statusCounts.Completed,
+          ],
+          backgroundColor: [
+            "rgba(16, 185, 129, 0.8)",
+            "rgba(245, 158, 11, 0.8)",
+            "rgba(239, 68, 68, 0.8)",
+            "rgba(59, 130, 246, 0.8)",
+          ],
+          borderColor: ["#10b981", "#f59e0b", "#ef4444", "#3b82f6"],
+          borderWidth: 2,
+        },
+      ],
+    };
+
+    // Adoption by Pet Type
+    const petTypeData = {
+      labels: dashboardStats.petTypes.map((item) => item.name),
+      datasets: [
+        {
+          label: "Pets by Type",
+          data: dashboardStats.petTypes.map((item) => item.value),
+          backgroundColor: [
+            "rgba(139, 92, 246, 0.8)",
+            "rgba(20, 184, 166, 0.8)",
+            "rgba(249, 115, 22, 0.8)",
+            "rgba(59, 130, 246, 0.8)",
+            "rgba(236, 72, 153, 0.8)",
+          ],
+          borderColor: ["#8b5cf6", "#14b8a6", "#f97316", "#3b82f6", "#ec4899"],
+          borderWidth: 1,
+        },
+      ],
+    };
+
+    setAdoptionTrendsData(monthlyAdoptionsData);
+    setApplicationStatusData(applicationStatusChartData);
+    setAdoptionByPetTypeData(petTypeData);
+  };
+
+  // Application Volume - Weekly data (sample data)
+  const applicationVolumeData = {
+    labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    datasets: [
+      {
+        label: "Applications Received",
+        data: [5, 7, 4, 6, 8, 9, 7], // This could be enhanced with real weekly data
+        backgroundColor: [
+          "rgba(59, 130, 246, 0.8)",
+          "rgba(59, 130, 246, 0.7)",
+          "rgba(59, 130, 246, 0.6)",
+          "rgba(59, 130, 246, 0.5)",
+          "rgba(59, 130, 246, 0.4)",
+          "rgba(59, 130, 246, 0.3)",
+          "rgba(59, 130, 246, 0.2)",
+        ],
+        borderColor: [
+          "#3b82f6",
+          "#3b82f6",
+          "#3b82f6",
+          "#3b82f6",
+          "#3b82f6",
+          "#3b82f6",
+          "#3b82f6",
+        ],
+        borderWidth: 1,
+      },
+    ],
+  };
+
   // Get recent pets (last 4)
   const recentPets = pets.slice(0, 4);
 
@@ -180,15 +532,15 @@ export default function AdminDashboardPage() {
   // Get recent adoptions (last 4)
   const recentAdoptions = adoptions.slice(0, 4);
 
-  // if (isLoading) {
-  //   return (
-  //     <AdminAuthWrapper>
-  //       <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
-  //         <Loader />
-  //       </div>
-  //     </AdminAuthWrapper>
-  //   );
-  // }
+  if (isLoading) {
+    return (
+      <AdminAuthWrapper>
+        <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+          <Loader />
+        </div>
+      </AdminAuthWrapper>
+    );
+  }
 
   return (
     <AdminAuthWrapper>
@@ -201,7 +553,7 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-2xl font-bold text-[#0a1629]">
-                      {stats.totalPets}
+                      {dashboardStats.totalPets}
                     </div>
                     <div className="text-gray-500 text-sm">Total Pets</div>
                   </div>
@@ -210,7 +562,7 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
                 <div className="mt-2 text-sm text-green-600">
-                  {stats.availablePets} available for adoption
+                  {dashboardStats.adoptedPets} successfully adopted
                 </div>
               </CardContent>
             </Card>
@@ -220,7 +572,7 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-2xl font-bold text-[#0a1629]">
-                      {stats.totalUsers}
+                      {dashboardStats.totalUsers}
                     </div>
                     <div className="text-gray-500 text-sm">Total Users</div>
                   </div>
@@ -239,67 +591,22 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-2xl font-bold text-[#0a1629]">
-                      {stats.totalAdoptions}
+                      {dashboardStats.pendingAdoptions}
                     </div>
-                    <div className="text-gray-500 text-sm">Total Adoptions</div>
+                    <div className="text-gray-500 text-sm">
+                      Pending Adoptions
+                    </div>
                   </div>
                   <div className="bg-orange-100 p-3 rounded-full">
                     <Heart className="h-6 w-6 text-orange-600" />
                   </div>
                 </div>
                 <div className="mt-2 text-sm text-yellow-600">
-                  {stats.pendingAdoptions} pending requests
+                  {stats.totalAdoptions} total requests
                 </div>
               </CardContent>
             </Card>
           </div>
-
-          {/* Adoption Activity Chart */}
-          <Card className="rounded-2xl shadow bg-white">
-            <CardContent className="p-8">
-              <div className="font-bold text-lg text-[#0a1629] mb-2">
-                Adoption Activity
-              </div>
-              <div className="flex flex-row items-center gap-8">
-                <div className="flex-1 min-w-0">
-                  <ResponsiveContainer width="100%" height={180}>
-                    <LineChart data={productivityData}>
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                      <YAxis axisLine={false} tickLine={false} />
-                      <Tooltip />
-                      <Line
-                        type="monotone"
-                        dataKey="Adoptions"
-                        stroke="#2563eb"
-                        strokeWidth={3}
-                        dot={false}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="Applications"
-                        stroke="#7c3aed"
-                        strokeWidth={3}
-                        dot={false}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-block w-3 h-3 rounded-full bg-[#2563eb]" />
-                    <span className="text-sm text-gray-700">Adoptions</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="inline-block w-3 h-3 rounded-full bg-[#7c3aed]" />
-                    <span className="text-sm text-gray-700">Applications</span>
-                  </div>
-                </div>
-              </div>
-              <div className="text-xs text-gray-400 mt-2">
-                Data updates every 3 hours
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Bottom row: Recent Pets, Users, and Adoptions */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -412,7 +719,7 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
                   ))
-                 ) }
+                )}
 
                 <div className="flex justify-end mt-4">
                   <button className="text-orange-500 text-sm font-medium hover:text-orange-600">
@@ -478,11 +785,13 @@ export default function AdminDashboardPage() {
                         </div>
                         <Badge
                           className={
-                            adoption.status === "approved"
+                            adoption.status === "Approved"
                               ? "bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full text-xs font-semibold"
-                              : adoption.status === "pending"
+                              : adoption.status === "Pending"
                               ? "bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded-full text-xs font-semibold"
-                              : "bg-red-50 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded-full text-xs font-semibold"
+                              : adoption.status === "Completed"
+                              ? "bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full text-xs font-semibold"
+                              : "bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-full text-xs font-semibold"
                           }
                         >
                           {adoption.status}
@@ -498,6 +807,96 @@ export default function AdminDashboardPage() {
                   <button className="text-white text-sm font-medium hover:text-orange-200">
                     View all adoptions →
                   </button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Charts Section - 2x2 Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Adoption Trends - Line Chart */}
+            <Card className="rounded-2xl shadow bg-white">
+              <CardContent className="p-6">
+                <div className="font-bold text-lg text-[#0a1629] mb-4">
+                  Adoption Trends
+                </div>
+                <div className="h-64">
+                  {adoptionTrendsData ? (
+                    <Line
+                      data={adoptionTrendsData}
+                      options={lineChartOptions}
+                    />
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-gray-500">
+                      Loading chart data...
+                    </div>
+                  )}
+                </div>
+                <div className="text-xs text-gray-400 mt-2">
+                  Monthly completed adoptions
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Application Volume - Bar Chart */}
+            <Card className="rounded-2xl shadow bg-white">
+              <CardContent className="p-6">
+                <div className="font-bold text-lg text-[#0a1629] mb-4">
+                  Application Volume
+                </div>
+                <div className="h-64">
+                  <Bar data={applicationVolumeData} options={barChartOptions} />
+                </div>
+                <div className="text-xs text-gray-400 mt-2">
+                  Daily applications received (sample data)
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Application Status - Doughnut Chart */}
+            <Card className="rounded-2xl shadow bg-white">
+              <CardContent className="p-6">
+                <div className="font-bold text-lg text-[#0a1629] mb-4">
+                  Application Status
+                </div>
+                <div className="h-64">
+                  {applicationStatusData ? (
+                    <Doughnut
+                      data={applicationStatusData}
+                      options={doughnutOptions}
+                    />
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-gray-500">
+                      Loading chart data...
+                    </div>
+                  )}
+                </div>
+                <div className="text-xs text-gray-400 mt-2 text-center">
+                  Distribution of application statuses
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Adoptions by Pet Type - Bar Chart */}
+            <Card className="rounded-2xl shadow bg-white">
+              <CardContent className="p-6">
+                <div className="font-bold text-lg text-[#0a1629] mb-4">
+                  Pets by Type
+                </div>
+                <div className="h-64">
+                  {adoptionByPetTypeData ? (
+                    <Bar
+                      data={adoptionByPetTypeData}
+                      options={barChartOptions}
+                    />
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-gray-500">
+                      Loading chart data...
+                    </div>
+                  )}
+                </div>
+                <div className="text-xs text-gray-400 mt-2">
+                  Total pets by category
                 </div>
               </CardContent>
             </Card>

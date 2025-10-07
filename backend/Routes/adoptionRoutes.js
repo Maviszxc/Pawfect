@@ -52,59 +52,6 @@ router.get("/all", verifyToken, async (req, res) => {
   }
 });
 
-// Update adoption status
-router.patch("/:id/status", verifyToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status, adminMessage } = req.body;
-
-    // In a real app, you would check if the user is an admin here
-    // For now, we'll allow any authenticated user to update status
-
-    const adoption = await Adoption.findById(id);
-    if (!adoption) {
-      return res.status(404).json({
-        success: false,
-        message: "Adoption request not found",
-      });
-    }
-
-    // Update adoption status
-    adoption.status = status;
-    if (adminMessage) {
-      adoption.adminMessage = adminMessage;
-    }
-
-    await adoption.save();
-
-    // Update pet status based on adoption status
-    const pet = await Pet.findById(adoption.pet);
-    if (pet) {
-      if (status === "Approved") {
-        pet.adoptionStatus = "pending";
-      } else if (status === "Completed") {
-        pet.adoptionStatus = "adopted";
-        pet.owner = adoption.user;
-      } else if (status === "Rejected") {
-        pet.adoptionStatus = "available";
-      }
-      await pet.save();
-    }
-
-    res.status(200).json({
-      success: true,
-      message: `Adoption request ${status.toLowerCase()} successfully`,
-      adoption,
-    });
-  } catch (error) {
-    console.error("Error updating adoption status:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to update adoption status",
-    });
-  }
-});
-
 // Get a specific adoption request
 router.get("/:id", verifyToken, async (req, res) => {
   try {

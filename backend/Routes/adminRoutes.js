@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { verifyToken, verifyAdmin } = require("../Utilities/authUtil");
 const adminController = require("../Controllers/adminController");
+const nodemailer = require("nodemailer");
 
 // Middleware to verify admin access for all routes
 router.use(verifyToken, verifyAdmin);
@@ -20,6 +21,16 @@ router.patch(
   "/adoptions/:adoptionId/status",
   adminController.updateAdoptionStatus
 );
+
+// Add to adminRoutes.js
+// Archive adoption
+router.patch("/adoptions/:adoptionId/archive", adminController.archiveAdoption);
+
+// Restore adoption
+router.patch("/adoptions/:adoptionId/restore", adminController.restoreAdoption);
+
+// Add to adminRoutes.js
+
 
 // Get dashboard statistics
 router.get("/stats", adminController.getDashboardStats);

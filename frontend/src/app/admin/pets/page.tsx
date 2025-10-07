@@ -616,7 +616,7 @@ export default function AdminPetsPage() {
                                     </div>
                                   )}
                                 </div>
-                                <CardContent className="p-4">
+                                <CardContent className="p-4 ">
                                   <div className="flex justify-between items-start mb-3">
                                     <h3 className="font-semibold text-lg text-gray-900">
                                       {pet.name}

@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Loader from "@/components/Loader";
 import { toast } from "react-toastify";
+import Footer from "@/components/Footer";
 
 // Dynamically import FloatingBotDemo with SSR disabled
 const FloatingBotDemo = dynamic(() => import("@/components/FloatingBotDemo"), {
@@ -578,6 +579,7 @@ export default function Adopt() {
             </div>
           </motion.div>
         </div>
+        
 
         {/* Floating About Button */}
         <Link
@@ -591,6 +593,7 @@ export default function Adopt() {
       </main>
       {/* Toast container (if not already in _app.tsx) */}
       {/* <ToastContainer /> */}
+      <Footer />
     </>
   );
 }

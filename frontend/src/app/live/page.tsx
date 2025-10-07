@@ -10,6 +10,7 @@ import { useVideoStream } from "@/context/VideoStreamContext";
 import Navigation from "@/components/Navigation";
 import AuthNavigation from "@/components/authNavigation";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import Footer from "@/components/Footer";
 
 export default function LivePage() {
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -515,6 +516,7 @@ export default function LivePage() {
           </Card>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
