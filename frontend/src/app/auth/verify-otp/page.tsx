@@ -1,4 +1,6 @@
-"use client";
+export const dynamic = "force-dynamic";
+
+("use client");
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
@@ -12,8 +14,6 @@ import AuthNavigation from "@/components/authNavigation";
 import { BASE_URL } from "@/utils/constants";
 import Link from "next/link";
 import { toast } from "react-toastify";
-
-export const dynamic = "force-dynamic";
 
 const OtpPage: React.FC = () => {
   const router = useRouter();
