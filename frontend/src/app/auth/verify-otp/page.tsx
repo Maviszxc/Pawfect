@@ -13,6 +13,8 @@ import { BASE_URL } from "@/utils/constants";
 import Link from "next/link";
 import { toast } from "react-toastify";
 
+export const dynamic = "force-dynamic";
+
 const OtpPage: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
