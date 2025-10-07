@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import OtpPageContent from "./OtpPageContent";
+import OtpPageContent from "./OtpPageContent/page";
 
 export const dynamic = "force-dynamic";
 
