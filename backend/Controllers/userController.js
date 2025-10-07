@@ -15,18 +15,24 @@ const { v4: uuidv4 } = require("uuid");
 require("dotenv").config();
 
 let transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false, // true for 465, false for other ports
   auth: {
     user: process.env.AUTH_EMAIL,
     pass: process.env.AUTH_PASSWORD,
   },
+  tls: {
+    rejectUnauthorized: false, // This might help with certificate issues
+  },
 });
 
-transporter.verify((error, success) => {
+// Test the connection on startup
+transporter.verify(function (error, success) {
   if (error) {
-    console.error("Nodemailer Error:", error);
+    console.error("SMTP Connection Error:", error);
   } else {
-    console.log("✅ Nodemailer is ready");
+    console.log("✅ SMTP Server is ready to take our messages");
   }
 });
 
@@ -93,6 +99,7 @@ const sendOtp = async (email) => {
 
     const otp = `${Math.floor(100000 + Math.random() * 900000)}`;
     const hashedOtp = await bcrypt.hash(otp, 10);
+
     const newOtpVerification = new OtpVerification({
       userEmail: email,
       otp: hashedOtp,
@@ -102,14 +109,27 @@ const sendOtp = async (email) => {
 
     await newOtpVerification.save();
 
-    await transporter.sendMail({
+    // Enhanced email sending with better error handling
+    const mailOptions = {
       from: process.env.AUTH_EMAIL,
       to: email,
       subject: "Verification Code",
-      text: `Your verification code is: ${otp} This code is valid for 1 hour. Use this code to verify your account.`,
-    });
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #333;">PawProject Verification Code</h2>
+          <p>Your verification code is:</p>
+          <h1 style="font-size: 32px; color: #FF6B35; text-align: center; letter-spacing: 5px;">${otp}</h1>
+          <p>This code is valid for 1 hour.</p>
+          <p>If you didn't request this code, please ignore this email.</p>
+        </div>
+      `,
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log("✅ Email sent successfully:", result.messageId);
   } catch (error) {
-    console.error("Error sending OTP:", error);
+    console.error("❌ Email sending failed:", error);
+    throw new Error(`Failed to send OTP email: ${error.message}`);
   }
 };
 
