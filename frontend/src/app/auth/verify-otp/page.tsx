@@ -1,6 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
@@ -226,4 +225,5 @@ const OtpPage: React.FC = () => {
   );
 };
 
-export default OtpPage;
+export default OtpPageContent;
+
