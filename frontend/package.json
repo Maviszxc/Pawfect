@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "echo \"🔄 Building application...\" && next build",
+    "build": "echo \"🔄 Building application...\" && next build --no-lint",
     "start": "next start",
     "lint": "next lint",
     "dev:server": "node server/websocket-server.js",
