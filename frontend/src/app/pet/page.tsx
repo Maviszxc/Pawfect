@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/dynamic-card";
@@ -83,7 +83,7 @@ interface ChatMessage {
   isStaff: boolean;
 }
 
-export default function PetDetailsPage() {
+function PetDetailsContent() {
   const searchParams = useSearchParams();
   const petId = searchParams.get("id");
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -873,5 +873,22 @@ export default function PetDetailsPage() {
       {/* Toast container (if not already in _app.tsx) */}
       {/* <ToastContainer /> */}
     </>
+  );
+}
+
+export default function PetDetailsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="text-center">
+            <Loader />
+            <p className="mt-4 text-gray-600">Loading pet details...</p>
+          </div>
+        </div>
+      }
+    >
+      <PetDetailsContent />
+    </Suspense>
   );
 }
