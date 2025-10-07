@@ -12,6 +12,12 @@ import AuthNavigation from "@/components/authNavigation";
 import Link from "next/link";
 import { toast } from "react-toastify";
 
+// Email validation helper
+const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
 function OtpVerificationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -29,8 +35,12 @@ function OtpVerificationContent() {
       const accessToken = localStorage.getItem("accessToken");
       setIsAuthenticated(!!accessToken);
 
-      if (!email) {
+      // Validate email before making API call
+      if (!email || !isValidEmail(email)) {
         setCheckingStatus(false);
+        if (email && !isValidEmail(email)) {
+          toast.error("Invalid email address");
+        }
         return;
       }
 
@@ -63,7 +73,11 @@ function OtpVerificationContent() {
         } else {
           setCheckingStatus(false);
         }
-      } catch (err) {
+      } catch (err: any) {
+        // Only show error toast if it's not a 400 error (validation error)
+        if (err.response?.status !== 400) {
+          console.error("Error checking verification status:", err);
+        }
         setCheckingStatus(false);
       }
     };
@@ -84,6 +98,11 @@ function OtpVerificationContent() {
 
   // ✅ Verify OTP
   const handleVerify = async () => {
+    if (!isValidEmail(email)) {
+      toast.error("Invalid email address");
+      return;
+    }
+
     if (loading || otp.length !== 6) {
       toast.error("Please enter a valid 6-digit OTP");
       return;
@@ -111,8 +130,13 @@ function OtpVerificationContent() {
     }
   };
 
-  // 🔁 Resend OTP
+  // 🔄 Resend OTP
   const handleResendOtp = async () => {
+    if (!isValidEmail(email)) {
+      toast.error("Invalid email address");
+      return;
+    }
+
     if (resendTimer > 0) return;
     setResendTimer(120);
 
@@ -135,6 +159,43 @@ function OtpVerificationContent() {
       <main className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
         <Loader />
         <p className="mt-4 text-black">Checking verification status...</p>
+      </main>
+    );
+  }
+
+  // Show error if no valid email
+  if (!email || !isValidEmail(email)) {
+    return (
+      <main className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="shadow-lg border border-gray-200 backdrop-blur-lg rounded-3xl p-8 md:p-12 w-full max-w-lg relative bg-white/90"
+        >
+          <div className="mb-8 flex items-center gap-3 justify-center">
+            <Link href="/" className="flex items-center gap-2">
+              <img src="/logors.png" alt="Biyaya" className="h-10" />
+            </Link>
+          </div>
+
+          <h2 className="text-3xl font-bold text-black mb-2">Invalid Link</h2>
+          <p className="text-black mb-6">
+            The verification link is invalid or incomplete. Please check your
+            email or sign up again.
+          </p>
+
+          <Button
+            onClick={() => router.push("/auth/signup")}
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 text-lg rounded-xl transition-all duration-300 font-medium"
+          >
+            Go to Sign Up
+          </Button>
+        </motion.div>
+
+        <div className="fixed bottom-0 left-0 right-0">
+          <Navigation />
+        </div>
       </main>
     );
   }
@@ -164,7 +225,7 @@ function OtpVerificationContent() {
 
         <h2 className="text-3xl font-bold text-black mb-2">Verify Code</h2>
         <p className="text-black mb-6">
-          Enter the 6-digit code sent to your email
+          Enter the 6-digit code sent to {email}
         </p>
 
         <Input
