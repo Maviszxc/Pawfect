@@ -16,7 +16,21 @@ dotenv.config();
 dbConnect();
 
 app.use(express.json());
-app.use(cors({ origin: "*" }));
+
+// ✅ FIXED CORS CONFIGURATION
+app.use(cors({
+  origin: [
+    "https://biyayaanimalcare.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:3001"
+  ],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
+}));
+
+// ✅ Handle preflight requests explicitly
+app.options('*', cors());
 
 // Serve static files from uploads directory
 app.use("/uploads", express.static("uploads"));
