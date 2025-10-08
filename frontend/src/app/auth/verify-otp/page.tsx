@@ -23,6 +23,10 @@ function OtpVerificationContent() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
 
+  // 🐛 DEBUG: Log email immediately
+  console.log("📧 Email from URL:", email);
+  console.log("📧 Is valid email?", isValidEmail(email));
+
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
@@ -37,6 +41,7 @@ function OtpVerificationContent() {
 
       // Validate email before making API call
       if (!email || !isValidEmail(email)) {
+        console.log("⚠️ Invalid or missing email, skipping verification check");
         setCheckingStatus(false);
         if (email && !isValidEmail(email)) {
           toast.error("Invalid email address");
@@ -45,9 +50,16 @@ function OtpVerificationContent() {
       }
 
       try {
-        const response = await axiosInstance.get(
-          `/api/users/check-verified?email=${encodeURIComponent(email)}`
-        );
+        // 🐛 DEBUG: Log the exact API call being made
+        const apiUrl = `/api/users/check-verified?email=${encodeURIComponent(
+          email
+        )}`;
+        console.log("🔍 Checking verification status at:", apiUrl);
+        console.log("🔍 Encoded email:", encodeURIComponent(email));
+
+        const response = await axiosInstance.get(apiUrl);
+
+        console.log("✅ Verification check response:", response.data);
 
         if (response.data.success) {
           toast.info("Account already verified. Logging you in...");
@@ -74,6 +86,10 @@ function OtpVerificationContent() {
           setCheckingStatus(false);
         }
       } catch (err: any) {
+        console.error("❌ Verification check error:", err);
+        console.error("❌ Error response:", err.response?.data);
+        console.error("❌ Error status:", err.response?.status);
+
         // Only show error toast if it's not a 400 error (validation error)
         if (err.response?.status !== 400) {
           console.error("Error checking verification status:", err);
@@ -98,6 +114,8 @@ function OtpVerificationContent() {
 
   // ✅ Verify OTP
   const handleVerify = async () => {
+    console.log("🔐 Verifying OTP for email:", email);
+
     if (!isValidEmail(email)) {
       toast.error("Invalid email address");
       return;
@@ -110,10 +128,14 @@ function OtpVerificationContent() {
 
     setLoading(true);
     try {
+      console.log("📤 Sending OTP verification:", { email, otp: "******" });
+
       const res = await axiosInstance.post("/api/users/verify-otp", {
         email,
         otp,
       });
+
+      console.log("✅ OTP verification response:", res.data);
 
       if (res.data.success) {
         toast.success("Account verified successfully!");
@@ -122,6 +144,7 @@ function OtpVerificationContent() {
         toast.error(res.data.message || "Failed to verify OTP");
       }
     } catch (err: any) {
+      console.error("❌ OTP verification error:", err);
       toast.error(
         err.response?.data?.message || "Something went wrong. Try again."
       );
@@ -132,6 +155,8 @@ function OtpVerificationContent() {
 
   // 🔄 Resend OTP
   const handleResendOtp = async () => {
+    console.log("🔄 Resending OTP to:", email);
+
     if (!isValidEmail(email)) {
       toast.error("Invalid email address");
       return;
@@ -142,12 +167,15 @@ function OtpVerificationContent() {
 
     try {
       const res = await axiosInstance.post("/api/users/resend-otp", { email });
+      console.log("✅ Resend OTP response:", res.data);
+
       if (res.data.success) {
         toast.success("A new OTP has been sent to your email.");
       } else {
         toast.error(res.data.message || "Failed to resend OTP.");
       }
-    } catch {
+    } catch (err) {
+      console.error("❌ Resend OTP error:", err);
       toast.error("Failed to resend OTP. Try again later.");
       setResendTimer(0);
     }

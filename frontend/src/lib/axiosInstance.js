@@ -17,6 +17,11 @@ axiosInstance.interceptors.request.use(
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
+
+    // 🐛 DEBUG: Log the full request URL to catch issues
+    console.log("🔍 Request URL:", config.baseURL + config.url);
+    console.log("🔍 Request params:", config.params);
+
     return config;
   },
   (error) => {
@@ -31,6 +36,14 @@ axiosInstance.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+
+    // 🐛 DEBUG: Log error details
+    console.error("❌ API Error:", {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      message: error.response?.data?.message,
+    });
 
     // If the error is 401 (Unauthorized) and not already retrying
     if (error.response?.status === 401 && !originalRequest._retry) {
