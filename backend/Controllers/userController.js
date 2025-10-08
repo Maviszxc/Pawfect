@@ -1,6 +1,5 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const nodemailer = require("nodemailer");
 const User = require("../Models/userModels");
 const OtpVerification = require("../Models/otpVerificationModels");
 const {
@@ -10,31 +9,11 @@ const {
 const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
-
 const { v4: uuidv4 } = require("uuid");
 require("dotenv").config();
 
-let transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: process.env.AUTH_EMAIL,
-    pass: process.env.AUTH_PASSWORD,
-  },
-  tls: {
-    rejectUnauthorized: false, // This might help with certificate issues
-  },
-});
-
-// Test the connection on startup
-transporter.verify(function (error, success) {
-  if (error) {
-    console.error("SMTP Connection Error:", error);
-  } else {
-    console.log("✅ SMTP Server is ready to take our messages");
-  }
-});
+// Import email service (choose one based on your preference)
+const { sendOtpEmail } = require("../Utilities/emailService");
 
 const getUsers = async (req, res) => {
   try {
@@ -70,8 +49,18 @@ const createAccount = async (req, res) => {
     const user = new User({ fullname, email, password: hashedPassword });
     await user.save();
 
-    // FIX: Only pass email to sendOtp for consistency
-    await sendOtp(email);
+    // Send OTP using the new email service
+    try {
+      await sendOtp(email);
+    } catch (emailError) {
+      console.error("Failed to send OTP email:", emailError);
+      // Delete the user if email fails
+      await User.deleteOne({ _id: user._id });
+      return res.status(500).json({
+        error: true,
+        message: "Failed to send verification email. Please try again.",
+      });
+    }
 
     const accessToken = jwt.sign(
       { id: user._id, isAdmin: user.isAdmin },
@@ -91,7 +80,7 @@ const createAccount = async (req, res) => {
   }
 };
 
-// FIX: Update sendOtp to accept only email and store OTP with userEmail
+// Updated sendOtp function
 const sendOtp = async (email) => {
   try {
     // Remove any existing OTP for this email
@@ -109,26 +98,12 @@ const sendOtp = async (email) => {
 
     await newOtpVerification.save();
 
-    // Enhanced email sending with better error handling
-    const mailOptions = {
-      from: process.env.AUTH_EMAIL,
-      to: email,
-      subject: "Verification Code",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">PawProject Verification Code</h2>
-          <p>Your verification code is:</p>
-          <h1 style="font-size: 32px; color: #FF6B35; text-align: center; letter-spacing: 5px;">${otp}</h1>
-          <p>This code is valid for 1 hour.</p>
-          <p>If you didn't request this code, please ignore this email.</p>
-        </div>
-      `,
-    };
+    // Use the email service instead of nodemailer directly
+    await sendOtpEmail(email, otp);
 
-    const result = await transporter.sendMail(mailOptions);
-    console.log("✅ Email sent successfully:", result.messageId);
+    console.log("✅ OTP sent successfully to:", email);
   } catch (error) {
-    console.error("❌ Email sending failed:", error);
+    console.error("❌ Failed to send OTP:", error);
     throw new Error(`Failed to send OTP email: ${error.message}`);
   }
 };
@@ -149,7 +124,6 @@ const verifyOtp = async (req, res) => {
   }
 
   try {
-    // FIX: Always get the latest OTP for this email
     const otpRecord = await OtpVerification.findOne({ userEmail: email }).sort({
       createdAt: -1,
     });
@@ -198,28 +172,7 @@ const resendOtp = async (req, res) => {
       return res.status(400).json({ error: true, message: "User not found" });
     }
 
-    await OtpVerification.deleteOne({ userEmail: email });
-
-    const otp = `${Math.floor(100000 + Math.random() * 900000)}`;
-    const hashedOtp = await bcrypt.hash(otp, 10);
-
-    const newOtpVerification = new OtpVerification({
-      userEmail: email,
-      otp: hashedOtp,
-      createdAt: Date.now(),
-      expiresAt: Date.now() + 3600000,
-    });
-
-    await newOtpVerification.save();
-
-    const mailOptions = {
-      from: process.env.AUTH_EMAIL,
-      to: user.email,
-      subject: "New Verification Code",
-      text: `Your new verification code is: ${otp}`,
-    };
-
-    await transporter.sendMail(mailOptions);
+    await sendOtp(email);
 
     return res.json({
       success: true,
@@ -497,28 +450,7 @@ const sendOtpForEmail = async (req, res) => {
         .json({ success: false, message: "User not found" });
     }
 
-    await OtpVerification.deleteOne({ userEmail: email });
-
-    const otp = `${Math.floor(100000 + Math.random() * 900000)}`;
-    const hashedOtp = await bcrypt.hash(otp, 10);
-
-    const newOtpVerification = new OtpVerification({
-      userEmail: email,
-      otp: hashedOtp,
-      createdAt: Date.now(),
-      expiresAt: Date.now() + 3600000, // 1 hour from now
-    });
-
-    await newOtpVerification.save();
-
-    const mailOptions = {
-      from: process.env.AUTH_EMAIL,
-      to: user.email,
-      subject: "Email Update Verification Code",
-      text: `Your verification code for updating your email is: ${otp}`,
-    };
-
-    await transporter.sendMail(mailOptions);
+    await sendOtp(email);
 
     return res.json({ success: true, message: "OTP sent to your email" });
   } catch (error) {
@@ -544,28 +476,7 @@ const sendOtpForPassword = async (req, res) => {
         .json({ success: false, message: "User not found" });
     }
 
-    await OtpVerification.deleteOne({ userEmail: email });
-
-    const otp = `${Math.floor(100000 + Math.random() * 900000)}`;
-    const hashedOtp = await bcrypt.hash(otp, 10);
-
-    const newOtpVerification = new OtpVerification({
-      userEmail: email,
-      otp: hashedOtp,
-      createdAt: Date.now(),
-      expiresAt: Date.now() + 3600000, // 1 hour from now
-    });
-
-    await newOtpVerification.save();
-
-    const mailOptions = {
-      from: process.env.AUTH_EMAIL,
-      to: user.email,
-      subject: "Password Update Verification Code",
-      text: `Your verification code for updating your password is: ${otp}`,
-    };
-
-    await transporter.sendMail(mailOptions);
+    await sendOtp(email);
 
     return res.json({ success: true, message: "OTP sent to your email" });
   } catch (error) {
@@ -680,8 +591,6 @@ const uploadProfilePicture = async (req, res) => {
     });
   }
 };
-
-
 
 module.exports = {
   createAccount,
