@@ -431,7 +431,7 @@ export default function AdminProfile() {
   }
 
   return (
-    <main className="min-h-screen flex pt-5 pb-32 flex-col items-center justify-center px-4">
+    <main className="min-h-screen flex pb-2 flex-col items-center justify-center px-4">
       <AnimatePresence mode="wait">
         <motion.div
           key={view}
@@ -691,9 +691,6 @@ export default function AdminProfile() {
                     <h3 className="font-semibold text-gray-800 text-lg text-center">
                       {user.fullname}
                     </h3>
-                    <p className="text-sm text-gray-500 mb-2 text-center">
-                      {user.email}
-                    </p>
                     <p
                       className="text-xs text-gray-400 mb-6 text-center cursor-pointer hover:text-gray-600 transition-colors"
                       onClick={triggerFileInput}

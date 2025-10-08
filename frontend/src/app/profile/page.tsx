@@ -690,9 +690,7 @@ export default function Profile() {
                     <h3 className="font-semibold text-gray-800 text-lg text-center">
                       {formData.fullname}
                     </h3>
-                    <p className="text-sm text-gray-500 mb-2 text-center">
-                      {formData.email}
-                    </p>
+                   
                     <p
                       className="text-xs text-gray-400 mb-6 text-center cursor-pointer hover:text-gray-600 transition-colors"
                       onClick={triggerFileInput}
