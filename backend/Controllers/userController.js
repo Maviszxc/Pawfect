@@ -28,6 +28,11 @@ const getUsers = async (req, res) => {
 const createAccount = async (req, res) => {
   const { fullname, email, password } = req.body;
 
+  console.log("📝 Create account request:", {
+    fullname,
+    email: email ? "provided" : "missing",
+  });
+
   if (!fullname || !email || !password) {
     return res
       .status(400)
@@ -38,6 +43,7 @@ const createAccount = async (req, res) => {
     const existingUser = await User.findOne({ email });
 
     if (existingUser) {
+      console.log("⚠️ User already exists:", email);
       return res
         .status(400)
         .json({ error: true, message: "User already exists" });
@@ -48,17 +54,28 @@ const createAccount = async (req, res) => {
 
     const user = new User({ fullname, email, password: hashedPassword });
     await user.save();
+    console.log("✅ User created:", email);
 
     // Send OTP using the new email service
     try {
+      console.log("📧 Attempting to send OTP to:", email);
       await sendOtp(email);
+      console.log("✅ OTP sent successfully to:", email);
     } catch (emailError) {
-      console.error("Failed to send OTP email:", emailError);
+      console.error("❌ Failed to send OTP email:", emailError);
+      console.error("Email error details:", {
+        message: emailError.message,
+        stack: emailError.stack,
+        name: emailError.name,
+      });
+
       // Delete the user if email fails
       await User.deleteOne({ _id: user._id });
+      console.log("🗑️ User deleted due to email failure");
+
       return res.status(500).json({
         error: true,
-        message: "Failed to send verification email. Please try again.",
+        message: `Failed to send verification email: ${emailError.message}`,
       });
     }
 
@@ -75,8 +92,16 @@ const createAccount = async (req, res) => {
       message: "OTP sent to your email.",
     });
   } catch (error) {
-    console.error("Error in createAccount:", error);
-    return res.status(500).json({ error: true, message: "Server error" });
+    console.error("❌ Error in createAccount:", error);
+    console.error("Full error:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+    return res.status(500).json({
+      error: true,
+      message: `Server error: ${error.message}`,
+    });
   }
 };
 

@@ -2,11 +2,35 @@
 const { Resend } = require("resend");
 require("dotenv").config();
 
+console.log("🔑 Email Service Initialization");
+console.log("RESEND_API_KEY exists:", !!process.env.RESEND_API_KEY);
+console.log(
+  "RESEND_API_KEY starts with re_:",
+  process.env.RESEND_API_KEY?.startsWith("re_")
+);
+
+if (!process.env.RESEND_API_KEY) {
+  console.error("❌ CRITICAL: RESEND_API_KEY is not set!");
+}
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendOtpEmail = async (email, otp) => {
   try {
-    console.log("📧 Attempting to send OTP email to:", email);
+    console.log("📧 sendOtpEmail called with:", {
+      email,
+      otp: otp ? "provided" : "missing",
+    });
+
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error("RESEND_API_KEY is not configured");
+    }
+
+    if (!email || !otp) {
+      throw new Error("Email and OTP are required");
+    }
+
+    console.log("📤 Sending email via Resend API...");
 
     const { data, error } = await resend.emails.send({
       from: "PawProject <onboarding@resend.dev>",
@@ -52,14 +76,20 @@ const sendOtpEmail = async (email, otp) => {
     });
 
     if (error) {
-      console.error("❌ Resend API error:", error);
-      throw new Error(`Failed to send email: ${error.message}`);
+      console.error("❌ Resend API returned error:", error);
+      console.error("Error details:", JSON.stringify(error, null, 2));
+      throw new Error(
+        `Resend API error: ${error.message || JSON.stringify(error)}`
+      );
     }
 
-    console.log("✅ Email sent successfully via Resend! Message ID:", data.id);
-    return { success: true, messageId: data.id };
+    console.log("✅ Email sent successfully! Message ID:", data?.id);
+    return { success: true, messageId: data?.id };
   } catch (error) {
-    console.error("❌ Email sending failed:", error);
+    console.error("❌ sendOtpEmail failed:", error);
+    console.error("Error type:", error.constructor.name);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
     throw error;
   }
 };
@@ -68,17 +98,21 @@ const sendOtpEmail = async (email, otp) => {
 const testEmailService = async () => {
   try {
     console.log("🧪 Testing Resend email service...");
-    const testOtp = "123456";
-    const testEmail = "test@example.com"; // Change this to your email for testing
+    console.log("API Key present:", !!process.env.RESEND_API_KEY);
+    console.log(
+      "API Key format:",
+      process.env.RESEND_API_KEY?.substring(0, 5) + "..."
+    );
 
-    await sendOtpEmail(testEmail, testOtp);
-    console.log("✅ Email service test successful!");
     return true;
   } catch (error) {
     console.error("❌ Email service test failed:", error);
     return false;
   }
 };
+
+// Run test on initialization
+testEmailService();
 
 module.exports = {
   sendOtpEmail,
