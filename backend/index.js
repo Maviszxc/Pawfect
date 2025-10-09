@@ -18,12 +18,39 @@ dbConnect();
 app.use(express.json());
 
 // ✅ FIXED CORS CONFIGURATION - MUST BE BEFORE ROUTES
+// ✅ WORKING CORS CONFIGURATION
 const allowedOrigins = [
   "https://biyayaanimalcare.vercel.app",
-  "http://localhost:3000",
+  "http://localhost:3000", 
   "http://localhost:3001",
   "http://localhost:5003",
 ];
+
+// Log CORS requests
+app.use((req, res, next) => {
+  console.log(`🌐 ${req.method} ${req.path} - Origin: ${req.headers.origin}`);
+  next();
+});
+
+// CORS middleware
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+}));
+
+// Explicit OPTIONS handler for all routes
+app.options("*", (req, res) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+  }
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+  res.status(204).send();
+});
 
 app.use(
   cors({
