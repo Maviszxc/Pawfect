@@ -3,7 +3,10 @@
 const User = require("../Models/userModels");
 const Pet = require("../Models/petModels");
 const Adoption = require("../Models/adoptionModels");
-const { sendOtpEmail } = require("../Utilities/emailService");
+const {
+  sendOtpEmail,
+  sendAdoptionEmail,
+} = require("../Utilities/emailService");
 
 // Get all users
 exports.getAllUsers = async (req, res) => {
@@ -75,6 +78,7 @@ exports.getAllAdoptions = async (req, res) => {
 };
 
 // Update adoption status
+// Update adoption status
 exports.updateAdoptionStatus = async (req, res) => {
   try {
     const { adoptionId } = req.params;
@@ -82,12 +86,10 @@ exports.updateAdoptionStatus = async (req, res) => {
 
     console.log(`🔄 Updating adoption ${adoptionId} to status: ${status}`);
 
-    const adoption = await Adoption.findByIdAndUpdate(
-      adoptionId,
-      { status, adminMessage },
-      { new: true }
-    ).populate("user", "email fullname")
-     .populate("pet", "name");
+    // First, find the adoption with proper population
+    const adoption = await Adoption.findById(adoptionId)
+      .populate("user", "email fullname")
+      .populate("pet", "name");
 
     if (!adoption) {
       return res.status(404).json({
@@ -96,17 +98,52 @@ exports.updateAdoptionStatus = async (req, res) => {
       });
     }
 
-    // ✅ FIX: Send email asynchronously without waiting
-    sendAdoptionStatusEmail(adoption, status, adminMessage)
-      .then(() => {
-        console.log(`✅ Email sent for adoption ${adoptionId}`);
-      })
-      .catch(error => {
-        console.error(`❌ Email failed for adoption ${adoptionId}:`, error);
-        // Don't fail the main request if email fails
-      });
+    console.log("📧 Adoption details:", {
+      user: adoption.user,
+      userEmail: adoption.user?.email,
+      userFullname: adoption.user?.fullname,
+      pet: adoption.pet,
+      petName: adoption.pet?.name,
+    });
 
-    // ✅ FIX: Update pet status immediately without waiting for email
+    // Then update the adoption
+    const updatedAdoption = await Adoption.findByIdAndUpdate(
+      adoptionId,
+      { status, adminMessage },
+      { new: true }
+    ).populate("user", "email fullname").populate("pet", "name");
+
+    // Send email via SendGrid (asynchronously)
+    if (adoption.user && adoption.user.email && adoption.user.fullname) {
+      sendAdoptionStatusEmail(adoption, status, adminMessage)
+        .then(() => {
+          console.log(`✅ Email sent for adoption ${adoptionId}`);
+        })
+        .catch((error) => {
+          console.error(`❌ Email failed for adoption ${adoptionId}:`, error);
+        });
+    } else {
+      console.log("⚠️ Cannot send email: Missing user email or fullname");
+      console.log("Adoption user data:", adoption.user);
+      
+      // Try to get email from adoption record directly for guest users
+      if (adoption.email && adoption.fullname) {
+        console.log("🔄 Trying guest user email...");
+        const guestAdoption = {
+          user: { email: adoption.email, fullname: adoption.fullname },
+          pet: adoption.pet
+        };
+        sendAdoptionStatusEmail(guestAdoption, status, adminMessage)
+          .then(() => {
+            console.log(`✅ Email sent for guest adoption ${adoptionId}`);
+          })
+          .catch((error) => {
+            console.error(`❌ Email failed for guest adoption ${adoptionId}:`, error);
+          });
+      }
+    }
+
+    // Update pet status immediately
     if (status === "Approved" || status === "Completed") {
       await Pet.findByIdAndUpdate(adoption.pet, {
         adoptionStatus: status === "Approved" ? "pending" : "adopted",
@@ -123,10 +160,9 @@ exports.updateAdoptionStatus = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      adoption,
+      adoption: updatedAdoption,
       message: `Adoption status updated to ${status}`,
     });
-
   } catch (error) {
     console.error("❌ Error updating adoption status:", error);
     res.status(500).json({
@@ -138,11 +174,43 @@ exports.updateAdoptionStatus = async (req, res) => {
 
 const sendAdoptionStatusEmail = async (adoption, status, adminMessage) => {
   try {
-    const { email, fullname } = adoption.user || {};
+    console.log("📧 Starting to send adoption status email via SendGrid...");
+
+    // Handle both registered users and guest users
+    let userEmail, userFullname;
+
+    if (adoption.user && typeof adoption.user === "object") {
+      // Registered user (populated)
+      userEmail = adoption.user.email;
+      userFullname = adoption.user.fullname;
+    } else if (adoption.email && adoption.fullname) {
+      // Guest user (direct fields)
+      userEmail = adoption.email;
+      userFullname = adoption.fullname;
+    } else {
+      // Fallback: check if adoption has direct email/fullname fields
+      userEmail = adoption.email;
+      userFullname = adoption.fullname || adoption.adopterName;
+    }
+
     const petName = adoption.pet?.name || "the pet";
 
-    if (!email || !fullname) {
-      console.error("Missing email or fullname for adoption email");
+    console.log("📧 Email details:", {
+      userEmail,
+      userFullname,
+      petName,
+      status,
+      hasAdminMessage: !!adminMessage,
+      userType: adoption.user ? "registered" : "guest",
+    });
+
+    // Validate required fields
+    if (!userEmail || !userFullname) {
+      console.error("❌ Missing email or fullname for adoption email:", {
+        userEmail,
+        userFullname,
+        adoptionId: adoption._id,
+      });
       return;
     }
 
@@ -154,7 +222,7 @@ const sendAdoptionStatusEmail = async (adoption, status, adminMessage) => {
         html = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #4CAF50;">🎉 Adoption Request Approved!</h2>
-            <p>Dear <strong>${fullname}</strong>,</p>
+            <p>Dear <strong>${userFullname}</strong>,</p>
             <p>We are pleased to inform you that your adoption request for <strong>${petName}</strong> has been <strong style="color: #4CAF50;">approved</strong>!</p>
             <p>Our team will contact you shortly to arrange the next steps and schedule the adoption process.</p>
             ${
@@ -176,7 +244,7 @@ const sendAdoptionStatusEmail = async (adoption, status, adminMessage) => {
         html = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #f44336;">Update on Your Adoption Request</h2>
-            <p>Dear <strong>${fullname}</strong>,</p>
+            <p>Dear <strong>${userFullname}</strong>,</p>
             <p>After careful consideration, we regret to inform you that your adoption request for <strong>${petName}</strong> has not been approved at this time.</p>
             ${
               adminMessage
@@ -198,7 +266,7 @@ const sendAdoptionStatusEmail = async (adoption, status, adminMessage) => {
         html = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #2196F3;">🏠 Adoption Completed!</h2>
-            <p>Dear <strong>${fullname}</strong>,</p>
+            <p>Dear <strong>${userFullname}</strong>,</p>
             <p>Congratulations! The adoption process for <strong>${petName}</strong> has been successfully <strong style="color: #2196F3;">completed</strong>!</p>
             <p><strong>${petName}</strong> is now officially part of your family! 🎉</p>
             ${
@@ -216,17 +284,24 @@ const sendAdoptionStatusEmail = async (adoption, status, adminMessage) => {
         break;
 
       default:
-        return; // Don't send email for other statuses
+        console.log(`📧 No email needed for status: ${status}`);
+        return;
     }
 
-    // ✅ FIX: Use SendGrid instead of nodemailer
-    await sendOtpEmail(email, html, subject); // We'll modify this function
+    // ✅ Use the imported sendAdoptionEmail function
+    console.log("📧 Sending via SendGrid...");
+    const result = await sendAdoptionEmail(userEmail, subject, html);
 
-    console.log(
-      `✅ Adoption status email sent to ${email} for status: ${status}`
-    );
+    console.log("✅ Adoption status email sent successfully via SendGrid:", {
+      to: userEmail,
+      messageId: result.messageId,
+      status: status,
+    });
   } catch (error) {
-    console.error("❌ Error sending adoption status email:", error);
+    console.error("❌ Error sending adoption status email via SendGrid:", {
+      message: error.message,
+      stack: error.stack,
+    });
     // Don't throw error here to avoid breaking the main function
   }
 };
