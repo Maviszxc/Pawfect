@@ -86,7 +86,7 @@ const AdminHeader = () => {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="p-0 h-10 w-10 rounded-full md:justify-end hover:bg-orange-100 transition-colors duration-150"
+                className="p-0 h-10 w-10 rounded-full md:justify-end  hover:bg-orange-100 transition-colors duration-150"
                 style={{ transition: "background 0.15s" }}
               >
                 <Avatar className="h-9 w-9">
