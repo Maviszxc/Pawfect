@@ -3,7 +3,7 @@
 const User = require("../Models/userModels");
 const Pet = require("../Models/petModels");
 const Adoption = require("../Models/adoptionModels");
-const nodemailer = require("nodemailer"); // Add this line
+const { sendOtpEmail } = require("../Utilities/emailService");
 
 // Get all users
 exports.getAllUsers = async (req, res) => {
@@ -136,27 +136,34 @@ exports.updateAdoptionStatus = async (req, res) => {
   }
 };
 
-// Helper function to send adoption status emails
 const sendAdoptionStatusEmail = async (adoption, status, adminMessage) => {
   try {
-    const { email, fullname } = adoption;
+    const { email, fullname } = adoption.user || {};
     const petName = adoption.pet?.name || "the pet";
-    
-    let subject, text, html;
+
+    if (!email || !fullname) {
+      console.error("Missing email or fullname for adoption email");
+      return;
+    }
+
+    let subject, html;
 
     switch (status) {
       case "Approved":
         subject = `🎉 Your Adoption Request for ${petName} Has Been Approved!`;
-        text = `Dear ${fullname},\n\nWe are pleased to inform you that your adoption request for ${petName} has been approved! Our team will contact you shortly to arrange the next steps.\n\n${adminMessage ? `Admin Message: ${adminMessage}\n\n` : ''}Thank you for choosing to adopt!\n\nBest regards,\nPawProject Team`;
         html = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #4CAF50;">🎉 Adoption Request Approved!</h2>
             <p>Dear <strong>${fullname}</strong>,</p>
             <p>We are pleased to inform you that your adoption request for <strong>${petName}</strong> has been <strong style="color: #4CAF50;">approved</strong>!</p>
             <p>Our team will contact you shortly to arrange the next steps and schedule the adoption process.</p>
-            ${adminMessage ? `<div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #4CAF50; margin: 20px 0;">
+            ${
+              adminMessage
+                ? `<div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #4CAF50; margin: 20px 0;">
               <p style="margin: 0;"><strong>Admin Message:</strong> ${adminMessage}</p>
-            </div>` : ''}
+            </div>`
+                : ""
+            }
             <p>Thank you for choosing to give a loving home to a pet in need! 🐾</p>
             <br>
             <p>Best regards,<br><strong>PawProject Team</strong></p>
@@ -166,15 +173,18 @@ const sendAdoptionStatusEmail = async (adoption, status, adminMessage) => {
 
       case "Rejected":
         subject = `Update on Your Adoption Request for ${petName}`;
-        text = `Dear ${fullname},\n\nAfter careful consideration, we regret to inform you that your adoption request for ${petName} has not been approved at this time.\n\n${adminMessage ? `Reason: ${adminMessage}\n\n` : ''}We encourage you to explore other available pets that might be a better fit for your situation.\n\nThank you for your understanding.\n\nBest regards,\nPawProject Team`;
         html = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #f44336;">Update on Your Adoption Request</h2>
             <p>Dear <strong>${fullname}</strong>,</p>
             <p>After careful consideration, we regret to inform you that your adoption request for <strong>${petName}</strong> has not been approved at this time.</p>
-            ${adminMessage ? `<div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #f44336; margin: 20px 0;">
+            ${
+              adminMessage
+                ? `<div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #f44336; margin: 20px 0;">
               <p style="margin: 0;"><strong>Reason:</strong> ${adminMessage}</p>
-            </div>` : ''}
+            </div>`
+                : ""
+            }
             <p>We understand this might be disappointing, but we encourage you to explore other available pets that might be a better fit for your situation.</p>
             <p>Thank you for your understanding and for considering adoption.</p>
             <br>
@@ -185,16 +195,19 @@ const sendAdoptionStatusEmail = async (adoption, status, adminMessage) => {
 
       case "Completed":
         subject = `🏠 Congratulations! Your Adoption of ${petName} is Complete!`;
-        text = `Dear ${fullname},\n\nCongratulations! The adoption process for ${petName} has been successfully completed. ${petName} is now officially part of your family!\n\n${adminMessage ? `Note: ${adminMessage}\n\n` : ''}We wish you and ${petName} a wonderful life together filled with joy and love.\n\nBest regards,\nPawProject Team`;
         html = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #2196F3;">🏠 Adoption Completed!</h2>
             <p>Dear <strong>${fullname}</strong>,</p>
             <p>Congratulations! The adoption process for <strong>${petName}</strong> has been successfully <strong style="color: #2196F3;">completed</strong>!</p>
             <p><strong>${petName}</strong> is now officially part of your family! 🎉</p>
-            ${adminMessage ? `<div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #2196F3; margin: 20px 0;">
+            ${
+              adminMessage
+                ? `<div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #2196F3; margin: 20px 0;">
               <p style="margin: 0;"><strong>Note:</strong> ${adminMessage}</p>
-            </div>` : ''}
+            </div>`
+                : ""
+            }
             <p>We wish you and <strong>${petName}</strong> a wonderful life together filled with joy, love, and happy moments! 🐾</p>
             <br>
             <p>Best regards,<br><strong>PawProject Team</strong></p>
@@ -206,28 +219,14 @@ const sendAdoptionStatusEmail = async (adoption, status, adminMessage) => {
         return; // Don't send email for other statuses
     }
 
-    // Send the email
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.AUTH_EMAIL,
-        pass: process.env.AUTH_PASSWORD,
-      },
-    });
+    // ✅ FIX: Use SendGrid instead of nodemailer
+    await sendOtpEmail(email, html, subject); // We'll modify this function
 
-    const mailOptions = {
-      from: process.env.AUTH_EMAIL,
-      to: email,
-      subject: subject,
-      text: text,
-      html: html,
-    };
-
-    await transporter.sendMail(mailOptions);
-    console.log(`Adoption status email sent to ${email} for status: ${status}`);
-
+    console.log(
+      `✅ Adoption status email sent to ${email} for status: ${status}`
+    );
   } catch (error) {
-    console.error("Error sending adoption status email:", error);
+    console.error("❌ Error sending adoption status email:", error);
     // Don't throw error here to avoid breaking the main function
   }
 };

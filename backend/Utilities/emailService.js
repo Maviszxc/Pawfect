@@ -15,14 +15,14 @@ if (!process.env.SENDGRID_VERIFIED_SENDER) {
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
+// Send OTP email (existing function)
 const sendOtpEmail = async (email, otp) => {
   try {
     console.log("📧 Attempting to send OTP email via SendGrid to:", email);
-    console.log("📧 From:", process.env.SENDGRID_VERIFIED_SENDER);
 
     const msg = {
       to: email,
-      from: process.env.SENDGRID_VERIFIED_SENDER, // Must be verified in SendGrid
+      from: process.env.SENDGRID_VERIFIED_SENDER,
       subject: "Verification Code - PawProject",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -46,36 +46,44 @@ const sendOtpEmail = async (email, otp) => {
     };
 
     const result = await sgMail.send(msg);
-    console.log("✅ Email sent successfully via SendGrid");
-    console.log("📧 Status:", result[0].statusCode);
-    console.log("📧 Message ID:", result[0].headers["x-message-id"]);
-
+    console.log("✅ OTP Email sent successfully via SendGrid");
     return {
       success: true,
       messageId: result[0].headers["x-message-id"],
       statusCode: result[0].statusCode,
     };
   } catch (error) {
-    console.error("❌ SendGrid error:", {
-      message: error.message,
-      code: error.code,
-      response: error.response?.body,
-    });
-
-    // Provide more specific error messages
-    if (error.code === 403) {
-      throw new Error(
-        "SendGrid API key is invalid or sender email is not verified"
-      );
-    } else if (error.response?.body?.errors) {
-      const errorMsg = error.response.body.errors
-        .map((e) => e.message)
-        .join(", ");
-      throw new Error(`SendGrid error: ${errorMsg}`);
-    } else {
-      throw new Error(`Failed to send email: ${error.message}`);
-    }
+    console.error("❌ SendGrid error:", error);
+    throw new Error(`Failed to send email: ${error.message}`);
   }
 };
 
-module.exports = { sendOtpEmail };
+// ✅ NEW: Send adoption status email
+const sendAdoptionEmail = async (email, subject, html) => {
+  try {
+    console.log("📧 Attempting to send adoption email via SendGrid to:", email);
+
+    const msg = {
+      to: email,
+      from: process.env.SENDGRID_VERIFIED_SENDER,
+      subject: subject,
+      html: html,
+    };
+
+    const result = await sgMail.send(msg);
+    console.log("✅ Adoption Email sent successfully via SendGrid");
+    return {
+      success: true,
+      messageId: result[0].headers["x-message-id"],
+      statusCode: result[0].statusCode,
+    };
+  } catch (error) {
+    console.error("❌ SendGrid error for adoption email:", error);
+    throw new Error(`Failed to send adoption email: ${error.message}`);
+  }
+};
+
+module.exports = {
+  sendOtpEmail,
+  sendAdoptionEmail, // Export the new function
+};
