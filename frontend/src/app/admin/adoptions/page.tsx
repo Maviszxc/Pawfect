@@ -155,6 +155,8 @@ export default function AdminAdoptionsPage() {
     setIsProcessing(true);
     try {
       const token = localStorage.getItem("accessToken");
+
+      // ✅ FIX: Add timeout configuration
       const response = await axiosInstance.patch(
         `${BASE_URL}/api/admin/adoptions/${adoptionId}/status`,
         {
@@ -163,6 +165,7 @@ export default function AdminAdoptionsPage() {
         },
         {
           headers: { Authorization: `Bearer ${token}` },
+          timeout: 30000, // 30 second timeout
         }
       );
 
@@ -186,7 +189,18 @@ export default function AdminAdoptionsPage() {
       }
     } catch (error) {
       console.error(`Error ${status.toLowerCase()} adoption:`, error);
-      toast.error(`Failed to ${status.toLowerCase()} adoption request`);
+
+      // ✅ FIX: Better error handling
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        (error as { code?: string }).code === "ECONNABORTED"
+      ) {
+        toast.error("Request timeout - please try again");
+      } else {
+        toast.error(`Failed to ${status.toLowerCase()} adoption request`);
+      }
     } finally {
       setIsProcessing(false);
     }

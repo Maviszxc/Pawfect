@@ -80,6 +80,8 @@ exports.updateAdoptionStatus = async (req, res) => {
     const { adoptionId } = req.params;
     const { status, adminMessage } = req.body;
 
+    console.log(`🔄 Updating adoption ${adoptionId} to status: ${status}`);
+
     const adoption = await Adoption.findByIdAndUpdate(
       adoptionId,
       { status, adminMessage },
@@ -94,30 +96,39 @@ exports.updateAdoptionStatus = async (req, res) => {
       });
     }
 
-    // Send email notification based on status
-    await sendAdoptionStatusEmail(adoption, status, adminMessage);
+    // ✅ FIX: Send email asynchronously without waiting
+    sendAdoptionStatusEmail(adoption, status, adminMessage)
+      .then(() => {
+        console.log(`✅ Email sent for adoption ${adoptionId}`);
+      })
+      .catch(error => {
+        console.error(`❌ Email failed for adoption ${adoptionId}:`, error);
+        // Don't fail the main request if email fails
+      });
 
-    // If adoption is approved or completed, update the pet's adoption status
+    // ✅ FIX: Update pet status immediately without waiting for email
     if (status === "Approved" || status === "Completed") {
       await Pet.findByIdAndUpdate(adoption.pet, {
         adoptionStatus: status === "Approved" ? "pending" : "adopted",
         owner: adoption.user,
       });
     } else if (status === "Rejected") {
-      // If adoption is rejected, make the pet available again
       await Pet.findByIdAndUpdate(adoption.pet, {
         adoptionStatus: "available",
         owner: null,
       });
     }
 
+    console.log(`✅ Adoption ${adoptionId} status updated to: ${status}`);
+
     res.status(200).json({
       success: true,
       adoption,
-      message: `Adoption status updated to ${status} and email notification sent`,
+      message: `Adoption status updated to ${status}`,
     });
+
   } catch (error) {
-    console.error("Error updating adoption status:", error);
+    console.error("❌ Error updating adoption status:", error);
     res.status(500).json({
       success: false,
       message: "Server error",

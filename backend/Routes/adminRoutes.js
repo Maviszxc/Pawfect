@@ -47,4 +47,25 @@ router.put("/pets/:petId", adminController.updatePet);
 // Delete a user
 router.delete("/users/:userId", adminController.deleteUser);
 
+router.patch(
+  "/adoptions/:adoptionId/status",
+  (req, res, next) => {
+    console.log(
+      `⏱️  Starting adoption status update for: ${req.params.adoptionId}`
+    );
+    const startTime = Date.now();
+
+    // Capture the original send method
+    const originalSend = res.send;
+    res.send = function (data) {
+      const duration = Date.now() - startTime;
+      console.log(`⏱️  Adoption status update completed in ${duration}ms`);
+      originalSend.apply(res, arguments);
+    };
+
+    next();
+  },
+  adminController.updateAdoptionStatus
+);
+
 module.exports = router;
