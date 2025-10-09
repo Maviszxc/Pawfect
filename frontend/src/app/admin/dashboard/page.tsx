@@ -544,64 +544,68 @@ export default function AdminDashboardPage() {
 
   return (
     <AdminAuthWrapper>
-      <div className="min-h-screen bg-[#f8fafc] pb-8">
-        <div className="w-full max-w-6xl mx-auto flex flex-col gap-4 sm:gap-6">
+      <div className="min-h-screen bg-gray-50 pb-8">
+        <div className="w-full max-w-6xl mx-auto flex flex-col gap-4 sm:gap-6 px-0">
           {/* Stats Overview */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
-            <Card className="rounded-2xl shadow bg-white">
-              <CardContent className="p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+            <Card className="rounded-xl shadow-sm bg-white border-0">
+              <CardContent className="p-4 sm:p-5">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-2xl font-bold text-[#0a1629]">
                       {dashboardStats.totalPets}
                     </div>
-                    <div className="text-gray-500 text-sm">Total Pets</div>
+                    <div className="text-gray-500 text-xs sm:text-sm">
+                      Total Pets
+                    </div>
                   </div>
-                  <div className="bg-blue-100 p-3 rounded-full">
+                  <div className="bg-blue-50 p-2.5 sm:p-3 rounded-lg">
                     <PawPrint className="h-6 w-6 text-blue-600" />
                   </div>
                 </div>
-                <div className="mt-2 text-sm text-green-600">
+                <div className="mt-2 text-xs sm:text-sm text-green-600">
                   {dashboardStats.adoptedPets} successfully adopted
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="rounded-2xl shadow bg-white">
-              <CardContent className="p-6">
+            <Card className="rounded-xl shadow-sm bg-white border-0">
+              <CardContent className="p-4 sm:p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-2xl font-bold text-[#0a1629]">
+                    <div className="text-xl sm:text-2xl font-bold text-gray-900">
                       {dashboardStats.totalUsers}
                     </div>
-                    <div className="text-gray-500 text-sm">Total Users</div>
+                    <div className="text-gray-500 text-xs sm:text-sm">
+                      Total Users
+                    </div>
                   </div>
-                  <div className="bg-green-100 p-3 rounded-full">
+                  <div className="bg-green-50 p-2.5 sm:p-3 rounded-lg">
                     <Users className="h-6 w-6 text-green-600" />
                   </div>
                 </div>
-                <div className="mt-2 text-sm text-blue-600">
+                <div className="mt-2 text-xs sm:text-sm text-blue-600">
                   {users.filter((u) => u.isAdmin).length} admin users
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="rounded-2xl shadow bg-white">
-              <CardContent className="p-6">
+            <Card className="rounded-xl shadow-sm bg-white border-0">
+              <CardContent className="p-4 sm:p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-2xl font-bold text-[#0a1629]">
+                    <div className="text-xl sm:text-2xl font-bold text-gray-900">
                       {dashboardStats.pendingAdoptions}
                     </div>
-                    <div className="text-gray-500 text-sm">
+                    <div className="text-gray-500 text-xs sm:text-sm">
                       Pending Adoptions
                     </div>
                   </div>
-                  <div className="bg-orange-100 p-3 rounded-full">
+                  <div className="bg-orange-50 p-2.5 sm:p-3 rounded-lg">
                     <Heart className="h-6 w-6 text-orange-600" />
                   </div>
                 </div>
-                <div className="mt-2 text-sm text-yellow-600">
+                <div className="mt-2 text-xs sm:text-sm text-yellow-600">
                   {stats.totalAdoptions} total requests
                 </div>
               </CardContent>
@@ -609,22 +613,22 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* Bottom row: Recent Pets, Users, and Adoptions */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             {/* Recent Pets */}
-            <Card className="rounded-2xl shadow bg-white">
-              <CardContent className="p-6">
-                <div className="font-bold text-lg text-[#0a1629] mb-4 flex items-center gap-2">
+            <Card className="rounded-xl shadow-sm bg-white border-0">
+              <CardContent className="p-4 sm:p-5">
+                <div className="font-bold text-base sm:text-lg text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
                   Recent Pets
                 </div>
                 {recentPets.length === 0 ? (
-                  <div className="text-gray-500 text-center py-4">
+                  <div className="text-gray-500 text-center py-4 text-sm">
                     No pets found
                   </div>
                 ) : (
                   recentPets.map((pet) => (
                     <div
                       key={pet._id}
-                      className="border-t border-gray-100 pt-3 pb-3 first:border-0"
+                      className="border-t border-gray-100 pt-2.5 pb-2.5 first:border-0"
                     >
                       <div className="flex items-center gap-3">
                         <Avatar className="h-9 w-9">
@@ -641,11 +645,11 @@ export default function AdminDashboardPage() {
                             {pet.name && pet.name.length > 0 ? pet.name[0] : ""}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="flex-1">
-                          <div className="font-medium text-[#0a1629]">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-gray-900 text-sm truncate">
                             {pet.name}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-500 truncate">
                             {pet.breed}
                           </div>
                         </div>
@@ -664,8 +668,8 @@ export default function AdminDashboardPage() {
                     </div>
                   ))
                 )}
-                <div className="flex justify-end mt-4">
-                  <button className="text-orange-500 text-sm font-medium hover:text-orange-600">
+                <div className="flex justify-end mt-3 sm:mt-4">
+                  <button className="text-orange-500 text-xs sm:text-sm font-medium hover:text-orange-600">
                     View all pets →
                   </button>
                 </div>
@@ -673,9 +677,9 @@ export default function AdminDashboardPage() {
             </Card>
 
             {/* Recent Users */}
-            <Card className="rounded-2xl shadow bg-white">
-              <CardContent className="p-6">
-                <div className="font-bold text-lg text-[#0a1629] mb-4 flex items-center gap-2">
+            <Card className="rounded-xl shadow-sm bg-white border-0">
+              <CardContent className="p-4 sm:p-5">
+                <div className="font-bold text-base sm:text-lg text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
                   Recent Users
                 </div>
                 {recentUsers.length === 0 ? (
@@ -730,9 +734,9 @@ export default function AdminDashboardPage() {
             </Card>
 
             {/* Recent Adoptions */}
-            <Card className="rounded-2xl shadow bg-orange-500 text-white">
-              <CardContent className="p-6 flex flex-col h-full">
-                <div className="font-bold text-white text-lg mb-4 flex items-center gap-2">
+            <Card className="rounded-xl shadow-sm bg-orange-500 text-white border-0">
+              <CardContent className="p-4 sm:p-5 flex flex-col h-full">
+                <div className="font-bold text-white text-base sm:text-lg mb-3 sm:mb-4 flex items-center gap-2">
                   Recent Adoptions
                 </div>
                 {recentAdoptions.length === 0 ? (
@@ -810,92 +814,92 @@ export default function AdminDashboardPage() {
                 </div>
               </CardContent>
             </Card>
-          </div>
 
-          {/* Charts Section - 2x2 Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Adoption Trends - Line Chart */}
-            <Card className="rounded-2xl shadow bg-white">
-              <CardContent className="p-6">
-                <div className="font-bold text-lg text-[#0a1629] mb-4">
+            <Card className="rounded-xl shadow-sm bg-white border-0">
+              <CardContent className="p-4 sm:p-5">
+                <div className="font-bold text-base sm:text-lg text-gray-900 mb-3 sm:mb-4">
                   Adoption Trends
                 </div>
-                <div className="h-64">
+                <div className="h-48 sm:h-64">
                   {adoptionTrendsData ? (
                     <Line
                       data={adoptionTrendsData}
                       options={lineChartOptions}
                     />
                   ) : (
-                    <div className="h-full flex items-center justify-center text-gray-500">
+                    <div className="h-full flex items-center justify-center text-gray-500 text-sm">
                       Loading chart data...
                     </div>
                   )}
                 </div>
-                <div className="text-xs text-gray-400 mt-2">
+                <div className="text-xs text-gray-500 mt-2">
                   Monthly completed adoptions
                 </div>
               </CardContent>
             </Card>
+          </div>
 
-            {/* Application Volume - Bar Chart */}
-            <Card className="rounded-2xl shadow bg-white">
-              <CardContent className="p-6">
-                <div className="font-bold text-lg text-[#0a1629] mb-4">
-                  Application Volume
-                </div>
-                <div className="h-64">
-                  <Bar data={applicationVolumeData} options={barChartOptions} />
-                </div>
-                <div className="text-xs text-gray-400 mt-2">
-                  Daily applications received (sample data)
-                </div>
-              </CardContent>
-            </Card>
+          {/* Application Volume - Bar Chart */}
+          <Card className="rounded-xl shadow-sm bg-white border-0">
+            <CardContent className="p-4 sm:p-5">
+              <div className="font-bold text-base sm:text-lg text-gray-900 mb-3 sm:mb-4">
+                Application Volume
+              </div>
+              <div className="h-48 sm:h-64">
+                <Bar data={applicationVolumeData} options={barChartOptions} />
+              </div>
+              <div className="text-xs text-gray-500 mt-2">
+                Daily applications received (sample data)
+              </div>
+            </CardContent>
+          </Card>
 
+          {/* Charts Section - 2x2 Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             {/* Application Status - Doughnut Chart */}
-            <Card className="rounded-2xl shadow bg-white">
-              <CardContent className="p-6">
-                <div className="font-bold text-lg text-[#0a1629] mb-4">
+            <Card className="rounded-xl shadow-sm bg-white border-0">
+              <CardContent className="p-4 sm:p-5">
+                <div className="font-bold text-base sm:text-lg text-gray-900 mb-3 sm:mb-4">
                   Application Status
                 </div>
-                <div className="h-64">
+                <div className="h-48 sm:h-64">
                   {applicationStatusData ? (
                     <Doughnut
                       data={applicationStatusData}
                       options={doughnutOptions}
                     />
                   ) : (
-                    <div className="h-full flex items-center justify-center text-gray-500">
+                    <div className="h-full flex items-center justify-center text-gray-500 text-sm">
                       Loading chart data...
                     </div>
                   )}
                 </div>
-                <div className="text-xs text-gray-400 mt-2 text-center">
+                <div className="text-xs text-gray-500 mt-2 text-center">
                   Distribution of application statuses
                 </div>
               </CardContent>
             </Card>
 
             {/* Adoptions by Pet Type - Bar Chart */}
-            <Card className="rounded-2xl shadow bg-white">
-              <CardContent className="p-6">
-                <div className="font-bold text-lg text-[#0a1629] mb-4">
+            <Card className="rounded-xl shadow-sm bg-white border-0">
+              <CardContent className="p-4 sm:p-5">
+                <div className="font-bold text-base sm:text-lg text-gray-900 mb-3 sm:mb-4">
                   Pets by Type
                 </div>
-                <div className="h-64">
+                <div className="h-48 sm:h-64">
                   {adoptionByPetTypeData ? (
                     <Bar
                       data={adoptionByPetTypeData}
                       options={barChartOptions}
                     />
                   ) : (
-                    <div className="h-full flex items-center justify-center text-gray-500">
+                    <div className="h-full flex items-center justify-center text-gray-500 text-sm">
                       Loading chart data...
                     </div>
                   )}
                 </div>
-                <div className="text-xs text-gray-400 mt-2">
+                <div className="text-xs text-gray-500 mt-2">
                   Total pets by category
                 </div>
               </CardContent>

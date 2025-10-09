@@ -431,7 +431,7 @@ export default function AdminProfile() {
   }
 
   return (
-    <main className="min-h-screen flex pb-2 flex-col items-center justify-center px-4">
+    <main className="min-h-screen bg-gray-50 flex pb-8 flex-col items-center justify-center px-4">
       <AnimatePresence mode="wait">
         <motion.div
           key={view}
@@ -439,12 +439,12 @@ export default function AdminProfile() {
           initial="hidden"
           animate="visible"
           exit="exit"
-          className="bg-white shadow-lg rounded-2xl p-0 w-full max-w-6xl relative overflow-hidden"
+          className="bg-white shadow-sm rounded-xl sm:rounded-2xl p-0 w-full max-w-7xl relative overflow-hidden"
         >
           {view !== "main" ? (
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               {/* Header with back button for sub-views */}
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <button
                   onClick={() => setView("main")}
                   className="text-gray-500 hover:text-orange-500 transition-colors"
@@ -452,7 +452,7 @@ export default function AdminProfile() {
                 >
                   <ArrowLeft size={18} />
                 </button>
-                <h2 className="text-2xl font-semibold text-gray-800 mx-auto">
+                <h2 className="text-lg sm:text-2xl font-semibold text-gray-800 mx-auto">
                   {view === "account"
                     ? "Edit Name"
                     : view === "verifyEmail"
@@ -645,14 +645,14 @@ export default function AdminProfile() {
               ) : null}
             </div>
           ) : user ? (
-            <div className="flex flex-col md:flex-row">
-              {/* Left Column - Profile Picture */}
-              <div className="md:w-1/4 bg-gray-50 p-6 rounded-l-2xl">
-                <div className="sticky bottom-0 flex flex-col h-full">
+            <div className="flex flex-col">
+              {/* Top Section - Profile Picture & Info */}
+              <div className="bg-white border-b border-gray-200 p-6 sm:p-8">
+                <div className="flex flex-col items-center">
                   {/* Profile Picture */}
-                  <div className="flex flex-col items-center mb-8">
+                  <div className="flex flex-col items-center mb-4">
                     <div className="relative mb-4">
-                      <div className="w-28 h-28 rounded-full shadow-md overflow-hidden bg-white flex items-center justify-center border-2 border-white">
+                      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full shadow-md overflow-hidden bg-white flex items-center justify-center border-2 border-gray-100">
                         {user.profilePicture ? (
                           <img
                             src={user.profilePicture}
@@ -670,12 +670,12 @@ export default function AdminProfile() {
                       </div>
                       <button
                         onClick={triggerFileInput}
-                        className="absolute bottom-0 right-0 bg-white shadow-md text-orange-500 rounded-full p-2 hover:bg-orange-50 transition-colors"
+                        className="absolute bottom-0 right-0 bg-white shadow-md text-orange-500 rounded-full p-2 hover:bg-orange-50 transition-colors border border-gray-200"
                         disabled={uploadingImage}
                         aria-label="Upload profile picture"
                       >
                         {uploadingImage ? (
-                          <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
+                          <div className="w-3.5 h-3.5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
                         ) : (
                           <Camera size={14} />
                         )}
@@ -688,20 +688,21 @@ export default function AdminProfile() {
                         accept="image/*"
                       />
                     </div>
-                    <h3 className="font-semibold text-gray-800 text-lg text-center">
+                    <h3 className="font-semibold text-gray-900 text-lg sm:text-xl text-center mb-1">
                       {user.fullname}
                     </h3>
-                    <p
-                      className="text-xs text-gray-400 mb-6 text-center cursor-pointer hover:text-gray-600 transition-colors"
-                      onClick={triggerFileInput}
-                    >
-                      {uploadingImage
-                        ? "Uploading..."
-                        : "Change profile picture"}
+                    <p className="text-gray-500 text-sm text-center mb-2">
+                      {user.email}
                     </p>
+                    <button
+                      onClick={triggerFileInput}
+                      className="text-xs text-gray-400 hover:text-orange-500 transition-colors cursor-pointer"
+                    >
+                      {uploadingImage ? "Uploading..." : "Change profile picture"}
+                    </button>
 
                     {/* Admin Badge */}
-                    <div className="bg-orange-50 text-orange-600 px-3 py-1 rounded-full text-xs font-medium mb-4 flex items-center gap-1">
+                    <div className="mt-3 bg-orange-50 text-orange-600 px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 w-fit">
                       <Shield size={12} />
                       Administrator
                     </div>
@@ -710,193 +711,131 @@ export default function AdminProfile() {
                     <Button
                       onClick={handleUserPreview}
                       variant="outline"
-                      className="w-full mb-4 flex items-center gap-2 py-3 rounded-xl border-orange-200 text-orange-600 hover:bg-orange-50 transition-colors"
+                      className="mt-3 flex items-center gap-2 text-sm border-orange-200 bg-orange-500 text-white hover:bg-orange-600 transition-colors"
+                      size="sm"
                     >
                       <EyeIcon size={16} />
                       <span>User Preview</span>
                     </Button>
-
-                    {/* Navigation Menu - At bottom of left column */}
-                    <div className="mt-auto pt-12">
-                      <div className="bg-gray-50 p-4 rounded-xl">
-                        <div className="space-y-2">
-                          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3">
-                            Admin Settings
-                          </h4>
-                          <button
-                            onClick={() => setSidebarView("profile")}
-                            className={`w-full flex items-center gap-3 p-3 text-left rounded-xl hover:bg-white hover:shadow-sm transition-all text-gray-700 font-medium ${
-                              sidebarView === "profile" ? "bg-orange-50" : ""
-                            }`}
-                          >
-                            <User className="text-orange-500" size={16} />
-                            <span>Profile</span>
-                          </button>
-                          <button
-                            onClick={() => setSidebarView("admin")}
-                            className={`w-full flex items-center gap-3 p-3 text-left rounded-xl hover:bg-white hover:shadow-sm transition-all text-gray-700 font-medium ${
-                              sidebarView === "admin" ? "bg-orange-50" : ""
-                            }`}
-                          >
-                            <Shield className="text-orange-500" size={16} />
-                            <span>Admin Tools</span>
-                          </button>
-                          <button
-                            onClick={() => setView("settings")}
-                            className="w-full flex items-center gap-3 p-3 text-left rounded-xl hover:bg-white hover:shadow-sm transition-all text-gray-700 font-medium"
-                          >
-                            <Settings className="text-orange-500" size={16} />
-                            <span>Settings</span>
-                          </button>
-                          <div className="pt-4 mt-4 border-t border-gray-200">
-                            <button
-                              onClick={handleLogout}
-                              className="w-full flex items-center gap-3 p-3 text-left rounded-xl hover:bg-white hover:shadow-sm transition-all text-gray-700 font-medium"
-                            >
-                              <LogOut className="text-gray-500" size={16} />
-                              <span>Logout</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Right Column - Profile Information */}
-              <div className="md:w-3/4 p-8">
+              {/* Navigation Tabs */}
+              <div className="border-b border-gray-200 bg-white">
+                <div className="flex justify-evenly px-4 sm:px-8">
+                  <button
+                    onClick={() => setSidebarView("profile")}
+                    className={`flex items-center gap-2 px-4 sm:px-5 py-3 font-medium text-sm transition-colors border-b-2 ${
+                      sidebarView === "profile"
+                        ? "border-orange-500 text-orange-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    <User size={14} />
+                    <span>Profile</span>
+                  </button>
+                  <button
+                    onClick={() => setSidebarView("admin")}
+                    className={`flex items-center gap-2 px-4 sm:px-5 py-3 font-medium text-sm transition-colors border-b-2 ${
+                      sidebarView === "admin"
+                        ? "border-orange-500 text-orange-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    <Shield size={14} />
+                    <span>Admin Tools</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Content Area */}
+              <div className="p-4 sm:p-6 md:p-8">
                 {sidebarView === "profile" ? (
                   <>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-6">
-                      Admin Profile
-                    </h2>
-
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                      {/* Profile Information Card */}
-                      <div className="p-6 border-b border-gray-100">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                    <div>
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
                           Personal Information
                         </h3>
 
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                            <div className="flex items-center">
-                              <div className="bg-orange-50 p-2.5 rounded-full mr-4">
-                                <User className="text-orange-500" size={18} />
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
+                                <User className="text-orange-500" size={16} />
                               </div>
-                              <div>
-                                <p className="text-xs text-gray-500 font-medium">
+                              <div className="min-w-0">
+                                <p className="text-xs text-gray-500 mb-0.5">
                                   Full Name
                                 </p>
-                                <p className="text-gray-800 font-medium">
+                                <p className="text-sm sm:text-base text-gray-900 font-medium truncate">
                                   {user.fullname}
                                 </p>
                               </div>
                             </div>
                             <button
                               onClick={() => setView("account")}
-                              className="p-2 text-gray-500 hover:text-orange-500 transition-colors"
+                              className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0"
                               aria-label="Edit name"
                             >
                               <Edit size={16} />
                             </button>
                           </div>
 
-                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                            <div className="flex items-center">
-                              <div className="bg-orange-50 p-2.5 rounded-full mr-4">
-                                <Mail className="text-orange-500" size={18} />
+                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
+                                <Mail className="text-orange-500" size={16} />
                               </div>
-                              <div>
-                                <p className="text-xs text-gray-500 font-medium">
+                              <div className="min-w-0">
+                                <p className="text-xs text-gray-500 mb-0.5">
                                   Email Address
                                 </p>
-                                <p className="text-gray-800 font-medium">
+                                <p className="text-sm sm:text-base text-gray-900 font-medium truncate">
                                   {user.email}
                                 </p>
                               </div>
                             </div>
                             <button
                               onClick={handleSendOtpForEmail}
-                              className="p-2 text-gray-500 hover:text-orange-500 transition-colors"
+                              className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0"
                               aria-label="Edit email"
                             >
                               <Edit size={16} />
                             </button>
                           </div>
 
-                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                            <div className="flex items-center">
-                              <div className="bg-orange-50 p-2.5 rounded-full mr-4">
-                                <Lock className="text-orange-500" size={18} />
+                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
+                                <Lock className="text-orange-500" size={16} />
                               </div>
-                              <div>
-                                <p className="text-xs text-gray-500 font-medium">
+                              <div className="min-w-0">
+                                <p className="text-xs text-gray-500 mb-0.5">
                                   Password
                                 </p>
-                                <p className="text-gray-800 font-medium">
+                                <p className="text-sm sm:text-base text-gray-900 font-medium">
                                   ••••••••
                                 </p>
                               </div>
                             </div>
                             <button
                               onClick={handleSendOtpForPassword}
-                              className="p-2 text-gray-500 hover:text-orange-500 transition-colors"
+                              className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0"
                               aria-label="Edit password"
                             >
                               <Edit size={16} />
                             </button>
                           </div>
-                        </div>
-                      </div>
-
-                      {/* Admin Information Section */}
-                      <div className="p-6">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                          Admin Information
-                        </h3>
-                        <p className="text-gray-600 text-sm mb-4">
-                          You have administrator privileges with full access to
-                          the system. Use the "User Preview" button to see how
-                          the regular user interface looks.
-                        </p>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="bg-orange-50 p-4 rounded-xl text-center">
-                            <Users
-                              className="text-orange-500 mx-auto mb-2"
-                              size={24}
-                            />
-                            <p className="text-sm text-gray-600">
-                              User Management
-                            </p>
-                          </div>
-                          <div className="bg-orange-50 p-4 rounded-xl text-center">
-                            <PawPrint
-                              className="text-orange-500 mx-auto mb-2"
-                              size={24}
-                            />
-                            <p className="text-sm text-gray-600">
-                              Pet Management
-                            </p>
-                          </div>
-                          <div className="bg-orange-50 p-4 rounded-xl text-center">
-                            <BarChart3
-                              className="text-orange-500 mx-auto mb-2"
-                              size={24}
-                            />
-                            <p className="text-sm text-gray-600">Analytics</p>
-                          </div>
-                        </div>
                       </div>
                     </div>
                   </>
                 ) : (
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
                       Admin Tools
-                    </h2>
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden p-6">
+                    </h3>
+                    <div className="space-y-3">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <button
                           onClick={() => router.push("/admin/dashboard")}
@@ -959,6 +898,29 @@ export default function AdminProfile() {
                     </div>
                   </div>
                 )}
+
+                {/* Settings and Logout - Bottom Actions */}
+                <div className="mt-8 pt-6 border-t border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                   
+                      <button
+                        onClick={() => setView("settings")}
+                        className="p-2.5 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
+                        aria-label="Settings"
+                      >
+                        <Settings size={20} />
+                      </button>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium"
+                    >
+                      <LogOut size={14} />
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           ) : null}

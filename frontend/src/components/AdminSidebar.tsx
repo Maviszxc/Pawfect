@@ -81,20 +81,11 @@ const AdminSidebar = () => {
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <div className="fixed top-4 left-4 z-50 md:hidden">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="rounded-full bg-white shadow-sm border border-gray-200"
-        >
-          {isMobileMenuOpen ? (
-            <X className="h-5 w-5" />
-          ) : (
-            <Menu className="h-5 w-5" />
-          )}
-        </Button>
+      {/* Mobile Menu Button - Hidden, controlled by header */}
+      <div className="hidden" data-mobile-menu-trigger>
+        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+          Toggle
+        </button>
       </div>
 
       {/* Sidebar for Desktop */}
@@ -153,8 +144,8 @@ const AdminSidebar = () => {
           <div className="text-base font-semibold text-center text-[#0a1629]">
             {user?.fullname || "User"}
           </div>
-          <div className="text-xs text-gray-500">
-            {user?.email || "user@email.com"}
+          <div className="text-xs text-gray-500 truncate max-w-[180px]">
+            Welcome, Admin!
           </div>
         </div>
       </div>
@@ -167,6 +158,7 @@ const AdminSidebar = () => {
           exit={{ x: "-100%" }}
           transition={{ duration: 0.3 }}
           className="fixed inset-0 z-40 flex md:hidden"
+          data-mobile-menu
         >
           <div
             className="fixed inset-0 bg-gray-600 bg-opacity-75"
@@ -177,14 +169,12 @@ const AdminSidebar = () => {
               <div className="flex items-center">
                 <img src="/biyaya.png" alt="Pawfect" className="h-10" />
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
+              <button
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="rounded-full hover:bg-orange-100"
+                className="p-2 rounded-full hover:bg-orange-100 transition-colors"
               >
                 <X className="h-5 w-5" />
-              </Button>
+              </button>
             </div>
             <div className="flex-1 overflow-y-auto pt-5 pb-4">
               <div className="px-6 mb-6">
@@ -204,7 +194,7 @@ const AdminSidebar = () => {
                         {user?.fullname || "User"}
                       </div>
                       <div className="text-xs text-gray-500 truncate max-w-[180px]">
-                        {user?.email || "user@email.com"}
+                        Welcome, Admin!
                       </div>
                     </div>
                   </div>

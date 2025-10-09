@@ -11,7 +11,7 @@ export default function AdminLayout({
       <AdminSidebar />
       <div className="md:pl-64 lg:pl-72">
         <AdminHeader />
-        <main className="px-4 pb-6">{children}</main>
+        <main className="px-4 md:px-6 lg:px-8 pb-6">{children}</main>
       </div>
     </div>
   );

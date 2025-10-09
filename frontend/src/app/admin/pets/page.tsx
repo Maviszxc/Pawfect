@@ -426,23 +426,24 @@ export default function AdminPetsPage() {
     <>
       <AdminAuthWrapper>
         <div className="min-h-screen bg-gray-50 pb-8 px-4 sm:px-6">
-          <div className="w-full max-w-7xl mx-auto bg-white rounded-2xl shadow-sm px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex flex-col gap-6">
+          <div className="w-full max-w-7xl mx-auto bg-white rounded-xl sm:rounded-2xl shadow-sm px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+            <div className="flex flex-col gap-4 sm:gap-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
+                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
                     Pet Management
                   </h1>
-                  <p className="text-gray-600 mt-1">
+                  <p className="text-gray-600 mt-1 text-sm sm:text-base">
                     Manage all pets in the system
                   </p>
                 </div>
-                <div className="flex flex-row gap-3">
+                <div className="flex flex-row gap-2 sm:gap-3">
                   <Button
                     variant="outline"
                     onClick={fetchPets}
                     disabled={isLoading}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 text-sm"
+                    size="sm"
                   >
                     <RefreshCw
                       className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
@@ -450,8 +451,9 @@ export default function AdminPetsPage() {
                     Refresh
                   </Button>
                   <Button
-                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                    className="bg-orange-500 hover:bg-orange-600 text-white text-sm"
                     onClick={handleAdd}
+                    size="sm"
                   >
                     <Plus className="h-4 w-4 mr-2" /> Add Pet
                   </Button>
@@ -469,16 +471,16 @@ export default function AdminPetsPage() {
                         className="w-full"
                       >
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                          <TabsList className="inline-flex p-1 bg-gray-100 rounded-lg">
+                          <TabsList className="inline-flex p-1 bg-gray-100 rounded-lg w-full sm:w-auto">
                             <TabsTrigger
                               value="active"
-                              className="data-[state=active]:bg-orange-500 data-[state=active]:text-white rounded-md px-4 py-2 text-sm font-medium transition-all"
+                              className="data-[state=active]:bg-orange-500 data-[state=active]:text-white rounded-md px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none"
                             >
-                              Active Pets
+                              Active
                             </TabsTrigger>
                             <TabsTrigger
                               value="archived"
-                              className="data-[state=active]:bg-orange-500 data-[state=active]:text-white rounded-md px-4 py-2 text-sm font-medium transition-all"
+                              className="data-[state=active]:bg-orange-500 data-[state=active]:text-white rounded-md px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none"
                             >
                               Archive
                             </TabsTrigger>
@@ -491,7 +493,7 @@ export default function AdminPetsPage() {
                                 placeholder="Search pets..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-9"
+                                className="pl-9 text-sm"
                               />
                               <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                 <Search className="w-4 h-4 text-gray-500" />

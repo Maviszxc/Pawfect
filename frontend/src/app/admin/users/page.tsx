@@ -281,29 +281,30 @@ export default function AdminUsersPage() {
 
   return (
     <AdminAuthWrapper>
-      <div className="min-h-screen bg-[#f8fafc] pb-8">
-        <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
-          <Card className="rounded-2xl shadow bg-white px-0 py-0">
-            <CardContent className="p-8">
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-row items-center justify-between">
+      <div className="min-h-screen bg-gray-50 pb-8">
+        <div className="w-full max-w-6xl mx-auto flex flex-col gap-4 sm:gap-6 px-0">
+          <Card className="rounded-xl sm:rounded-2xl shadow-sm bg-white px-0 py-0 border-0">
+            <CardContent className="p-4 sm:p-6 md:p-8">
+              <div className="flex flex-col gap-4 sm:gap-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div>
-                    <div className="text-2xl font-bold text-[#0a1629]">
+                    <div className="text-xl sm:text-2xl font-bold text-gray-900">
                       User Management
                     </div>
-                    <div className="text-gray-500 text-base mt-1">
+                    <div className="text-gray-500 text-sm sm:text-base mt-1">
                       <span className="font-semibold text-[#0a1629]">
                         {users.length} total
                       </span>
                       , manage all users in the system
                     </div>
                   </div>
-                  <div className="flex flex-row gap-4">
+                  <div className="flex flex-row gap-2 sm:gap-4">
                     <Button
                       variant="outline"
                       onClick={fetchUsers}
                       disabled={isLoading}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 text-sm"
+                      size="sm"
                     >
                       <RefreshCw
                         className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
@@ -314,20 +315,20 @@ export default function AdminUsersPage() {
                 </div>
 
                 {/* Search and filter */}
-                <div className="flex justify-between items-center">
-                  <div className="relative w-full max-w-sm">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div className="relative w-full sm:max-w-sm">
                     <Input
                       type="text"
                       placeholder="Search users..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
+                      className="pl-10 text-sm"
                     />
                     <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                       <Search className="w-5 h-5 text-gray-500" />
                     </div>
                   </div>
-                  <Badge variant="outline" className="ml-2">
+                  <Badge variant="outline" className="text-xs sm:text-sm">
                     {filteredUsers.length} users
                   </Badge>
                 </div>
@@ -339,16 +340,16 @@ export default function AdminUsersPage() {
                   </div>
                 ) : (
                   <div
-                    className="overflow-x-auto"
+                    className="overflow-x-auto -mx-4 sm:mx-0"
                     style={{ maxHeight: "60vh", overflowY: "auto" }}
                   >
-                    <table className="w-full mt-4 text-left">
+                    <table className="w-full mt-4 text-left min-w-[600px]">
                       <thead>
-                        <tr className="text-gray-400 text-sm">
-                          <th className="py-2 font-medium">User</th>
+                        <tr className="text-gray-500 text-xs sm:text-sm">
+                          <th className="py-2 font-medium pl-4 sm:pl-0">User</th>
                           <th className="py-2 font-medium">Email</th>
                           <th className="py-2 font-medium">Status</th>
-                          <th className="py-2 font-medium">Admin</th>
+                          <th className="py-2 font-medium pr-4 sm:pr-0">Admin</th>
                           {/* <th className="py-2 font-medium">Actions</th> */}
                         </tr>
                       </thead>
@@ -371,9 +372,9 @@ export default function AdminUsersPage() {
                               } cursor-pointer`}
                               onClick={() => handleViewUser(user)}
                             >
-                              <td className="py-3">
+                              <td className="py-3 pl-4 sm:pl-0">
                                 <div className="flex items-center gap-3">
-                                  <Avatar>
+                                  <Avatar className="h-9 w-9">
                                     <AvatarImage
                                       src={
                                         user.profilePicture &&
@@ -386,11 +387,11 @@ export default function AdminUsersPage() {
                                       {user.fullname.charAt(0)}
                                     </AvatarFallback>
                                   </Avatar>
-                                  <div>
-                                    <p className="font-medium text-[#0a1629]">
+                                  <div className="min-w-0">
+                                    <p className="font-medium text-gray-900 text-sm truncate">
                                       {user.fullname}
                                     </p>
-                                    <p className="text-xs text-gray-500">
+                                    <p className="text-xs text-gray-500 truncate">
                                       Joined{" "}
                                       {new Date(
                                         user.createdAt
@@ -399,7 +400,7 @@ export default function AdminUsersPage() {
                                   </div>
                                 </div>
                               </td>
-                              <td className="py-3 text-gray-700 text-sm">
+                              <td className="py-3 text-gray-700 text-xs sm:text-sm">
                                 {user.email}
                               </td>
                               <td className="py-3">
@@ -413,7 +414,7 @@ export default function AdminUsersPage() {
                                   </Badge>
                                 )}
                               </td>
-                              <td className="py-3">
+                              <td className="py-3 pr-4 sm:pr-0">
                                 <span
                                   className={`px-3 py-1 rounded-full text-xs font-semibold border ${
                                     user.isAdmin

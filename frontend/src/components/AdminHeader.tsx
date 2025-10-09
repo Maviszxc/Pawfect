@@ -8,6 +8,7 @@ import {
   List,
   LogOut,
   User,
+  Menu,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -74,11 +75,25 @@ const AdminHeader = () => {
   };
 
   return (
-    <div className="w-full px-4 py-6 flex justify-center">
-      <div className="w-full max-w-6xl flex flex-wrap md:flex-nowrap items-center bg-white rounded-2xl shadow px-4 sm:px-6 py-4 gap-4 md:space-x-6">
-        {/* Date at the very right */}
-        <div className="w-full md:flex-1 flex justify-between items-center gap-2 md:gap-8">
-          <div className="flex items-center text-gray-600 text-sm md:text-base font-medium">
+    <div className="w-full px-4 md:px-6 lg:px-8 py-4 sm:py-6 flex justify-center">
+      <div className="w-full max-w-6xl flex items-center bg-white rounded-xl sm:rounded-2xl shadow px-4 sm:px-6 py-3 sm:py-4 gap-3 sm:gap-6">
+        {/* Mobile Menu Button - Only visible on mobile */}
+        <button
+          onClick={() => {
+            // Find and click the hidden trigger button
+            const trigger = document.querySelector('[data-mobile-menu-trigger] button') as HTMLButtonElement;
+            if (trigger) {
+              trigger.click();
+            }
+          }}
+          className="md:hidden p-2 rounded-lg hover:bg-orange-50 transition-colors"
+        >
+          <Menu className="w-5 h-5 text-orange-500" />
+        </button>
+
+        {/* Date */}
+        <div className="flex-1 flex justify-between items-center">
+          <div className="text-gray-600 text-sm sm:text-base font-medium">
             {dateString}
           </div>
           {/* Profile dropdown */}
@@ -86,10 +101,9 @@ const AdminHeader = () => {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="p-0 h-10 w-10 rounded-full md:justify-end  hover:bg-orange-100 transition-colors duration-150"
-                style={{ transition: "background 0.15s" }}
+                className="p-0 h-9 w-9 sm:h-10 sm:w-10 rounded-full hover:bg-orange-100 transition-colors"
               >
-                <Avatar className="h-9 w-9">
+                <Avatar className="h-8 w-8 sm:h-9 sm:w-9">
                   <AvatarImage
                     src={user?.profilePicture || "/placeholder-user.png"}
                   />
@@ -103,7 +117,7 @@ const AdminHeader = () => {
               <DropdownMenuLabel>
                 {user?.fullname || user?.name || "User"}
                 <div className="text-xs text-gray-500 truncate">
-                  {user?.email}
+                  Welcome, Admin!
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

@@ -370,29 +370,30 @@ export default function AdminAdoptionsPage() {
 
   return (
     <AdminAuthWrapper>
-      <div className="min-h-screen bg-[#f8fafc] pb-8">
-        <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
-          <Card className="rounded-2xl shadow bg-white px-0 py-0">
-            <CardContent className="p-8">
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-row items-center justify-between">
+      <div className="min-h-screen bg-gray-50 pb-8">
+        <div className="w-full max-w-6xl mx-auto flex flex-col gap-4 sm:gap-6 px-0">
+          <Card className="rounded-xl sm:rounded-2xl shadow-sm bg-white px-0 py-0 border-0">
+            <CardContent className="p-4 sm:p-6 md:p-8">
+              <div className="flex flex-col gap-4 sm:gap-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div>
-                    <div className="text-2xl font-bold text-[#0a1629]">
+                    <div className="text-xl sm:text-2xl font-bold text-[#0a1629]">
                       Adoption Management
                     </div>
-                    <div className="text-gray-500 text-base mt-1">
+                    <div className="text-gray-500 text-sm sm:text-base mt-1">
                       <span className="font-semibold text-[#0a1629]">
                         {adoptions.length} total
                       </span>
                       , manage all adoption requests
                     </div>
                   </div>
-                  <div className="flex flex-row gap-4">
+                  <div className="flex flex-row gap-2 sm:gap-4">
                     <Button
                       variant="outline"
                       onClick={fetchAdoptions}
                       disabled={isLoading}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 text-sm"
+                      size="sm"
                     >
                       <RefreshCw
                         className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
@@ -410,16 +411,16 @@ export default function AdminAdoptionsPage() {
                     className="w-full"
                   >
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                      <TabsList className="inline-flex p-1 bg-gray-100 rounded-lg">
+                      <TabsList className="inline-flex p-1 bg-gray-100 rounded-lg w-full sm:w-auto">
                         <TabsTrigger
                           value="active"
-                          className="data-[state=active]:bg-orange-500 data-[state=active]:text-white rounded-md px-4 py-2 text-sm font-medium transition-all"
+                          className="data-[state=active]:bg-orange-500 data-[state=active]:text-white rounded-md px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none"
                         >
-                          Active Adoptions
+                          Active
                         </TabsTrigger>
                         <TabsTrigger
                           value="archived"
-                          className="data-[state=active]:bg-orange-500 data-[state=active]:text-white rounded-md px-4 py-2 text-sm font-medium transition-all"
+                          className="data-[state=active]:bg-orange-500 data-[state=active]:text-white rounded-md px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none"
                         >
                           Archive
                         </TabsTrigger>
@@ -431,7 +432,7 @@ export default function AdminAdoptionsPage() {
                           placeholder="Search adoptions..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-10"
+                          className="pl-10 text-sm"
                         />
                         <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                           <Search className="w-5 h-5 text-gray-500" />
@@ -448,10 +449,10 @@ export default function AdminAdoptionsPage() {
                   </div>
                 ) : (
                   <div
-                    className="overflow-x-auto"
+                    className="overflow-x-auto -mx-4 sm:mx-0"
                     style={{ maxHeight: "60vh", overflowY: "auto" }}
                   >
-                    <Table>
+                    <Table className="min-w-[800px]">
                       <TableHeader>
                         <TableRow>
                           <TableHead>Pet</TableHead>

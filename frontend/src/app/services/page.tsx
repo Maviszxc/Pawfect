@@ -177,39 +177,33 @@ export default function Services() {
           margin: 0 auto;
         }
 
-        @media screen and (max-width: 818px) {
+        @media screen and (max-width: 1024px) {
           .options {
-            min-width: 620px;
-          }
-          .options .option:nth-child(5) {
-            display: none;
+            min-width: 600px;
+            max-width: 900px;
+            height: 400px;
           }
         }
 
-        @media screen and (max-width: 738px) {
+        @media screen and (max-width: 768px) {
           .options {
-            min-width: 540px;
+            flex-direction: column;
+            min-width: 100%;
+            width: 100%;
+            height: auto;
+            padding: 0 20px;
           }
-          .options .option:nth-child(4) {
-            display: none;
+          
+          .option {
+            min-height: 80px !important;
+            height: 80px;
+            margin: 8px 0 !important;
           }
-        }
-
-        @media screen and (max-width: 658px) {
-          .options {
-            min-width: 460px;
-          }
-          .options .option:nth-child(3) {
-            display: none;
-          }
-        }
-
-        @media screen and (max-width: 578px) {
-          .options {
-            min-width: 380px;
-          }
-          .options .option:nth-child(2) {
-            display: none;
+          
+          .option.active {
+            height: 300px !important;
+            max-width: 100% !important;
+            margin: 8px 0 !important;
           }
         }
 
@@ -331,6 +325,17 @@ export default function Services() {
           white-space: normal;
         }
 
+        @media screen and (max-width: 768px) {
+          .option .label .info .main {
+            font-size: 1rem;
+          }
+          
+          .option .label .info .sub {
+            font-size: 0.875rem;
+            max-width: 250px;
+          }
+        }
+
         .option.active .shadow {
           box-shadow: inset 0 -150px 150px -120px rgba(0, 0, 0, 0.9),
             inset 0 -150px 150px -100px rgba(0, 0, 0, 0.8);
@@ -343,16 +348,16 @@ export default function Services() {
         }
       `}</style>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-20">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-10 text-center"
         >
           <div className="inline-block relative">
-            <span className="absolute -top-3 -left-6 w-12 h-12 rounded-full bg-orange-100 opacity-70"></span>
-            <span className="absolute -bottom-3 -right-6 w-10 h-10 rounded-full bg-blue-100 opacity-70"></span>
-            <h1 className="relative text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-orange-500 to-blue-600 mb-2">
+            <span className="absolute -top-3 -left-6 w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-orange-100 opacity-70"></span>
+            <span className="absolute -bottom-3 -right-6 w-6 h-6 sm:w-10 sm:h-10 rounded-full bg-blue-100 opacity-70"></span>
+            <h1 className="relative text-xl sm:text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-orange-500 to-blue-600 mb-2">
               Our Services
             </h1>
           </div>
@@ -406,13 +411,13 @@ export default function Services() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
-          className="mt-16 text-center"
+          className="mt-16 text-center px-4"
         >
-          <p className="text-gray-700 font-medium mb-4">
+          <p className="text-sm sm:text-base text-gray-700 font-medium mb-4">
             Working towards a better future for all animals through our
             #AlagangBiyaya campaign
           </p>
-          <p className="text-orange-600 font-bold">
+          <p className="text-sm sm:text-base text-orange-600 font-bold">
             #StrayFreeRabiesFreePhilippines by 2030
           </p>
         </motion.div>
@@ -423,17 +428,17 @@ export default function Services() {
           transition={{ delay: 0.9 }}
           className="mt-20"
         >
-          <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-8 text-center px-4">
             Our Branches
           </h2>
 
-          <p className="text-lg text-gray-600 mb-10 text-center max-w-3xl mx-auto">
+          <p className="text-sm sm:text-base lg:text-lg text-gray-600 mb-10 text-center max-w-3xl mx-auto px-4">
             Visit any of our branches for quality veterinary care. We also offer
             mobile clinic services that travel to different communities for free
             spay/neuter events.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
             {branches.map((branch, index) => (
               <motion.div
                 key={index}
@@ -442,25 +447,25 @@ export default function Services() {
                 transition={{ delay: 1 + index * 0.1 }}
                 className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300"
               >
-                <div className="p-6">
-                  <div className="flex items-center mb-4">
-                    <h3 className="text-xl font-semibold text-gray-900">
+                <div className="p-4 sm:p-6">
+                  <div className="flex items-center mb-3 sm:mb-4">
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
                       {branch.name}
                     </h3>
                   </div>
-                  <p className="text-gray-600 mb-1">{branch.address}</p>
-                  <p className="text-gray-600 mb-4">{branch.phone}</p>
+                  <p className="text-sm sm:text-base text-gray-600 mb-1">{branch.address}</p>
+                  <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">{branch.phone}</p>
 
-                  <p className="text-gray-700 mb-4 italic">
+                  <p className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4 italic">
                     {branch.description}
                   </p>
 
-                  <h4 className="font-medium text-gray-800 mb-2">
+                  <h4 className="text-sm sm:text-base font-medium text-gray-800 mb-2">
                     Services Offered:
                   </h4>
-                  <ul className="list-disc pl-5 text-gray-600">
+                  <ul className="list-disc pl-5 text-sm sm:text-base text-gray-600">
                     {branch.services.map((service, i) => (
-                      <li key={i}>{service}</li>
+                      <li key={i} className="mb-1">{service}</li>
                     ))}
                   </ul>
                 </div>
@@ -474,9 +479,9 @@ export default function Services() {
       {/* Floating About Button */}
       <Link
         href="/about"
-        className="fixed bottom-8 right-8 w-12 h-12 bg-orange-500 hover:bg-orange-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all duration-300 z-40"
+        className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 w-12 h-12 sm:w-14 sm:h-14 bg-orange-500 hover:bg-orange-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all duration-300 z-40"
       >
-        <i className="bi bi-info-circle text-xl"></i>
+        <i className="bi bi-info-circle text-lg sm:text-xl"></i>
       </Link>
       {isAuthenticated ? <AuthNavigation /> : <Navigation />}
     </main>

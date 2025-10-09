@@ -266,15 +266,14 @@ export default function LivePage() {
     <div className="min-h-screen bg-[#f8fafc]">
       {isLoggedIn ? <AuthNavigation /> : <Navigation />}
 
-      <div className="container mx-auto p-20 pt-36 space-y-6">
-        {/* ADD THIS: Network Status */}
-        <NetworkStatus />
-        <div className="flex justify-between px-4 items-center">
-          <div>
-            <div className="flex items-center  gap-4">
-              <h1 className="text-3xl font-bold text-[#0a1629]">Live Stream</h1>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-20 py-6 pt-24 sm:pt-32 lg:pt-36 space-y-4 sm:space-y-6">
+      
+        <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
+          <div className="w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+              <h1 className="text-2xl sm:text-3xl font-bold text-[#0a1629]">Live Stream</h1>
               {/* Viewer Count Badge */}
-              <div className="flex items-center gap-2 bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
+              <div className="flex items-center gap-2 bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs sm:text-sm font-medium">
                 <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
                 <span>
                   {viewerCount} viewer{viewerCount !== 1 ? "s" : ""}
@@ -286,21 +285,23 @@ export default function LivePage() {
             </div>
 
             {currentUser && (
-              <div className="flex items-center gap-2 mt-2">
-                <Avatar className="h-6 w-6">
-                  <AvatarImage
-                    src={getProfilePictureUrl(currentUser.profilePicture)}
-                    alt={currentUser.fullname}
-                  />
-                  <AvatarFallback>
-                    {getInitials(currentUser.fullname)}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-sm text-gray-600">
-                  Watching as {currentUser.fullname}
-                </span>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mt-2">
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage
+                      src={getProfilePictureUrl(currentUser.profilePicture)}
+                      alt={currentUser.fullname}
+                    />
+                    <AvatarFallback>
+                      {getInitials(currentUser.fullname)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs sm:text-sm text-gray-600">
+                    Watching as {currentUser.fullname}
+                  </span>
+                </div>
                 {connectedUsers.size > 0 && (
-                  <span className="text-xs text-green-600 ml-2">
+                  <span className="text-xs text-green-600">
                     • Connected to {connectedUsers.size} peer
                     {connectedUsers.size !== 1 ? "s" : ""}
                   </span>
@@ -321,21 +322,22 @@ export default function LivePage() {
           <Button
             onClick={reconnect}
             variant="outline"
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 w-full sm:w-auto text-sm"
             disabled={isRefreshing}
           >
             <RefreshCw
               className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
             />
-            Refresh Connection
+            <span className="hidden sm:inline">Refresh Connection</span>
+            <span className="sm:hidden">Refresh</span>
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Video Stream Section */}
-          <Card className="w-full rounded-2xl shadow">
-            <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-4 text-[#0a1629]">
+          <Card className="w-full rounded-xl sm:rounded-2xl shadow">
+            <CardContent className="p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-[#0a1629]">
                 Live Feed
               </h2>
               <div className="space-y-4">
@@ -411,11 +413,11 @@ export default function LivePage() {
                   )}
                 </div>
 
-                <div className="flex justify-between items-center text-sm">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs sm:text-sm">
                   <span className="text-gray-600">
                     Status: {connectionStatus}
                   </span>
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                     <span className="text-gray-600">
                       {totalParticipants} total • {viewerCount} viewer
                       {viewerCount !== 1 ? "s" : ""}
@@ -436,28 +438,28 @@ export default function LivePage() {
           </Card>
 
           {/* Chat Section */}
-          <Card className="w-full rounded-2xl shadow">
-            <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-4 text-[#0a1629]">
+          <Card className="w-full rounded-xl sm:rounded-2xl shadow">
+            <CardContent className="p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-[#0a1629]">
                 Live Chat
               </h2>
               <div className="space-y-4">
                 <div
                   ref={chatContainerRef}
-                  className="max-h-96 border rounded-xl p-4 overflow-y-auto space-y-2 bg-gray-50"
+                  className="h-64 sm:h-80 lg:max-h-96 border rounded-xl p-3 sm:p-4 overflow-y-auto space-y-2 bg-gray-50"
                 >
                   {chatMessages.map((msg) => (
                     <div
                       key={msg.id}
-                      className={`p-3 rounded-xl flex items-start gap-3 ${
+                      className={`p-2 sm:p-3 rounded-lg sm:rounded-xl flex items-start gap-2 sm:gap-3 ${
                         msg.isStaff
-                          ? "bg-blue-100 text-blue-800 mr-8 border border-blue-200"
+                          ? "bg-blue-100 text-blue-800 mr-4 sm:mr-8 border border-blue-200"
                           : msg.senderId === currentUser?._id
-                          ? "bg-orange-50 text-orange-800 mr-8 border border-orange-200"
-                          : "bg-white text-gray-800 ml-8 border border-gray-200"
+                          ? "bg-orange-50 text-orange-800 mr-4 sm:mr-8 border border-orange-200"
+                          : "bg-white text-gray-800 ml-4 sm:ml-8 border border-gray-200"
                       }`}
                     >
-                      <Avatar className="h-8 w-8 flex-shrink-0 mt-1">
+                      <Avatar className="h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0 mt-1">
                         <AvatarImage
                           src={getProfilePictureUrl(msg.profileUrl)}
                           alt={msg.sender}
@@ -467,22 +469,22 @@ export default function LivePage() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="font-semibold text-sm">
+                        <div className="flex justify-between items-start mb-1 gap-2">
+                          <span className="font-semibold text-xs sm:text-sm truncate">
                             {msg.sender}
                             {msg.senderId === currentUser?._id && " (You)"}
                             {msg.isStaff && " (Admin)"}
                           </span>
-                          <span className="text-xs opacity-70">
-                            {msg.timestamp.toLocaleTimeString()}
+                          <span className="text-xs opacity-70 flex-shrink-0">
+                            {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
-                        <p className="text-sm break-words">{msg.message}</p>
+                        <p className="text-xs sm:text-sm break-words">{msg.message}</p>
                       </div>
                     </div>
                   ))}
                   {chatMessages.length === 0 && (
-                    <div className="text-center text-gray-500 py-8">
+                    <div className="text-center text-gray-500 py-8 text-sm">
                       No messages yet. Be the first to chat!
                     </div>
                   )}
@@ -499,12 +501,12 @@ export default function LivePage() {
                       }
                     }}
                     disabled={connectionStatus === "Disconnected"}
-                    className="rounded-xl"
+                    className="rounded-lg sm:rounded-xl text-sm"
                   />
                   <Button
                     onClick={handleSendMessage}
                     disabled={connectionStatus === "Disconnected"}
-                    className="bg-orange-500 hover:bg-orange-600 rounded-xl"
+                    className="bg-orange-500 hover:bg-orange-600 rounded-lg sm:rounded-xl px-3 sm:px-4"
                   >
                     <Send className="w-4 h-4" />
                   </Button>
