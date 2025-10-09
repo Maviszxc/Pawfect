@@ -12,6 +12,7 @@ import React, {
 import { signaling } from "../utils/websocketSignaling";
 import axiosInstance from "../lib/axiosInstance";
 import { BASE_URL } from "../utils/constants";
+import { pcConfig, fetchTurnServers } from "../utils/meteredConfig";
 
 type ChatMessage = {
   id: string;
@@ -72,12 +73,6 @@ const VideoStreamContext = createContext<VideoStreamContextType>({
   totalParticipants: 0,
 });
 
-const ICE_SERVERS = [
-  { urls: "stun:stun.l.google.com:19302" },
-  { urls: "stun:stun1.l.google.com:19302" },
-  { urls: "stun:stun2.l.google.com:19302" },
-];
-
 export const VideoStreamProvider = ({
   children,
 }: {
@@ -94,6 +89,7 @@ export const VideoStreamProvider = ({
   const [connectedUsers, setConnectedUsers] = useState<Set<string>>(new Set());
   const [viewerCount, setViewerCount] = useState<number>(0);
   const [totalParticipants, setTotalParticipants] = useState<number>(0);
+  const [iceServers, setIceServers] = useState<RTCIceServer[]>([]);
 
   // Refs for stable references
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -105,6 +101,28 @@ export const VideoStreamProvider = ({
   const isConnectingRef = useRef<boolean>(false);
   const streamRef = useRef<MediaStream | null>(null);
   const localSocketIdRef = useRef<string>("");
+  const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Initialize ICE servers
+  useEffect(() => {
+    const initializeIceServers = async () => {
+      try {
+        console.log("🔄 Initializing ICE servers...");
+        const servers = await fetchTurnServers();
+        setIceServers(servers);
+        console.log("✅ ICE servers initialized:", servers.length, "servers");
+      } catch (error) {
+        console.error(
+          "❌ Failed to initialize ICE servers, using fallback:",
+          error
+        );
+        // Fallback to static configuration
+        setIceServers(pcConfig.iceServers);
+      }
+    };
+
+    initializeIceServers();
+  }, []);
 
   // Helper function to get profile picture URL
   const getProfilePictureUrl = (profilePicture: string | undefined): string => {
@@ -238,20 +256,68 @@ export const VideoStreamProvider = ({
       try {
         console.log(`Creating peer connection for user: ${userId}`);
 
+        // Use dynamic ice servers or fallback to static config
+        const currentIceServers =
+          iceServers.length > 0 ? iceServers : pcConfig.iceServers;
+
+        console.log(
+          `Using ${currentIceServers.length} ICE servers for ${userId}`
+        );
+
         const pc = new RTCPeerConnection({
-          iceServers: ICE_SERVERS,
+          iceServers: currentIceServers,
           iceCandidatePoolSize: 10,
+          iceTransportPolicy: "all",
+          bundlePolicy: "max-bundle",
+          rtcpMuxPolicy: "require",
         });
 
+        // Enhanced ICE candidate logging
         pc.onicecandidate = (event) => {
-          if (event.candidate && roomIdRef.current) {
-            console.log(`Sending ICE candidate to ${userId}`);
-            signaling.sendICECandidate(
-              event.candidate.toJSON(),
-              roomIdRef.current,
-              userId
-            );
+          if (event.candidate) {
+            console.log(`ICE candidate for ${userId}:`, {
+              type: event.candidate.type,
+              protocol: event.candidate.protocol,
+              address: event.candidate.address,
+              port: event.candidate.port,
+            });
+
+            if (event.candidate.type === "relay") {
+              console.log(`✅ TURN server being used for ${userId}`);
+            }
+
+            if (roomIdRef.current) {
+              signaling.sendICECandidate(
+                event.candidate.toJSON(),
+                roomIdRef.current,
+                userId
+              );
+            }
+          } else {
+            console.log(`All ICE candidates gathered for ${userId}`);
           }
+        };
+
+        // Enhanced ICE connection state monitoring
+        pc.oniceconnectionstatechange = () => {
+          const state = pc.iceConnectionState;
+          console.log(`ICE connection state for ${userId}: ${state}`);
+
+          if (state === "connected") {
+            console.log(`✅ Peer connection established with ${userId}`);
+          } else if (state === "failed") {
+            console.log(
+              `❌ Peer connection failed with ${userId}, may need TURN`
+            );
+          } else if (state === "disconnected") {
+            console.log(`⚠️ Peer connection disconnected with ${userId}`);
+          }
+        };
+
+        pc.onicegatheringstatechange = () => {
+          console.log(
+            `ICE gathering state for ${userId}: ${pc.iceGatheringState}`
+          );
         };
 
         pc.ontrack = (event) => {
@@ -289,12 +355,6 @@ export const VideoStreamProvider = ({
           }
         };
 
-        pc.oniceconnectionstatechange = () => {
-          console.log(
-            `ICE connection state for ${userId}: ${pc.iceConnectionState}`
-          );
-        };
-
         // Add local stream if admin
         if (isAdminRef.current && streamRef.current) {
           console.log(`Adding local stream tracks to connection for ${userId}`);
@@ -313,7 +373,7 @@ export const VideoStreamProvider = ({
         return null;
       }
     },
-    []
+    [iceServers]
   );
 
   // Process pending ICE candidates for a specific user
@@ -610,6 +670,19 @@ export const VideoStreamProvider = ({
       isConnectingRef.current = true;
       setConnectionStatus("Connecting...");
 
+      // Set connection timeout (30 seconds)
+      connectionTimeoutRef.current = setTimeout(() => {
+        if (isConnectingRef.current) {
+          console.error("Connection timeout");
+          setConnectionStatus("Connection timeout - please check your network");
+          isConnectingRef.current = false;
+          if (connectionTimeoutRef.current) {
+            clearTimeout(connectionTimeoutRef.current);
+            connectionTimeoutRef.current = null;
+          }
+        }
+      }, 30000);
+
       try {
         console.log(
           `Connecting to room: ${roomId} as ${isAdmin ? "admin" : "viewer"}`
@@ -649,9 +722,22 @@ export const VideoStreamProvider = ({
             error instanceof Error ? error.message : "Unknown error"
           }`
         );
+
+        // Auto-retry after 5 seconds
+        setTimeout(() => {
+          if (!isConnectingRef.current) {
+            console.log("Auto-retrying connection...");
+            connectToRoom(roomId, isAdmin);
+          }
+        }, 5000);
+
         throw error;
       } finally {
         isConnectingRef.current = false;
+        if (connectionTimeoutRef.current) {
+          clearTimeout(connectionTimeoutRef.current);
+          connectionTimeoutRef.current = null;
+        }
       }
     },
     [getUserInfo]
@@ -659,6 +745,12 @@ export const VideoStreamProvider = ({
 
   const disconnectFromRoom = useCallback(() => {
     console.log("Disconnecting from room");
+
+    // Clear connection timeout
+    if (connectionTimeoutRef.current) {
+      clearTimeout(connectionTimeoutRef.current);
+      connectionTimeoutRef.current = null;
+    }
 
     // Close all peer connections
     peerConnectionsRef.current.forEach((pc, userId) => {

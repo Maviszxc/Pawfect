@@ -4,6 +4,7 @@ const adoptionController = require("../Controllers/adoptionController");
 const { verifyToken, verifyAdmin } = require("../Utilities/authUtil");
 const Adoption = require("../Models/adoptionModels"); // ✅ fix added
 
+
 // User or guest can submit adoption request
 router.post("/", adoptionController.createAdoption);
 

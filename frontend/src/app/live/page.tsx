@@ -11,6 +11,7 @@ import Navigation from "@/components/Navigation";
 import AuthNavigation from "@/components/authNavigation";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import Footer from "@/components/Footer";
+import { NetworkStatus } from "@/components/NetworkStatus";
 
 export default function LivePage() {
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -266,6 +267,8 @@ export default function LivePage() {
       {isLoggedIn ? <AuthNavigation /> : <Navigation />}
 
       <div className="container mx-auto p-20 pt-36 space-y-6">
+        {/* ADD THIS: Network Status */}
+        <NetworkStatus />
         <div className="flex justify-between px-4 items-center">
           <div>
             <div className="flex items-center  gap-4">

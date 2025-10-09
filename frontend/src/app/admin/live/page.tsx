@@ -9,6 +9,7 @@ import { Send, Camera, CameraOff, RefreshCw, Users, Eye } from "lucide-react";
 import AdminAuthWrapper from "@/components/AdminAuthWrapper";
 import { useVideoStream } from "@/context/VideoStreamContext";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { NetworkStatus } from "@/components/NetworkStatus";
 
 export default function AdminLivePage() {
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -217,6 +218,10 @@ export default function AdminLivePage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Network Status */}
+          <NetworkStatus />
+
           <div className="flex justify-between p-5  items-center">
             <div>
               <div className="flex items-center pt-2 gap-5">
