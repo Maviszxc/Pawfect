@@ -13,25 +13,65 @@ import AuthNavigation from "@/components/authNavigation";
 import { BASE_URL } from "@/utils/constants";
 import { toast } from "react-toastify";
 import {
-  FaUser,
-  FaEnvelope,
-  FaEdit,
-  FaLock,
-  FaCamera,
-  FaArrowLeft,
-  FaSignOutAlt,
-  FaTrash,
-  FaMapMarkerAlt,
-  FaPhone,
-  FaCog,
-} from "react-icons/fa";
+  User,
+  Mail,
+  Edit,
+  Lock,
+  Camera,
+  ArrowLeft,
+  LogOut,
+  Trash2,
+  Settings,
+  PawPrint,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  RefreshCw,
+  Shield,
+  MapPin,
+  Phone,
+  MessageSquare,
+  Calendar,
+} from "lucide-react";
+
+interface Adoption {
+  _id: string;
+  pet: {
+    _id: string;
+    name: string;
+    type: string;
+    breed: string;
+    age: string;
+    gender: string;
+    images: { url: string }[];
+    description: string;
+  };
+  status: "Pending" | "Approved" | "Rejected" | "Completed";
+  fullname: string;
+  email: string;
+  phone: string;
+  address: string;
+  message: string;
+  adminMessage?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface UserData {
+  fullname: string;
+  email: string;
+  password: string;
+  newEmail: string;
+  profilePicture: string;
+  isAdmin: boolean;
+}
 
 export default function Profile() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<UserData>({
     fullname: "",
     email: "",
     password: "",
@@ -53,10 +93,11 @@ export default function Profile() {
     | "settings"
   >("main");
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-  const [adoptions, setAdoptions] = useState<any[]>([]);
+  const [adoptions, setAdoptions] = useState<Adoption[]>([]);
   const [sidebarView, setSidebarView] = useState<"profile" | "adoptions">(
     "profile"
   );
+  const [refreshingAdoptions, setRefreshingAdoptions] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -66,27 +107,142 @@ export default function Profile() {
       router.push("/auth/login");
     } else {
       fetchUserData(token);
+      fetchUserAdoptions(token);
     }
   }, [router]);
 
-  useEffect(() => {
-    // Fetch user's adoptions
-    const fetchUserAdoptions = async () => {
-      try {
-        const token = localStorage.getItem("accessToken");
-        if (!token) return;
-        const res = await axios.get(`${BASE_URL}/api/adoptions/my`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.data.success) {
-          setAdoptions(res.data.adoptions);
-        }
-      } catch (err) {
-        // ignore
+  const fetchUserAdoptions = async (token: string) => {
+    try {
+      setRefreshingAdoptions(true);
+
+      // Defensive: Check BASE_URL and token
+      if (!BASE_URL) {
+        toast.error("API URL not configured");
+        setAdoptions([]);
+        setRefreshingAdoptions(false);
+        setIsLoading(false);
+        return;
       }
-    };
-    fetchUserAdoptions();
-  }, [router]);
+      if (!token) {
+        toast.error("Authentication required. Please log in.");
+        setAdoptions([]);
+        setRefreshingAdoptions(false);
+        setIsLoading(false);
+        router.push("/auth/login");
+        return;
+      }
+
+      // Try /my endpoint first
+      const res = await axios.get(`${BASE_URL}/api/adoptions/my`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      });
+
+      if (res.data && res.data.success && Array.isArray(res.data.adoptions)) {
+        setAdoptions(formatAdoptionData(res.data.adoptions));
+        if (res.data.adoptions.length > 0) {
+          toast.success(
+            `Found ${res.data.adoptions.length} adoption application(s)`
+          );
+        }
+        return;
+      } else {
+        setAdoptions([]);
+        // Fallback to /user endpoint
+        throw new Error("Invalid /my endpoint response");
+      }
+    } catch (err: any) {
+      // Fallback to /user endpoint
+      try {
+        const res = await axios.get(`${BASE_URL}/api/adoptions/user`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          timeout: 10000,
+        });
+
+        if (res.data && res.data.success && Array.isArray(res.data.adoptions)) {
+          setAdoptions(formatAdoptionData(res.data.adoptions));
+          if (res.data.adoptions.length > 0) {
+            toast.success(
+              `Found ${res.data.adoptions.length} adoption application(s)`
+            );
+          }
+          return;
+        } else {
+          setAdoptions([]);
+        }
+      } catch (fallbackErr: any) {
+        // Only show error if not just "no adoptions"
+        if (
+          fallbackErr.response?.status !== 404 &&
+          fallbackErr.code !== "ECONNREFUSED"
+        ) {
+          toast.error(
+            "Could not load adoption applications. Please try again later."
+          );
+        }
+        setAdoptions([]);
+      }
+    } finally {
+      setRefreshingAdoptions(false);
+      setIsLoading(false);
+    }
+  };
+
+  const formatAdoptionData = (adoptions: any[]): Adoption[] => {
+    if (!adoptions || !Array.isArray(adoptions)) {
+      console.warn("⚠️ No adoptions array received:", adoptions);
+      return [];
+    }
+
+    console.log("🔄 Formatting adoptions:", adoptions.length);
+
+    return adoptions.map((adoption, index) => {
+      let petData = adoption.pet;
+
+      // Handle unpopulated or missing pet data
+      if (!petData || typeof petData === "string") {
+        petData = {
+          _id: adoption.pet || `unknown-pet-${index}`,
+          name: "Unknown Pet",
+          type: "Pet",
+          breed: "Unknown Breed",
+          age: "Unknown",
+          gender: "Unknown",
+          images: [],
+          description: "No description available",
+        };
+      }
+
+      return {
+        _id: adoption._id || `temp-${Date.now()}-${index}`,
+        pet: {
+          _id: petData._id || "unknown",
+          name: petData.name || "Unknown Pet",
+          type: petData.type || "Pet",
+          breed: petData.breed || "Mixed Breed",
+          age: petData.age || "Unknown",
+          gender: petData.gender || "Unknown",
+          images: petData.images || [],
+          description: petData.description || "No description available",
+        },
+        status: adoption.status || "Pending",
+        fullname: adoption.fullname || "Unknown",
+        email: adoption.email || "Unknown",
+        phone: adoption.phone || "Not provided",
+        address: adoption.address || "Not provided",
+        message: adoption.message || "No message provided",
+        adminMessage: adoption.adminMessage,
+        createdAt: adoption.createdAt || new Date().toISOString(),
+        updatedAt: adoption.updatedAt || new Date().toISOString(),
+      };
+    });
+  };
 
   const fetchUserData = async (token: string) => {
     try {
@@ -119,9 +275,7 @@ export default function Profile() {
     try {
       const res = await axios.put(
         `${BASE_URL}/api/users/update-user`,
-        {
-          fullname: formData.fullname,
-        },
+        { fullname: formData.fullname },
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
@@ -422,7 +576,47 @@ export default function Profile() {
     }
   };
 
-  // Animation variants
+  const handleRefreshAdoptions = () => {
+    const token = localStorage.getItem("accessToken");
+    if (token) {
+      fetchUserAdoptions(token);
+    }
+  };
+
+  const getStatusInfo = (status: string) => {
+    switch (status) {
+      case "Approved":
+        return {
+          icon: CheckCircle2,
+          color: "text-green-600",
+          bgColor: "bg-green-50",
+          borderColor: "border-green-200",
+        };
+      case "Rejected":
+        return {
+          icon: XCircle,
+          color: "text-red-600",
+          bgColor: "bg-red-50",
+          borderColor: "border-red-200",
+        };
+      case "Completed":
+        return {
+          icon: CheckCircle2,
+          color: "text-blue-600",
+          bgColor: "bg-blue-50",
+          borderColor: "border-blue-200",
+        };
+      case "Pending":
+      default:
+        return {
+          icon: Clock,
+          color: "text-yellow-600",
+          bgColor: "bg-yellow-50",
+          borderColor: "border-yellow-200",
+        };
+    }
+  };
+
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
@@ -443,6 +637,14 @@ export default function Profile() {
     },
   };
 
+  if (isLoading && view === "main") {
+    return (
+      <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center">
+        <Loader />
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex pt-20 sm:pt-28 pb-20 sm:pb-32 flex-col items-center justify-center px-4">
       <AnimatePresence mode="wait">
@@ -456,14 +658,13 @@ export default function Profile() {
         >
           {view !== "main" ? (
             <div className="p-4 sm:p-6">
-              {/* Header with back button for sub-views */}
               <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <button
                   onClick={() => setView("main")}
                   className="text-gray-500 hover:text-orange-500 transition-colors"
                   aria-label="Back to profile"
                 >
-                  <FaArrowLeft size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  <ArrowLeft size={20} />
                 </button>
                 <h2 className="text-lg sm:text-2xl font-semibold text-gray-800 mx-auto">
                   {view === "account"
@@ -501,14 +702,13 @@ export default function Profile() {
                       value={formData.fullname}
                       onChange={handleChange}
                       placeholder="Enter your full name"
-                      className="rounded-lg sm:rounded-xl py-5 sm:py-6 bg-gray-50 border-gray-200 focus:bg-white transition-colors text-sm sm:text-base"
+                      className="rounded-lg sm:rounded-xl py-5 sm:py-6 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
                       required
                     />
                   </div>
-
                   <Button
                     type="submit"
-                    className="w-full bg-orange-500 hover:bg-orange-600 text-white py-5 sm:py-6 rounded-lg sm:rounded-xl transition-colors text-sm sm:text-base"
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white py-5 sm:py-6 rounded-lg sm:rounded-xl transition-colors"
                   >
                     Update Name
                   </Button>
@@ -518,20 +718,19 @@ export default function Profile() {
                   <p className="text-gray-600 mb-6">
                     Manage your account settings and preferences.
                   </p>
-
                   <div className="space-y-4">
-                    <div className="p-3 sm:p-4 bg-gray-50 rounded-lg sm:rounded-xl hover:bg-gray-100 transition-colors">
-                      <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-2">
+                    <div className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                      <h3 className="text-lg font-medium text-gray-800 mb-2">
                         Account
                       </h3>
-                      <p className="text-sm sm:text-base text-gray-600 mb-4">
+                      <p className="text-gray-600 mb-4">
                         Delete your account and all associated data.
                       </p>
                       <Button
                         onClick={() => setShowDeleteConfirmation(true)}
-                        className="bg-red-50 hover:bg-red-100 text-red-600 py-2.5 sm:py-3 px-3 sm:px-4 flex items-center gap-2 rounded-lg sm:rounded-xl transition-all text-sm sm:text-base"
+                        className="bg-red-50 hover:bg-red-100 text-red-600 py-3 px-4 flex items-center gap-2 rounded-xl transition-all"
                       >
-                        <FaTrash size={14} className="sm:w-4 sm:h-4" />
+                        <Trash2 size={16} />
                         <span>Delete Account</span>
                       </Button>
                     </div>
@@ -546,15 +745,14 @@ export default function Profile() {
                       : handleVerifyOtpForPassword
                   }
                 >
-                  <div className="text-center mb-4 sm:mb-6">
-                    <p className="text-sm sm:text-base text-gray-600 mb-2">
+                  <div className="text-center mb-6">
+                    <p className="text-gray-600 mb-2">
                       Enter the 6-digit code sent to
                     </p>
-                    <p className="text-sm sm:text-base text-gray-800 font-medium">
+                    <p className="text-gray-800 font-medium">
                       {formData.email}
                     </p>
                   </div>
-
                   <div className="space-y-2">
                     <Input
                       type="text"
@@ -563,18 +761,16 @@ export default function Profile() {
                       onChange={(e) => setOtp(e.target.value)}
                       placeholder="000000"
                       maxLength={6}
-                      className="text-center tracking-widest text-base sm:text-lg py-5 sm:py-6 rounded-lg sm:rounded-xl bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                      className="text-center tracking-widest text-lg py-6 rounded-xl bg-gray-50 border-gray-200 focus:bg-white transition-colors"
                       required
                     />
                   </div>
-
                   <Button
                     type="submit"
-                    className="w-full bg-orange-500 hover:bg-orange-600 text-white py-5 sm:py-6 rounded-lg sm:rounded-xl transition-colors text-sm sm:text-base"
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 rounded-xl transition-colors"
                   >
                     Verify Code
                   </Button>
-
                   <p className="text-center text-sm">
                     <button
                       type="button"
@@ -602,14 +798,13 @@ export default function Profile() {
                       value={formData.newEmail}
                       onChange={handleChange}
                       placeholder="Enter your new email"
-                      className="rounded-lg sm:rounded-xl py-5 sm:py-6 bg-gray-50 border-gray-200 focus:bg-white transition-colors text-sm sm:text-base"
+                      className="rounded-xl py-6 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
                       required
                     />
                   </div>
-
                   <Button
                     type="submit"
-                    className="w-full bg-orange-500 hover:bg-orange-600 text-white py-5 sm:py-6 rounded-lg sm:rounded-xl transition-colors text-sm sm:text-base"
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 rounded-xl transition-colors"
                   >
                     Update Email
                   </Button>
@@ -629,26 +824,24 @@ export default function Profile() {
                       value={formData.password}
                       onChange={handleChange}
                       placeholder="Enter your new password"
-                      className="rounded-lg sm:rounded-xl py-5 sm:py-6 bg-gray-50 border-gray-200 focus:bg-white transition-colors text-sm sm:text-base"
+                      className="rounded-xl py-6 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
                       required
                     />
                   </div>
-
                   <Button
                     type="submit"
-                    className="w-full bg-orange-500 hover:bg-orange-600 text-white py-5 sm:py-6 rounded-lg sm:rounded-xl transition-colors text-sm sm:text-base"
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 rounded-xl transition-colors"
                   >
                     Update Password
                   </Button>
                 </form>
               ) : null}
             </div>
-          ) : formData.fullname && formData.email ? (
+          ) : (
             <div className="flex flex-col">
-              {/* Top Section - Profile Picture & Info */}
+              {/* Profile Header */}
               <div className="bg-white border-b border-gray-200 p-6 sm:p-8">
                 <div className="flex flex-col items-center">
-                  {/* Profile Picture */}
                   <div className="flex flex-col items-center mb-4">
                     <div className="relative mb-4">
                       <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full shadow-md overflow-hidden bg-white flex items-center justify-center border-2 border-gray-100">
@@ -664,10 +857,7 @@ export default function Profile() {
                             }}
                           />
                         ) : (
-                          <FaUser
-                            className="text-gray-300"
-                            size={48}
-                          />
+                          <User className="text-gray-300" size={48} />
                         )}
                       </div>
                       <button
@@ -679,7 +869,7 @@ export default function Profile() {
                         {uploadingImage ? (
                           <div className="w-3.5 h-3.5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
                         ) : (
-                          <FaCamera size={14} />
+                          <Camera size={14} />
                         )}
                       </button>
                       <input
@@ -690,7 +880,7 @@ export default function Profile() {
                         accept="image/*"
                       />
                     </div>
-                    <h3 className="font-semibold text-gray-900 text-lg sm:text-xl text-center mb-1">
+                    <h3 className="font-semibold text-gray-900 text-xl text-center mb-1">
                       {formData.fullname}
                     </h3>
                     <p className="text-gray-500 text-sm text-center mb-2">
@@ -700,17 +890,20 @@ export default function Profile() {
                       onClick={triggerFileInput}
                       className="text-xs text-gray-400 hover:text-orange-500 transition-colors cursor-pointer"
                     >
-                      {uploadingImage ? "Uploading..." : "Change profile picture"}
+                      {uploadingImage
+                        ? "Uploading..."
+                        : "Change profile picture"}
                     </button>
-
-                    {/* Admin View Button */}
                     {formData.isAdmin && (
                       <Button
-                        className="mt-3 bg-orange-500 hover:bg-orange-600 text-white text-xs"
+                        className="mt-3 bg-orange-500 hover:bg-orange-600 text-white text-xs flex items-center gap-2"
                         size="sm"
-                        onClick={() => window.open("/admin/dashboard", "_blank")}
+                        onClick={() =>
+                          window.open("/admin/dashboard", "_blank")
+                        }
                       >
-                        Admin Dashboard
+                        <Shield size={14} />
+                        <span>Admin Dashboard</span>
                       </Button>
                     )}
                   </div>
@@ -722,25 +915,30 @@ export default function Profile() {
                 <div className="flex justify-evenly px-4 sm:px-8">
                   <button
                     onClick={() => setSidebarView("profile")}
-                    className={`flex items-center gap-2 px-4 sm:px-5 py-3 font-medium text-sm transition-colors border-b-2 ${
+                    className={`flex items-center gap-2 px-5 py-3 font-medium text-sm transition-colors border-b-2 ${
                       sidebarView === "profile"
                         ? "border-orange-500 text-orange-600"
                         : "border-transparent text-gray-500 hover:text-gray-700"
                     }`}
                   >
-                    <FaUser size={14} />
+                    <User size={14} />
                     <span>Profile</span>
                   </button>
                   <button
                     onClick={() => setSidebarView("adoptions")}
-                    className={`flex items-center gap-2 px-4 sm:px-5 py-3 font-medium text-sm transition-colors border-b-2 ${
+                    className={`flex items-center gap-2 px-5 py-3 font-medium text-sm transition-colors border-b-2 ${
                       sidebarView === "adoptions"
                         ? "border-orange-500 text-orange-600"
                         : "border-transparent text-gray-500 hover:text-gray-700"
                     }`}
                   >
-                    <FaEnvelope size={14} />
-                    <span>My Adoption</span>
+                    <PawPrint size={14} />
+                    <span>My Adoptions</span>
+                    {adoptions.length > 0 && (
+                      <span className="bg-orange-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                        {adoptions.length}
+                      </span>
+                    )}
                   </button>
                 </div>
               </div>
@@ -750,127 +948,357 @@ export default function Profile() {
                 {sidebarView === "profile" ? (
                   <>
                     <div>
-                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">
                         Personal Information
                       </h3>
 
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
-                                <FaUser className="text-orange-500" size={16} />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-xs text-gray-500 mb-0.5">
-                                  Full Name
-                                </p>
-                                <p className="text-sm sm:text-base text-gray-900 font-medium truncate">
-                                  {formData.fullname}
-                                </p>
-                              </div>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
+                              <User className="text-orange-500" size={16} />
                             </div>
-                            <button
-                              onClick={() => setView("account")}
-                              className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0"
-                              aria-label="Edit name"
-                            >
-                              <FaEdit size={16} />
-                            </button>
+                            <div className="min-w-0">
+                              <p className="text-xs text-gray-500 mb-0.5">
+                                Full Name
+                              </p>
+                              <p className="text-base text-gray-900 font-medium truncate">
+                                {formData.fullname}
+                              </p>
+                            </div>
                           </div>
+                          <button
+                            onClick={() => setView("account")}
+                            className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0"
+                            aria-label="Edit name"
+                          >
+                            <Edit size={16} />
+                          </button>
+                        </div>
 
-                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
-                                <FaEnvelope className="text-orange-500" size={16} />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-xs text-gray-500 mb-0.5">
-                                  Email Address
-                                </p>
-                                <p className="text-sm sm:text-base text-gray-900 font-medium truncate">
-                                  {formData.email}
-                                </p>
-                              </div>
+                        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
+                              <Mail className="text-orange-500" size={16} />
                             </div>
-                            <button
-                              onClick={handleSendOtpForEmail}
-                              className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0"
-                              aria-label="Edit email"
-                            >
-                              <FaEdit size={16} />
-                            </button>
+                            <div className="min-w-0">
+                              <p className="text-xs text-gray-500 mb-0.5">
+                                Email Address
+                              </p>
+                              <p className="text-base text-gray-900 font-medium truncate">
+                                {formData.email}
+                              </p>
+                            </div>
                           </div>
+                          <button
+                            onClick={handleSendOtpForEmail}
+                            className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0"
+                            aria-label="Edit email"
+                          >
+                            <Edit size={16} />
+                          </button>
+                        </div>
 
-                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
-                                <FaLock className="text-orange-500" size={16} />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-xs text-gray-500 mb-0.5">
-                                  Password
-                                </p>
-                                <p className="text-sm sm:text-base text-gray-900 font-medium">
-                                  ••••••••
-                                </p>
-                              </div>
+                        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
+                              <Lock className="text-orange-500" size={16} />
                             </div>
-                            <button
-                              onClick={handleSendOtpForPassword}
-                              className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0"
-                              aria-label="Edit password"
-                            >
-                              <FaEdit size={16} />
-                            </button>
+                            <div className="min-w-0">
+                              <p className="text-xs text-gray-500 mb-0.5">
+                                Password
+                              </p>
+                              <p className="text-base text-gray-900 font-medium">
+                                ••••••••
+                              </p>
+                            </div>
                           </div>
+                          <button
+                            onClick={handleSendOtpForPassword}
+                            className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0"
+                            aria-label="Edit password"
+                          >
+                            <Edit size={16} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </>
                 ) : (
                   <div>
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
-                      My Adoption Forms
-                    </h3>
-                    <div>
-                      {adoptions.length === 0 ? (
-                        <div className="text-center py-12 bg-gray-50 rounded-lg">
-                          <FaEnvelope className="mx-auto text-gray-300 mb-2" size={40} />
-                          <p className="text-gray-500 text-sm">
-                            No adoption forms submitted yet.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {adoptions.map((adoption) => (
-                            <div
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        My Adoption Applications
+                      </h3>
+                      <Button
+                        onClick={handleRefreshAdoptions}
+                        disabled={refreshingAdoptions}
+                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center gap-2"
+                        size="sm"
+                      >
+                        <RefreshCw
+                          size={14}
+                          className={refreshingAdoptions ? "animate-spin" : ""}
+                        />
+                        <span>Refresh</span>
+                      </Button>
+                    </div>
+
+                    {refreshingAdoptions ? (
+                      <div className="text-center py-12 bg-gray-50 rounded-lg">
+                        <Loader />
+                        <p className="text-gray-500 text-sm mt-4">
+                          Loading your applications...
+                        </p>
+                      </div>
+                    ) : adoptions.length === 0 ? (
+                      <div className="text-center py-12 bg-gray-50 rounded-lg">
+                        <PawPrint
+                          className="mx-auto text-gray-300 mb-3"
+                          size={48}
+                        />
+                        <h4 className="text-gray-700 font-medium mb-2">
+                          No Adoption Applications Yet
+                        </h4>
+                        <p className="text-gray-500 text-sm mb-6">
+                          You haven't submitted any adoption applications. Start
+                          your journey to find your perfect companion!
+                        </p>
+                        <Button
+                          onClick={() => router.push("/adoption")}
+                          className="bg-orange-500 hover:bg-orange-600 text-white"
+                        >
+                          Browse Available Pets
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {adoptions.map((adoption) => {
+                          const StatusIcon = getStatusInfo(
+                            adoption.status
+                          ).icon;
+                          const statusColor = getStatusInfo(
+                            adoption.status
+                          ).color;
+                          const statusBgColor = getStatusInfo(
+                            adoption.status
+                          ).bgColor;
+                          const statusBorderColor = getStatusInfo(
+                            adoption.status
+                          ).borderColor;
+
+                          return (
+                            <motion.div
                               key={adoption._id}
-                              className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors"
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className={`bg-white border-2 ${statusBorderColor} rounded-xl p-5 hover:shadow-lg transition-all`}
                             >
-                              <div className="flex items-center justify-between gap-4">
+                              <div className="flex flex-col sm:flex-row gap-4">
+                                {/* Pet Image */}
+                                <div className="flex-shrink-0">
+                                  <img
+                                    src={
+                                      adoption.pet?.images?.[0]?.url ||
+                                      "/placeholder-pet.jpg"
+                                    }
+                                    alt={adoption.pet?.name}
+                                    className="w-full sm:w-28 h-28 rounded-lg object-cover"
+                                    onError={(e) => {
+                                      e.currentTarget.src =
+                                        "/placeholder-pet.jpg";
+                                      e.currentTarget.onerror = null;
+                                    }}
+                                  />
+                                </div>
+
+                                {/* Adoption Details */}
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm sm:text-base font-medium text-gray-900 mb-1.5">
-                                    {adoption.pet?.name || adoption.petName}
-                                  </p>
-                                  <div className="flex flex-wrap gap-2 items-center">
-                                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                      adoption.status === 'Approved' ? 'bg-green-100 text-green-700' :
-                                      adoption.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                                      adoption.status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                                      'bg-blue-100 text-blue-700'
-                                    }`}>
-                                      {adoption.status}
-                                    </span>
-                                    <span className="text-xs text-gray-500">
-                                      {new Date(adoption.createdAt).toLocaleDateString()}
-                                    </span>
+                                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
+                                    <div>
+                                      <h4 className="font-bold text-gray-900 text-xl mb-2">
+                                        {adoption.pet?.name}
+                                      </h4>
+                                      <div className="flex flex-wrap gap-2 mb-3">
+                                        <span className="text-xs text-gray-600 bg-gray-100 px-3 py-1 rounded-full font-medium">
+                                          🐾 {adoption.pet?.type}
+                                        </span>
+                                        <span className="text-xs text-gray-600 bg-gray-100 px-3 py-1 rounded-full font-medium">
+                                          {adoption.pet?.breed}
+                                        </span>
+                                        <span className="text-xs text-gray-600 bg-gray-100 px-3 py-1 rounded-full font-medium">
+                                          {adoption.pet?.age}
+                                        </span>
+                                        <span className="text-xs text-gray-600 bg-gray-100 px-3 py-1 rounded-full font-medium">
+                                          {adoption.pet?.gender}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex flex-col items-start sm:items-end gap-2">
+                                      <div
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${statusBgColor} ${statusColor}`}
+                                      >
+                                        <StatusIcon size={16} />
+                                        <span>{adoption.status}</span>
+                                      </div>
+                                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                                        <Calendar size={12} />
+                                        <span>
+                                          {new Date(
+                                            adoption.createdAt
+                                          ).toLocaleDateString("en-US", {
+                                            year: "numeric",
+                                            month: "short",
+                                            day: "numeric",
+                                          })}
+                                        </span>
+                                      </div>
+                                    </div>
                                   </div>
+
+                                  {/* Application Information */}
+                                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                      <div className="flex items-start gap-2">
+                                        <Phone
+                                          size={16}
+                                          className="text-gray-400 mt-0.5 flex-shrink-0"
+                                        />
+                                        <div>
+                                          <p className="text-xs text-gray-500">
+                                            Phone
+                                          </p>
+                                          <p className="text-sm text-gray-900 font-medium">
+                                            {adoption.phone}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-start gap-2">
+                                        <MapPin
+                                          size={16}
+                                          className="text-gray-400 mt-0.5 flex-shrink-0"
+                                        />
+                                        <div>
+                                          <p className="text-xs text-gray-500">
+                                            Address
+                                          </p>
+                                          <p className="text-sm text-gray-900 font-medium line-clamp-1">
+                                            {adoption.address}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-start gap-2">
+                                      <MessageSquare
+                                        size={16}
+                                        className="text-gray-400 mt-0.5 flex-shrink-0"
+                                      />
+                                      <div className="flex-1">
+                                        <p className="text-xs text-gray-500 mb-1">
+                                          Your Message
+                                        </p>
+                                        <p className="text-sm text-gray-700 line-clamp-2">
+                                          {adoption.message}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Admin Message */}
+                                  {adoption.adminMessage && (
+                                    <div className="mt-3 bg-blue-50 border-l-4 border-blue-400 rounded p-3">
+                                      <div className="flex items-start gap-2">
+                                        <Shield
+                                          size={16}
+                                          className="text-blue-600 mt-0.5 flex-shrink-0"
+                                        />
+                                        <div>
+                                          <p className="text-xs text-blue-700 font-semibold mb-1">
+                                            Admin Message
+                                          </p>
+                                          <p className="text-sm text-blue-900">
+                                            {adoption.adminMessage}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Status Messages */}
+                                  {adoption.status === "Approved" && (
+                                    <div className="mt-3 bg-green-50 border-l-4 border-green-400 rounded p-3">
+                                      <div className="flex items-start gap-2">
+                                        <CheckCircle2
+                                          size={16}
+                                          className="text-green-600 mt-0.5 flex-shrink-0"
+                                        />
+                                        <p className="text-sm text-green-800 font-medium">
+                                          🎉 Congratulations! Your application
+                                          has been approved. Please check your
+                                          email for next steps to complete the
+                                          adoption process.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {adoption.status === "Completed" && (
+                                    <div className="mt-3 bg-blue-50 border-l-4 border-blue-400 rounded p-3">
+                                      <div className="flex items-start gap-2">
+                                        <CheckCircle2
+                                          size={16}
+                                          className="text-blue-600 mt-0.5 flex-shrink-0"
+                                        />
+                                        <p className="text-sm text-blue-800 font-medium">
+                                          🏠 Adoption Completed! Thank you for
+                                          giving {adoption.pet?.name} a loving
+                                          home!
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {adoption.status === "Rejected" && (
+                                    <div className="mt-3 bg-red-50 border-l-4 border-red-400 rounded p-3">
+                                      <div className="flex items-start gap-2">
+                                        <XCircle
+                                          size={16}
+                                          className="text-red-600 mt-0.5 flex-shrink-0"
+                                        />
+                                        <p className="text-sm text-red-800">
+                                          We're sorry, your application wasn't
+                                          approved at this time. Feel free to
+                                          apply for other pets or contact us for
+                                          more information.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {adoption.status === "Pending" && (
+                                    <div className="mt-3 bg-yellow-50 border-l-4 border-yellow-400 rounded p-3">
+                                      <div className="flex items-start gap-2">
+                                        <Clock
+                                          size={16}
+                                          className="text-yellow-600 mt-0.5 flex-shrink-0"
+                                        />
+                                        <p className="text-sm text-yellow-800">
+                                          ⏳ Your application is being reviewed
+                                          by our admin team. We'll notify you
+                                          via email once a decision is made.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -882,20 +1310,20 @@ export default function Profile() {
                       className="p-2.5 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
                       aria-label="Settings"
                     >
-                      <FaCog size={20} />
+                      <Settings size={20} />
                     </button>
                     <button
                       onClick={handleLogout}
                       className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium"
                     >
-                      <FaSignOutAlt size={14} />
+                      <LogOut size={16} />
                       <span>Logout</span>
                     </button>
                   </div>
                 </div>
               </div>
             </div>
-          ) : null}
+          )}
         </motion.div>
       </AnimatePresence>
 
@@ -908,32 +1336,32 @@ export default function Profile() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 px-4"
+            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 px-4"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: "spring", damping: 25 }}
-              className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 w-full max-w-sm shadow-xl"
+              className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl"
             >
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-3">
+              <h3 className="text-xl font-semibold text-gray-800 mb-3">
                 Delete Account
               </h3>
-              <p className="text-sm sm:text-base text-gray-600 mb-5 sm:mb-6">
+              <p className="text-gray-600 mb-6">
                 This action cannot be undone. All your data will be permanently
                 removed.
               </p>
-              <div className="flex gap-2 sm:gap-3">
+              <div className="flex gap-3">
                 <Button
                   onClick={() => setShowDeleteConfirmation(false)}
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-4 sm:py-5 rounded-lg sm:rounded-xl transition-colors text-sm sm:text-base"
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-5 rounded-xl transition-colors"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleDeleteAccount}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-4 sm:py-5 rounded-lg sm:rounded-xl transition-colors text-sm sm:text-base"
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-5 rounded-xl transition-colors"
                 >
                   Delete
                 </Button>

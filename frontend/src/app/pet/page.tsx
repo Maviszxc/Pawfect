@@ -12,6 +12,7 @@ import dynamic from "next/dynamic";
 import Loader from "@/components/Loader";
 import { toast } from "react-toastify";
 import axiosInstance from "@/lib/axiosInstance";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 // Dynamically import Tabs components
 const Tabs = dynamic(
@@ -44,6 +45,8 @@ import {
   MapPin,
   User,
   Clock,
+  CheckCircle,
+  AlertCircle,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -66,7 +69,7 @@ interface Pet {
   age: string;
   gender: string;
   image?: string;
-  images: { url: string }[]; // <-- update type
+  images: { url: string }[];
   videos: (string | { url: string })[];
   description: string;
   adoptionStatus: string;
@@ -81,6 +84,19 @@ interface ChatMessage {
   message: string;
   timestamp: Date;
   isStaff: boolean;
+}
+
+interface AdoptionStatus {
+  hasApplication: boolean;
+  isApproved: boolean;
+  isPetUnavailable?: boolean;
+  application?: {
+    status: string;
+    submittedAt: string;
+    petName?: string;
+    message: string;
+  };
+  message?: string;
 }
 
 function PetDetailsContent() {
@@ -106,6 +122,11 @@ function PetDetailsContent() {
   const [cameraError, setCameraError] = useState("");
   const [isCameraActive, setIsCameraActive] = useState(false);
   const cameraVideoRef = useRef<HTMLVideoElement>(null);
+
+  const [adoptionStatus, setAdoptionStatus] = useState<AdoptionStatus | null>(
+    null
+  );
+  const [checkingStatus, setCheckingStatus] = useState(false);
 
   const [showAdoptModal, setShowAdoptModal] = useState(false);
   const [adoptForm, setAdoptForm] = useState({
@@ -151,6 +172,44 @@ function PetDetailsContent() {
     }
   };
 
+  // Check adoption status
+  // Update the checkAdoptionStatus function in pet details page
+  const checkAdoptionStatus = async (email: string) => {
+    if (!petId) return;
+
+    setCheckingStatus(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+
+      // Only check adoption status if user is authenticated
+      if (!token) {
+        setCheckingStatus(false);
+        return;
+      }
+
+      const response = await axios.get(
+        `${BASE_URL}/api/adoptions/check-status`,
+        {
+          params: { petId, email },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.data.success) {
+        setAdoptionStatus(response.data);
+      }
+    } catch (error) {
+      console.error("Error checking adoption status:", error);
+      // Don't show error for 401 - just means user needs to login
+      if (axios.isAxiosError(error) && error.response?.status !== 401) {
+        toast.error("Error checking adoption status");
+      }
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
   // Check if browser supports media devices
   useEffect(() => {
     if (
@@ -168,16 +227,14 @@ function PetDetailsContent() {
     try {
       setCameraError("");
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" }, // Prefer rear camera on mobile
+        video: { facingMode: "environment" },
       });
 
       setCameraStream(mediaStream);
       setIsCameraActive(true);
 
-      // Set the stream directly to the video element
       if (cameraVideoRef.current) {
         cameraVideoRef.current.srcObject = mediaStream;
-        // Wait for the video to load and play
         cameraVideoRef.current.onloadedmetadata = () => {
           cameraVideoRef.current?.play().catch((e) => {
             console.error("Error playing camera stream:", e);
@@ -200,7 +257,6 @@ function PetDetailsContent() {
       setCameraStream(null);
       setIsCameraActive(false);
 
-      // Clear the video element
       if (cameraVideoRef.current) {
         cameraVideoRef.current.srcObject = null;
       }
@@ -260,18 +316,23 @@ function PetDetailsContent() {
       setLoading(false);
     }
 
-    // Fetch user details for autofill (including id)
     if (token) {
       axiosInstance
         .get(`${BASE_URL}/api/users/current-user`)
         .then((res) => {
           if (res.data.success) {
-            setUserDetails({
+            const userData = {
               id: res.data.user._id,
               fullname: res.data.user.fullname || "",
               email: res.data.user.email || "",
               profilePicture: res.data.user.profilePicture || "",
-            });
+            };
+            setUserDetails(userData);
+
+            // Check adoption status for this user
+            if (userData.email && petId) {
+              checkAdoptionStatus(userData.email);
+            }
           }
         })
         .catch(() => {});
@@ -318,10 +379,22 @@ function PetDetailsContent() {
       return;
     }
 
-    // Here you would implement the adoption logic
-    console.log(
-      `Thank you for your interest in adopting ${pet?.name}! We'll contact you soon.`
-    );
+    // Check if pet is unavailable or user already has approved application
+    if (adoptionStatus?.isPetUnavailable && !adoptionStatus?.isApproved) {
+      toast.error(
+        "This pet is currently in the adoption process with another adopter. Please choose another pet."
+      );
+      return;
+    }
+
+    if (adoptionStatus?.isApproved) {
+      toast.info(
+        "Your adoption request has been approved! Please check your email for next steps."
+      );
+      return;
+    }
+
+    setShowAdoptModal(true);
   };
 
   // Handle adopt form input change
@@ -331,7 +404,7 @@ function PetDetailsContent() {
     setAdoptForm({ ...adoptForm, [e.target.name]: e.target.value });
   };
 
-  // Simulate adopt form submit (replace with real API if needed)
+  // Handle adopt form submit
   const handleAdoptSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAdoptSubmitting(true);
@@ -363,7 +436,7 @@ function PetDetailsContent() {
           phone: adoptForm.phone,
           address: adoptForm.address,
           message: adoptForm.message,
-          profilePicture: userDetails.profilePicture || "", // <-- send profile picture
+          profilePicture: userDetails.profilePicture || "",
         },
         token
           ? {
@@ -385,12 +458,33 @@ function PetDetailsContent() {
         address: "",
         message: "",
       });
+
+      // Refresh adoption status after submission
+      if (userDetails?.email) {
+        checkAdoptionStatus(userDetails.email);
+      }
     } catch (err: any) {
       setAdoptSubmitting(false);
-      toast.error(
-        err?.response?.data?.message ||
-          "Failed to submit adoption request. Please try again."
-      );
+
+      // Handle specific error cases
+      if (err?.response?.data?.isPetUnavailable) {
+        toast.error(err.response.data.message);
+        // Refresh adoption status to update UI
+        if (userDetails?.email) {
+          checkAdoptionStatus(userDetails.email);
+        }
+      } else if (err?.response?.data?.isApproved) {
+        toast.info(err.response.data.message);
+        setShowAdoptModal(false);
+        if (userDetails?.email) {
+          checkAdoptionStatus(userDetails.email);
+        }
+      } else {
+        toast.error(
+          err?.response?.data?.message ||
+            "Failed to submit adoption request. Please try again."
+        );
+      }
     }
   };
 
@@ -626,6 +720,43 @@ function PetDetailsContent() {
                         </p>
                       </div>
 
+                      {/* Adoption Status Messages */}
+                      {adoptionStatus?.isApproved && (
+                        <Alert className="bg-green-50 border-green-200 mt-4">
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <AlertDescription className="text-green-800">
+                            <strong>
+                              You're close to adopting {pet?.name}!
+                            </strong>{" "}
+                            Please check your email to proceed to the next step.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      {adoptionStatus?.isPetUnavailable &&
+                        !adoptionStatus?.isApproved && (
+                          <Alert className="bg-amber-50 border-amber-200 mt-4">
+                            <AlertCircle className="h-4 w-4 text-amber-600" />
+                            <AlertDescription className="text-amber-800">
+                              <strong>
+                                This pet is currently in the adoption process.
+                              </strong>{" "}
+                              Please choose another available pet.
+                            </AlertDescription>
+                          </Alert>
+                        )}
+
+                      {adoptionStatus?.hasApplication &&
+                        !adoptionStatus?.isApproved && (
+                          <Alert className="bg-blue-50 border-blue-200 mt-4">
+                            <AlertCircle className="h-4 w-4 text-blue-600" />
+                            <AlertDescription className="text-blue-800">
+                              Your application is being reviewed by our admin
+                              team.
+                            </AlertDescription>
+                          </Alert>
+                        )}
+
                       {pet?.lastSeen && (
                         <div className="flex items-center text-gray-500 text-sm">
                           <Clock size={14} className="mr-1" />
@@ -638,10 +769,18 @@ function PetDetailsContent() {
 
                       {pet?.adoptionStatus === "available" && (
                         <Button
-                          onClick={() => setShowAdoptModal(true)}
+                          onClick={handleAdoptClick}
                           className="bg-orange-600 hover:bg-orange-700 text-white w-full py-3 text-lg mt-4 rounded-xl"
+                          disabled={
+                            adoptionStatus?.isPetUnavailable ||
+                            adoptionStatus?.isApproved
+                          }
                         >
-                          Adopt Me
+                          {adoptionStatus?.isApproved
+                            ? "Application Approved"
+                            : adoptionStatus?.isPetUnavailable
+                            ? "Pet Unavailable"
+                            : "Adopt Me"}
                         </Button>
                       )}
                     </div>
@@ -869,9 +1008,6 @@ function PetDetailsContent() {
           <User size={24} />
         </Link>
       </main>
-
-      {/* Toast container (if not already in _app.tsx) */}
-      {/* <ToastContainer /> */}
     </>
   );
 }

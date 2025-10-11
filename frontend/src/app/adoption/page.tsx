@@ -37,24 +37,24 @@ const FloatingBotDemo = dynamic(() => import("@/components/FloatingBotDemo"), {
   ssr: false,
 });
 
-// Update FilterState and Pet interface for correct types
 interface Pet {
   _id: string;
   name: string;
   type: string;
   breed: string;
-  age: string; // should be string to match backend enum
+  age: string;
   gender: string;
-  images: { url: string }[]; // <-- update type
+  images: { url: string }[];
   description: string;
   adoptionStatus: string;
+  isUnavailable?: boolean;
 }
 
 interface FilterState {
   type: string;
   gender: string;
   breed: string;
-  age: string; // use string for age category
+  age: string;
   searchQuery: string;
 }
 
@@ -91,6 +91,34 @@ const getAgeColor = (age: string | number) => {
   return "bg-gray-100 text-gray-800";
 };
 
+// Helper function to check if pet has approved adoption
+const checkPetAvailability = async (petId: string): Promise<boolean> => {
+  try {
+    const response = await axios.get(
+      `${BASE_URL}/api/adoptions/check-availability/${petId}`
+    );
+    return response.data.isAvailable;
+  } catch (error) {
+    console.error(`Error checking availability for pet ${petId}:`, error);
+    // If the endpoint doesn't exist yet, assume pet is available
+    return true;
+  }
+};
+
+// Helper function to filter out pets with approved adoptions
+const filterAvailablePets = async (pets: Pet[]): Promise<Pet[]> => {
+  const availabilityChecks = await Promise.all(
+    pets.map(async (pet) => {
+      const isAvailable = await checkPetAvailability(pet._id);
+      return { pet, isAvailable };
+    })
+  );
+
+  return availabilityChecks
+    .filter(({ isAvailable }) => isAvailable)
+    .map(({ pet }) => pet);
+};
+
 export default function Adopt() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pets, setPets] = useState<Pet[]>([]);
@@ -113,38 +141,46 @@ export default function Adopt() {
     }
   }, []);
 
-  // Fetch all pets initially
-  useEffect(() => {
-    const fetchPets = async () => {
-      setIsLoading(true);
-      try {
-        const response = await axios.get(`${BASE_URL}/api/pets`);
-        if (response.data.success) {
-          setPets(response.data.pets);
+  // Fetch all pets initially and check their availability
+  const fetchPets = async () => {
+    setIsLoading(true);
+    try {
+      const response = await axios.get(`${BASE_URL}/api/pets`);
+      if (response.data.success) {
+        // First filter by adoption status from the database
+        const availablePets = response.data.pets.filter(
+          (pet: Pet) => pet.adoptionStatus === "available"
+        );
 
-          // Extract unique breeds for filtering
-          const dogs = response.data.pets.filter(
-            (pet: Pet) => pet.type.toLowerCase() === "dog"
-          );
-          const cats = response.data.pets.filter(
-            (pet: Pet) => pet.type.toLowerCase() === "cat"
-          );
+        // Then filter out pets that have approved adoptions
+        const fullyAvailablePets = await filterAvailablePets(availablePets);
 
-          setDogBreeds(
-            Array.from(new Set(dogs.map((pet: Pet) => pet.breed))) as string[]
-          );
-          setCatBreeds(
-            Array.from(new Set(cats.map((pet: Pet) => pet.breed))) as string[]
-          );
-        }
-      } catch (error: any) {
-        toast.error("Error fetching pets. Please try again.");
-        console.error("Error fetching pets:", error);
-      } finally {
-        setIsLoading(false);
+        setPets(fullyAvailablePets);
+
+        // Extract unique breeds for filtering (from available pets only)
+        const dogs = fullyAvailablePets.filter(
+          (pet: Pet) => pet.type.toLowerCase() === "dog"
+        );
+        const cats = fullyAvailablePets.filter(
+          (pet: Pet) => pet.type.toLowerCase() === "cat"
+        );
+
+        setDogBreeds(
+          Array.from(new Set(dogs.map((pet: Pet) => pet.breed))) as string[]
+        );
+        setCatBreeds(
+          Array.from(new Set(cats.map((pet: Pet) => pet.breed))) as string[]
+        );
       }
-    };
+    } catch (error: any) {
+      toast.error("Error fetching pets. Please try again.");
+      console.error("Error fetching pets:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchPets();
   }, []);
 
@@ -170,7 +206,15 @@ export default function Adopt() {
         );
 
         if (response.data.success) {
-          setPets(response.data.pets);
+          // Filter to only show available pets from database
+          const availablePets = response.data.pets.filter(
+            (pet: Pet) => pet.adoptionStatus === "available"
+          );
+
+          // Then filter out pets that have approved adoptions
+          const fullyAvailablePets = await filterAvailablePets(availablePets);
+
+          setPets(fullyAvailablePets);
         }
       } catch (error: any) {
         toast.error("Error fetching filtered pets. Please try again.");
@@ -555,7 +599,6 @@ export default function Adopt() {
                                   window.location.href =
                                     "/auth/login?returnUrl=/adoption";
                                 } else {
-                                  // Navigate to pet details page
                                   window.location.href = `/pet?id=${pet._id}`;
                                 }
                               }}
@@ -579,7 +622,6 @@ export default function Adopt() {
             </div>
           </motion.div>
         </div>
-        
 
         {/* Floating About Button */}
         <Link
@@ -591,8 +633,6 @@ export default function Adopt() {
 
         {isAuthenticated ? <AuthNavigation /> : <Navigation />}
       </main>
-      {/* Toast container (if not already in _app.tsx) */}
-      {/* <ToastContainer /> */}
       <Footer />
     </>
   );

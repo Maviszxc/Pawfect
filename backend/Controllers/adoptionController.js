@@ -7,6 +7,13 @@ exports.createAdoption = async (req, res) => {
     const { pet, message, fullname, email, phone, address, profilePicture } =
       req.body;
 
+    console.log("📝 Creating adoption request:", {
+      pet,
+      fullname,
+      email,
+      hasUser: !!req.user,
+    });
+
     if (!pet || !fullname || !email || !phone || !address || !message) {
       return res.status(400).json({
         success: false,
@@ -23,21 +30,40 @@ exports.createAdoption = async (req, res) => {
       });
     }
 
+    // ✅ Check for existing APPROVED adoption request for this pet by ANY user
+    const approvedAdoption = await Adoption.findOne({
+      pet: pet,
+      status: "Approved",
+    });
+
+    if (approvedAdoption) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "This pet is currently in the adoption process with another adopter. Please choose another pet.",
+        isPetUnavailable: true,
+      });
+    }
+
     // Check for existing adoption request for this pet by this email
     const existingAdoption = await Adoption.findOne({
       pet: pet,
       email: email,
-      status: { $in: ["Pending", "Approved"] }, // Check for pending or approved applications
+      status: { $in: ["Pending", "Approved"] },
     });
 
     if (existingAdoption) {
       return res.status(400).json({
         success: false,
-        message: "You have already submitted an adoption request for this pet. Please wait for the admin to review your application.",
+        message:
+          existingAdoption.status === "Approved"
+            ? "Your adoption request has been approved! Please check your email for next steps."
+            : "You have already submitted an adoption request for this pet. Please wait for the admin to review your application.",
         existingApplication: {
           status: existingAdoption.status,
           submittedAt: existingAdoption.createdAt,
         },
+        isApproved: existingAdoption.status === "Approved",
       });
     }
 
@@ -56,11 +82,15 @@ exports.createAdoption = async (req, res) => {
       if (existingUserAdoption) {
         return res.status(400).json({
           success: false,
-          message: "You have already submitted an adoption request for this pet. Please wait for the admin to review your application.",
+          message:
+            existingUserAdoption.status === "Approved"
+              ? "Your adoption request has been approved! Please check your email for next steps."
+              : "You have already submitted an adoption request for this pet. Please wait for the admin to review your application.",
           existingApplication: {
             status: existingUserAdoption.status,
             submittedAt: existingUserAdoption.createdAt,
           },
+          isApproved: existingUserAdoption.status === "Approved",
         });
       }
     }
@@ -81,17 +111,88 @@ exports.createAdoption = async (req, res) => {
 
     await adoption.save();
 
+    console.log("✅ Adoption request created:", adoption._id);
+
     res.status(201).json({
       success: true,
       message: "Adoption request submitted successfully.",
       adoption,
     });
   } catch (error) {
-    console.error("Adoption request error:", error);
+    console.error("❌ Adoption request error:", error);
     res.status(500).json({
       success: false,
       message: "Error submitting adoption request.",
       error: error.message,
+    });
+  }
+};
+
+// ✅ Check adoption status for a specific pet and user
+exports.checkAdoptionStatus = async (req, res) => {
+  try {
+    const { petId, email } = req.query;
+
+    if (!petId) {
+      return res.status(400).json({
+        success: false,
+        message: "Pet ID is required.",
+      });
+    }
+
+    // First check if there's ANY approved adoption for this pet
+    const approvedByAnyone = await Adoption.findOne({
+      pet: petId,
+      status: "Approved",
+    });
+
+    if (approvedByAnyone && email && approvedByAnyone.email !== email) {
+      return res.status(200).json({
+        success: true,
+        isPetUnavailable: true,
+        message:
+          "This pet is currently in the adoption process with another adopter.",
+      });
+    }
+
+    // Check if user has an application for this pet
+    if (email) {
+      const userAdoption = await Adoption.findOne({
+        pet: petId,
+        email: email,
+        status: { $in: ["Pending", "Approved"] },
+      })
+        .populate("pet", "name")
+        .sort({ createdAt: -1 });
+
+      if (userAdoption) {
+        return res.status(200).json({
+          success: true,
+          hasApplication: true,
+          isApproved: userAdoption.status === "Approved",
+          application: {
+            status: userAdoption.status,
+            submittedAt: userAdoption.createdAt,
+            petName: userAdoption.pet?.name,
+            message:
+              userAdoption.status === "Approved"
+                ? `You're close to adopting ${userAdoption.pet?.name}! Please check your email to proceed to the next step.`
+                : "Your application is being reviewed by our admin team.",
+          },
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      hasApplication: false,
+      isPetUnavailable: !!approvedByAnyone,
+    });
+  } catch (error) {
+    console.error("❌ Error checking adoption status:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error checking application status.",
     });
   }
 };
@@ -131,10 +232,47 @@ exports.checkExistingApplication = async (req, res) => {
       hasApplication: false,
     });
   } catch (error) {
-    console.error("Error checking existing application:", error);
+    console.error("❌ Error checking existing application:", error);
     res.status(500).json({
       success: false,
       message: "Error checking application status.",
+    });
+  }
+};
+
+// Check pet availability
+exports.checkPetAvailability = async (req, res) => {
+  try {
+    const { petId } = req.params;
+
+    if (!petId) {
+      return res.status(400).json({
+        success: false,
+        message: "Pet ID is required.",
+      });
+    }
+
+    // Check if there's ANY approved adoption for this pet
+    const approvedAdoption = await Adoption.findOne({
+      pet: petId,
+      status: "Approved",
+    });
+
+    // Pet is available if no approved adoption exists
+    const isAvailable = !approvedAdoption;
+
+    res.status(200).json({
+      success: true,
+      isAvailable,
+      message: isAvailable
+        ? "Pet is available for adoption"
+        : "Pet is currently in adoption process",
+    });
+  } catch (error) {
+    console.error("❌ Error checking pet availability:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error checking pet availability.",
     });
   }
 };

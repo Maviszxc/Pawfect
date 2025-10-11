@@ -7,16 +7,19 @@ const adoptionSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "Pet",
       required: true,
+      index: true, // Added index for better performance
     },
     user: {
       type: Schema.Types.ObjectId,
       ref: "User",
       required: false, // allow guest adoption requests
+      index: true, // Added index for better performance
     },
     status: {
       type: String,
       enum: ["Pending", "Approved", "Rejected", "Completed"],
       default: "Pending",
+      index: true, // Added index for better performance
     },
     fullname: {
       type: String,
@@ -25,6 +28,7 @@ const adoptionSchema = new Schema(
     email: {
       type: String,
       required: true,
+      index: true, // Added index for better performance
     },
     phone: {
       type: String,
@@ -49,11 +53,17 @@ const adoptionSchema = new Schema(
     isArchived: {
       type: Boolean,
       default: false,
+      index: true, // Added index for better performance
     },
   },
   {
     timestamps: true,
   }
 );
+
+// Compound index for better query performance
+adoptionSchema.index({ user: 1, email: 1 });
+adoptionSchema.index({ pet: 1, status: 1 });
+adoptionSchema.index({ email: 1, status: 1 });
 
 module.exports = mongoose.model("Adoption", adoptionSchema);

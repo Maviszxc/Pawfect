@@ -9,6 +9,7 @@ const userRoutes = require("./Routes/userRoutes");
 const petRoutes = require("./Routes/petRoutes");
 const adoptionRoutes = require("./Routes/adoptionRoutes");
 const adminRoutes = require("./Routes/adminRoutes");
+const contactRoutes = require("./Routes/contactRoutes");
 
 dotenv.config();
 

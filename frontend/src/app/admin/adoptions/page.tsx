@@ -21,6 +21,11 @@ import {
   Archive,
   RotateCcw,
   Mail,
+  CheckCircle,
+  Clock,
+  XCircle,
+  Filter,
+  ChevronDown,
 } from "lucide-react";
 import {
   Table,
@@ -43,6 +48,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "react-toastify";
 
 interface Adoption {
@@ -86,6 +98,7 @@ export default function AdminAdoptionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState("active");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   // Modal state for View
   const [viewAdoption, setViewAdoption] = useState<Adoption | null>(null);
@@ -96,14 +109,13 @@ export default function AdminAdoptionsPage() {
   } | null>(null);
   const [viewPet, setViewPet] = useState<any>(null);
 
-  // Modal state for Approve/Reject
-  const [approveModalOpen, setApproveModalOpen] = useState(false);
-  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  // Modal state for Status Update
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [selectedAdoption, setSelectedAdoption] = useState<Adoption | null>(
     null
   );
+  const [newStatus, setNewStatus] = useState("");
   const [adminMessage, setAdminMessage] = useState("");
-  const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
     fetchAdoptions();
@@ -111,7 +123,7 @@ export default function AdminAdoptionsPage() {
 
   // Prevent background scrolling when modals are open
   useEffect(() => {
-    if (viewAdoption || approveModalOpen || rejectModalOpen) {
+    if (viewAdoption || statusModalOpen) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
@@ -120,7 +132,7 @@ export default function AdminAdoptionsPage() {
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [viewAdoption, approveModalOpen, rejectModalOpen]);
+  }, [viewAdoption, statusModalOpen]);
 
   const fetchAdoptions = async () => {
     setIsLoading(true);
@@ -147,65 +159,79 @@ export default function AdminAdoptionsPage() {
     }
   };
 
-  const handleUpdateStatus = async (
-    adoptionId: string,
-    status: string,
-    message?: string
-  ) => {
+  // Enhanced status update function
+  const handleUpdateStatus = async () => {
+    if (!selectedAdoption || !newStatus) return;
+
     setIsProcessing(true);
     try {
       const token = localStorage.getItem("accessToken");
 
-      // ✅ FIX: Add timeout configuration
       const response = await axiosInstance.patch(
-        `${BASE_URL}/api/admin/adoptions/${adoptionId}/status`,
+        `${BASE_URL}/api/admin/adoptions/${selectedAdoption._id}/status`,
         {
-          status,
-          adminMessage: message || "",
+          status: newStatus,
+          adminMessage: adminMessage || "",
         },
         {
           headers: { Authorization: `Bearer ${token}` },
-          timeout: 30000, // 30 second timeout
+          timeout: 30000,
         }
       );
 
       if (response.data.success) {
         setAdoptions(
           adoptions.map((adoption) =>
-            adoption._id === adoptionId
-              ? { ...adoption, status, adminMessage: message || "" }
+            adoption._id === selectedAdoption._id
+              ? {
+                  ...adoption,
+                  status: newStatus,
+                  adminMessage: adminMessage || "",
+                }
               : adoption
           )
         );
 
-        toast.success(`Adoption request ${status.toLowerCase()} successfully`);
+        toast.success(
+          `Adoption request ${newStatus.toLowerCase()} successfully`
+        );
 
-        // Close modals
-        setApproveModalOpen(false);
-        setRejectModalOpen(false);
-        setAdminMessage("");
-        setRejectReason("");
+        // Close modal and reset state
+        setStatusModalOpen(false);
         setSelectedAdoption(null);
+        setNewStatus("");
+        setAdminMessage("");
       }
     } catch (error) {
-      console.error(`Error ${status.toLowerCase()} adoption:`, error);
-
-      // ✅ FIX: Better error handling
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "code" in error &&
-        (error as { code?: string }).code === "ECONNABORTED"
-      ) {
-        toast.error("Request timeout - please try again");
-      } else {
-        toast.error(`Failed to ${status.toLowerCase()} adoption request`);
-      }
+      console.error(`Error updating adoption status:`, error);
+      toast.error(`Failed to update adoption request`);
     } finally {
       setIsProcessing(false);
     }
   };
 
+  // Open status update modal
+  const openStatusModal = (adoption: Adoption, status: string = "") => {
+    setSelectedAdoption(adoption);
+    setNewStatus(status || adoption.status);
+
+    // Set default message based on status
+    if (status === "Approved") {
+      setAdminMessage(
+        "Congratulations! Your adoption request has been approved. We will contact you shortly to arrange the next steps."
+      );
+    } else if (status === "Rejected") {
+      setAdminMessage(
+        "After careful consideration, we regret to inform you that your adoption request has not been approved at this time."
+      );
+    } else {
+      setAdminMessage(adoption.adminMessage || "");
+    }
+
+    setStatusModalOpen(true);
+  };
+
+  // Archive adoption (soft delete)
   const handleArchiveAdoption = async (adoptionId: string) => {
     setIsProcessing(true);
     try {
@@ -236,6 +262,7 @@ export default function AdminAdoptionsPage() {
     }
   };
 
+  // Restore adoption from archive
   const handleRestoreAdoption = async (adoptionId: string) => {
     setIsProcessing(true);
     try {
@@ -266,6 +293,7 @@ export default function AdminAdoptionsPage() {
     }
   };
 
+  // Hard delete adoption (permanent)
   const handleDeleteAdoption = async (adoptionId: string) => {
     setIsProcessing(true);
     try {
@@ -279,7 +307,7 @@ export default function AdminAdoptionsPage() {
 
       if (response.data.success) {
         setAdoptions(adoptions.filter((a) => a._id !== adoptionId));
-        toast.success("Adoption request deleted successfully");
+        toast.success("Adoption request deleted permanently");
       }
     } catch (error) {
       console.error("Error deleting adoption:", error);
@@ -289,7 +317,7 @@ export default function AdminAdoptionsPage() {
     }
   };
 
-  // Fetch pet details for modal (reference: adoption admin page)
+  // Fetch pet details for modal
   const fetchPetDetails = async (petId: string) => {
     try {
       const token = localStorage.getItem("accessToken");
@@ -342,10 +370,16 @@ export default function AdminAdoptionsPage() {
     return adoption.petImage || "/placeholder-pet.jpg";
   };
 
-  // Filter adoptions based on active tab and search query
+  // Filter adoptions based on active tab, search query, and status filter
   const filteredAdoptions = adoptions.filter((adoption) => {
     const matchesTab =
       activeTab === "active" ? !adoption.isArchived : adoption.isArchived;
+
+    const matchesStatus =
+      statusFilter === "all"
+        ? true
+        : adoption.status.toLowerCase() === statusFilter.toLowerCase();
+
     const matchesSearch = searchQuery
       ? (
           adoption.user?.fullname ||
@@ -364,7 +398,7 @@ export default function AdminAdoptionsPage() {
         adoption.status.toLowerCase().includes(searchQuery.toLowerCase())
       : true;
 
-    return matchesTab && matchesSearch;
+    return matchesTab && matchesStatus && matchesSearch;
   });
 
   const getStatusColor = (status: string) => {
@@ -379,6 +413,21 @@ export default function AdminAdoptionsPage() {
         return "bg-blue-100 text-blue-800 border-blue-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "approved":
+        return <CheckCircle className="h-4 w-4" />;
+      case "pending":
+        return <Clock className="h-4 w-4" />;
+      case "rejected":
+        return <XCircle className="h-4 w-4" />;
+      case "completed":
+        return <CheckCircle className="h-4 w-4" />;
+      default:
+        return null;
     }
   };
 
@@ -440,16 +489,47 @@ export default function AdminAdoptionsPage() {
                         </TabsTrigger>
                       </TabsList>
 
-                      <div className="relative w-full sm:w-64">
-                        <Input
-                          type="text"
-                          placeholder="Search adoptions..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-10 text-sm"
-                        />
-                        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                          <Search className="w-5 h-5 text-gray-500" />
+                      <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                        <div className="flex gap-3">
+                          <div className="relative w-full sm:w-48">
+                            <Select
+                              value={statusFilter}
+                              onValueChange={setStatusFilter}
+                            >
+                              <SelectTrigger className="pl-10 text-sm">
+                                <SelectValue placeholder="Filter by status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="approved">
+                                  Approved
+                                </SelectItem>
+                                <SelectItem value="rejected">
+                                  Rejected
+                                </SelectItem>
+                                <SelectItem value="completed">
+                                  Completed
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                              <Filter className="w-4 h-4 text-gray-500" />
+                            </div>
+                          </div>
+
+                          <div className="relative w-full sm:w-64">
+                            <Input
+                              type="text"
+                              placeholder="Search adoptions..."
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              className="pl-10 text-sm"
+                            />
+                            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                              <Search className="w-4 h-4 text-gray-500" />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -474,7 +554,7 @@ export default function AdminAdoptionsPage() {
                           <TableHead>Email</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Date</TableHead>
-                          <TableHead>Actions</TableHead>
+                          <TableHead className="text-center">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -595,10 +675,11 @@ export default function AdminAdoptionsPage() {
                                 {/* Status column */}
                                 <TableCell>
                                   <Badge
-                                    className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(
+                                    className={`px-3 py-1 rounded-full text-xs font-semibold border flex items-center gap-1 ${getStatusColor(
                                       adoption.status
                                     )}`}
                                   >
+                                    {getStatusIcon(adoption.status)}
                                     {adoption.status
                                       ? adoption.status
                                           .charAt(0)
@@ -615,7 +696,25 @@ export default function AdminAdoptionsPage() {
                                 </TableCell>
                                 {/* Actions column */}
                                 <TableCell>
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 justify-center">
+                                    {/* Status Update Button */}
+                                    {!adoption.isArchived && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                        disabled={isProcessing}
+                                        title="Update status"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          openStatusModal(adoption);
+                                        }}
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                      </Button>
+                                    )}
+
+                                    {/* Archive/Restore Actions */}
                                     {!adoption.isArchived ? (
                                       <AlertDialog>
                                         <AlertDialogTrigger asChild>
@@ -659,19 +758,66 @@ export default function AdminAdoptionsPage() {
                                         </AlertDialogContent>
                                       </AlertDialog>
                                     ) : (
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleRestoreAdoption(adoption._id);
-                                        }}
-                                        disabled={isProcessing}
-                                        title="Restore adoption"
-                                        className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                      >
-                                        <RotateCcw className="h-4 w-4" />
-                                      </Button>
+                                      <>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleRestoreAdoption(adoption._id);
+                                          }}
+                                          disabled={isProcessing}
+                                          title="Restore adoption"
+                                          className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                        >
+                                          <RotateCcw className="h-4 w-4" />
+                                        </Button>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                              disabled={isProcessing}
+                                              title="Delete permanently"
+                                              onClick={(e) =>
+                                                e.stopPropagation()
+                                              }
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>
+                                                Delete this adoption request
+                                                permanently?
+                                              </AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                This action cannot be undone.
+                                                This will permanently delete the
+                                                adoption request from the
+                                                system.
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>
+                                                Cancel
+                                              </AlertDialogCancel>
+                                              <AlertDialogAction
+                                                className="bg-red-500 hover:bg-red-600"
+                                                onClick={() =>
+                                                  handleDeleteAdoption(
+                                                    adoption._id
+                                                  )
+                                                }
+                                              >
+                                                Delete Permanently
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      </>
                                     )}
                                   </div>
                                 </TableCell>
@@ -689,17 +835,17 @@ export default function AdminAdoptionsPage() {
 
           {/* Adoption View Modal */}
           {viewAdoption && (
-            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-              <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-auto p-0 overflow-hidden">
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+              <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-auto max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between px-8 pt-8 pb-2 border-b">
-                  <h3 className="font-bold text-2xl text-[#0a1629]">
+                <div className="flex items-center justify-between px-6 py-4 border-b bg-white sticky top-0 z-10">
+                  <h3 className="font-bold text-xl text-[#0a1629]">
                     Adoption Application Details
                   </h3>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="rounded-full h-10 w-10 text-red-600 hover:bg-red-100 hover:text-red-700"
+                    className="rounded-full h-8 w-8 hover:bg-gray-100"
                     onClick={() => {
                       setViewAdoption(null);
                       setViewUser(null);
@@ -707,299 +853,303 @@ export default function AdminAdoptionsPage() {
                     }}
                     title="Close"
                   >
-                    <X className="h-5 w-5" />
+                    <X className="h-4 w-4" />
                   </Button>
                 </div>
-                {/* Content */}
-                <div className="flex flex-col md:flex-row gap-8 px-8 py-8">
-                  {/* Adopter Info */}
-                  <div className="flex-1 flex flex-col items-center gap-4 bg-gray-50 rounded-xl p-6 shadow-sm">
-                    <Avatar className="h-24 w-24 border-4 border-orange-200 shadow">
-                      <AvatarImage
-                        src={getProfilePictureUrl(
-                          viewUser?.profilePicture ||
-                            viewAdoption.user?.profilePicture ||
-                            viewAdoption.profilePicture
-                        )}
-                        alt={
-                          viewUser?.fullname ||
-                          viewAdoption.user?.fullname ||
-                          viewAdoption.fullname ||
-                          viewAdoption.adopterName ||
-                          "Unknown User"
-                        }
-                      />
-                      <AvatarFallback>
-                        {
-                          (viewUser?.fullname ||
-                            viewAdoption.user?.fullname ||
-                            viewAdoption.fullname ||
-                            viewAdoption.adopterName ||
-                            "U")[0]
-                        }
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="text-center">
-                      <div className="text-xs text-gray-500 mb-1">Adopter</div>
-                      <div className="font-semibold text-lg">
-                        {viewUser?.fullname ||
-                          viewAdoption.user?.fullname ||
-                          viewAdoption.fullname ||
-                          viewAdoption.adopterName ||
-                          "Unknown User"}
+
+                {/* Content - Scrollable */}
+                <div className="flex-1 overflow-y-auto">
+                  <div className="p-6 space-y-6">
+                    {/* Adopter and Pet Info */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Adopter Info */}
+                      <div className="bg-gray-50 rounded-xl p-6 space-y-4">
+                        <div className="text-center">
+                          <Avatar className="h-20 w-20 mx-auto border-4 border-orange-200 shadow">
+                            <AvatarImage
+                              src={getProfilePictureUrl(
+                                viewUser?.profilePicture ||
+                                  viewAdoption.user?.profilePicture ||
+                                  viewAdoption.profilePicture
+                              )}
+                              alt={
+                                viewUser?.fullname ||
+                                viewAdoption.user?.fullname ||
+                                viewAdoption.fullname ||
+                                viewAdoption.adopterName ||
+                                "Unknown User"
+                              }
+                            />
+                            <AvatarFallback>
+                              {
+                                (viewUser?.fullname ||
+                                  viewAdoption.user?.fullname ||
+                                  viewAdoption.fullname ||
+                                  viewAdoption.adopterName ||
+                                  "U")[0]
+                              }
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="mt-4">
+                            <div className="text-sm text-gray-500 mb-1">
+                              Adopter
+                            </div>
+                            <div className="font-semibold text-lg">
+                              {viewUser?.fullname ||
+                                viewAdoption.user?.fullname ||
+                                viewAdoption.fullname ||
+                                viewAdoption.adopterName ||
+                                "Unknown User"}
+                            </div>
+                            <div className="text-sm text-gray-600 mt-1">
+                              {viewUser?.email ||
+                                viewAdoption.user?.email ||
+                                viewAdoption.email ||
+                                viewAdoption.adopterEmail}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 text-sm">
+                          {viewAdoption.phone && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">Phone:</span>
+                              <span className="text-gray-800">
+                                {viewAdoption.phone}
+                              </span>
+                            </div>
+                          )}
+                          {viewAdoption.address && (
+                            <div>
+                              <div className="text-gray-500 mb-1">Address:</div>
+                              <div className="text-gray-800 bg-white rounded p-2 text-xs">
+                                {viewAdoption.address}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {viewUser?.email ||
-                          viewAdoption.user?.email ||
-                          viewAdoption.email ||
-                          viewAdoption.adopterEmail}
+
+                      {/* Pet Info */}
+                      <div className="bg-gray-50 rounded-xl p-6 space-y-4">
+                        <div className="text-center">
+                          <Avatar className="h-20 w-20 mx-auto border-4 border-blue-200 shadow">
+                            <AvatarImage
+                              src={
+                                viewPet?.images &&
+                                viewPet.images.length > 0 &&
+                                typeof viewPet.images[0] === "object"
+                                  ? viewPet.images[0].url
+                                  : typeof viewPet?.images?.[0] === "string"
+                                  ? viewPet.images[0]
+                                  : viewAdoption.pet?.images &&
+                                    viewAdoption.pet.images.length > 0 &&
+                                    typeof viewAdoption.pet.images[0] ===
+                                      "object"
+                                  ? viewAdoption.pet.images[0].url
+                                  : typeof viewAdoption.pet?.images?.[0] ===
+                                    "string"
+                                  ? viewAdoption.pet.images[0]
+                                  : viewAdoption.petImage ||
+                                    "/placeholder-pet.jpg"
+                              }
+                              alt={
+                                viewPet?.name ||
+                                viewAdoption.pet?.name ||
+                                viewAdoption.petName ||
+                                "Pet"
+                              }
+                            />
+                            <AvatarFallback>
+                              {
+                                (viewPet?.name ||
+                                  viewAdoption.pet?.name ||
+                                  viewAdoption.petName ||
+                                  "P")[0]
+                              }
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="mt-4">
+                            <div className="text-sm text-gray-500 mb-1">
+                              Pet
+                            </div>
+                            <div className="font-semibold text-lg">
+                              {viewPet?.name ||
+                                viewAdoption.pet?.name ||
+                                viewAdoption.petName ||
+                                "Unknown Pet"}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {viewPet?.breed ||
+                                viewAdoption.pet?.breed ||
+                                "Breed: Unknown"}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 justify-center">
+                          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                            {viewPet?.type ||
+                              viewAdoption.pet?.type ||
+                              "Type: Unknown"}
+                          </span>
+                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
+                            Gender:{" "}
+                            {viewPet?.gender ||
+                              viewAdoption.pet?.gender ||
+                              "Unknown"}
+                          </span>
+                          <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs">
+                            Age:{" "}
+                            {viewPet?.age || viewAdoption.pet?.age || "Unknown"}
+                          </span>
+                        </div>
                       </div>
-                      {viewAdoption.phone && (
-                        <div className="text-xs text-gray-400 mt-1">
-                          Phone: {viewAdoption.phone}
+                    </div>
+
+                    {/* Message Sections */}
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="font-semibold text-base mb-2 text-[#0a1629]">
+                          Message from Adopter
+                        </h4>
+                        <div className="bg-gray-100 rounded-lg p-4 text-gray-700 min-h-[60px]">
+                          {viewAdoption.message || "No message provided"}
+                        </div>
+                      </div>
+
+                      {viewAdoption.adminMessage && (
+                        <div>
+                          <h4 className="font-semibold text-base mb-2 text-[#0a1629]">
+                            Admin Message
+                          </h4>
+                          <div className="bg-blue-50 rounded-lg p-4 text-gray-700 min-h-[60px]">
+                            {viewAdoption.adminMessage}
+                          </div>
                         </div>
                       )}
-                      {viewAdoption.address && (
-                        <div className="text-xs text-gray-400">
-                          Address: {viewAdoption.address}
-                        </div>
-                      )}
                     </div>
-                  </div>
-                  {/* Pet Info */}
-                  <div className="flex-1 flex flex-col items-center gap-4 bg-gray-50 rounded-xl p-6 shadow-sm">
-                    <Avatar className="h-24 w-24 border-4 border-blue-200 shadow">
-                      <AvatarImage
-                        src={
-                          viewPet?.images &&
-                          viewPet.images.length > 0 &&
-                          typeof viewPet.images[0] === "object"
-                            ? viewPet.images[0].url
-                            : typeof viewPet?.images?.[0] === "string"
-                            ? viewPet.images[0]
-                            : viewAdoption.pet?.images &&
-                              viewAdoption.pet.images.length > 0 &&
-                              typeof viewAdoption.pet.images[0] === "object"
-                            ? viewAdoption.pet.images[0].url
-                            : typeof viewAdoption.pet?.images?.[0] === "string"
-                            ? viewAdoption.pet.images[0]
-                            : viewAdoption.petImage || "/placeholder-pet.jpg"
-                        }
-                        alt={
-                          viewPet?.name ||
-                          viewAdoption.pet?.name ||
-                          viewAdoption.petName ||
-                          "Pet"
-                        }
-                      />
-                      <AvatarFallback>
-                        {
-                          (viewPet?.name ||
-                            viewAdoption.pet?.name ||
-                            viewAdoption.petName ||
-                            "P")[0]
-                        }
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="text-center">
-                      <div className="text-xs text-gray-500 mb-1">Pet</div>
-                      <div className="font-semibold text-lg">
-                        {viewPet?.name ||
-                          viewAdoption.pet?.name ||
-                          viewAdoption.petName ||
-                          "Unknown Pet"}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {viewPet?.breed ||
-                          viewAdoption.pet?.breed ||
-                          "Breed: Unknown"}
-                      </div>
-                      <div className="flex flex-wrap gap-2 justify-center mt-2">
-                        <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">
-                          {viewPet?.type ||
-                            viewAdoption.pet?.type ||
-                            "Type: Unknown"}
-                        </span>
-                        <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs">
-                          Gender:{" "}
-                          {viewPet?.gender ||
-                            viewAdoption.pet?.gender ||
-                            "Unknown"}
-                        </span>
-                        <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-xs">
-                          Age:{" "}
-                          {viewPet?.age || viewAdoption.pet?.age || "Unknown"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {/* Message Sections */}
-                <div className="px-8 pb-8">
-                  <div className="mb-6">
-                    <h4 className="font-semibold text-base mb-2 text-[#0a1629]">
-                      Message from Adopter
-                    </h4>
-                    <div className="bg-gray-100 rounded p-3 text-gray-700 min-h-[48px]">
-                      {viewAdoption.message || "-"}
-                    </div>
-                  </div>
-                  {viewAdoption.adminMessage && (
-                    <div className="mb-6">
-                      <h4 className="font-semibold text-base mb-2 text-[#0a1629]">
-                        Admin Message
-                      </h4>
-                      <div className="bg-blue-50 rounded p-3 text-gray-700 min-h-[48px]">
-                        {viewAdoption.adminMessage}
-                      </div>
-                    </div>
-                  )}
-                  {/* Approve/Reject buttons if pending and not archived */}
-                  {viewAdoption.status?.toLowerCase() === "pending" &&
-                    !viewAdoption.isArchived && (
-                      <div className="flex gap-3 justify-center mt-6">
+
+                    {/* Status update button */}
+                    {!viewAdoption.isArchived && (
+                      <div className="flex justify-center pt-4">
                         <Button
-                          className="bg-green-500 hover:bg-green-600 text-white min-w-[120px]"
-                          onClick={() => {
-                            setSelectedAdoption(viewAdoption);
-                            setApproveModalOpen(true);
-                            setViewAdoption(null);
-                          }}
+                          onClick={() => openStatusModal(viewAdoption)}
+                          className="bg-orange-500 hover:bg-orange-600 text-white"
                         >
-                          Approve
-                        </Button>
-                        <Button
-                          className="bg-red-500 hover:bg-red-600 text-white min-w-[120px]"
-                          onClick={() => {
-                            setSelectedAdoption(viewAdoption);
-                            setRejectModalOpen(true);
-                            setViewAdoption(null);
-                          }}
-                        >
-                          Decline
+                          Update Status
                         </Button>
                       </div>
                     )}
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Approve Modal */}
-          {approveModalOpen && selectedAdoption && (
-            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-              <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
-                <h3 className="font-bold text-lg mb-4 text-[#0a1629]">
-                  Approve Adoption Request
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Approve adoption request for{" "}
-                  <strong>
-                    {selectedAdoption.pet?.name || selectedAdoption.petName}
-                  </strong>{" "}
-                  by{" "}
-                  <strong>
-                    {selectedAdoption.user?.fullname ||
-                      selectedAdoption.fullname ||
-                      selectedAdoption.adopterName}
-                  </strong>
-                </p>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Admin Message (Optional)
-                  </label>
-                  <Textarea
-                    placeholder="Enter a message to the adopter..."
-                    value={adminMessage}
-                    onChange={(e) => setAdminMessage(e.target.value)}
-                    rows={4}
-                  />
-                </div>
-                <div className="flex gap-2 justify-end">
+          {/* Status Update Modal */}
+          {statusModalOpen && selectedAdoption && (
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-lg w-full max-w-md">
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b">
+                  <h3 className="font-bold text-lg text-[#0a1629]">
+                    Update Adoption Status
+                  </h3>
                   <Button
-                    type="button"
-                    variant="outline"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 hover:bg-gray-100"
                     onClick={() => {
-                      setApproveModalOpen(false);
+                      setStatusModalOpen(false);
                       setSelectedAdoption(null);
+                      setNewStatus("");
                       setAdminMessage("");
                     }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    className="bg-green-500 hover:bg-green-600 text-white"
-                    onClick={() =>
-                      handleUpdateStatus(
-                        selectedAdoption._id,
-                        "Approved",
-                        adminMessage
-                      )
-                    }
                     disabled={isProcessing}
                   >
-                    {isProcessing ? "Approving..." : "Approve"}
+                    <X className="h-4 w-4" />
                   </Button>
                 </div>
-              </div>
-            </div>
-          )}
 
-          {/* Reject Modal */}
-          {rejectModalOpen && selectedAdoption && (
-            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-              <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
-                <h3 className="font-bold text-lg mb-4 text-[#0a1629]">
-                  Reject Adoption Request
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Reject adoption request for{" "}
-                  <strong>
-                    {selectedAdoption.pet?.name || selectedAdoption.petName}
-                  </strong>{" "}
-                  by{" "}
-                  <strong>
-                    {selectedAdoption.user?.fullname ||
-                      selectedAdoption.fullname ||
-                      selectedAdoption.adopterName}
-                  </strong>
-                </p>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Reason for Rejection (Required)
-                  </label>
-                  <Textarea
-                    placeholder="Enter the reason for rejection..."
-                    value={rejectReason}
-                    onChange={(e) => setRejectReason(e.target.value)}
-                    rows={4}
-                    required
-                  />
+                {/* Content */}
+                <div className="p-6 space-y-4">
+                  <div className="text-sm text-gray-600">
+                    Updating status for{" "}
+                    <strong>
+                      {selectedAdoption.pet?.name || selectedAdoption.petName}
+                    </strong>{" "}
+                    by{" "}
+                    <strong>
+                      {selectedAdoption.user?.fullname ||
+                        selectedAdoption.fullname ||
+                        selectedAdoption.adopterName}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Status
+                    </label>
+                    <Select value={newStatus} onValueChange={setNewStatus}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="approved">Approved</SelectItem>
+                        <SelectItem value="rejected">Rejected</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Admin Message {newStatus === "rejected" && "(Required)"}
+                    </label>
+                    <Textarea
+                      placeholder={
+                        newStatus === "approved"
+                          ? "Congratulations! Your adoption request has been approved..."
+                          : newStatus === "rejected"
+                          ? "After careful consideration, we regret to inform you..."
+                          : "Add any additional message for the adopter..."
+                      }
+                      value={adminMessage}
+                      onChange={(e) => setAdminMessage(e.target.value)}
+                      className="w-full min-h-[100px] resize-vertical"
+                      required={newStatus === "rejected"}
+                    />
+                  </div>
                 </div>
-                <div className="flex gap-2 justify-end">
+
+                {/* Footer */}
+                <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-xl">
                   <Button
-                    type="button"
                     variant="outline"
                     onClick={() => {
-                      setRejectModalOpen(false);
+                      setStatusModalOpen(false);
                       setSelectedAdoption(null);
-                      setRejectReason("");
+                      setNewStatus("");
+                      setAdminMessage("");
                     }}
+                    disabled={isProcessing}
                   >
                     Cancel
                   </Button>
                   <Button
-                    className="bg-red-500 hover:bg-red-600 text-white"
-                    onClick={() =>
-                      handleUpdateStatus(
-                        selectedAdoption._id,
-                        "Rejected",
-                        rejectReason
-                      )
+                    onClick={handleUpdateStatus}
+                    disabled={
+                      isProcessing ||
+                      (newStatus === "rejected" && !adminMessage.trim())
                     }
-                    disabled={isProcessing || !rejectReason.trim()}
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
                   >
-                    {isProcessing ? "Rejecting..." : "Reject"}
+                    {isProcessing ? (
+                      <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                    ) : null}
+                    Update Status
                   </Button>
                 </div>
               </div>

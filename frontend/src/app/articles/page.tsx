@@ -45,14 +45,6 @@ export default function Articles() {
             Discover helpful guides, stories, and resources about animal care,
             rescue stories, and how you can make a difference.
           </p>
-          <a
-            href="https://www.biyaya.ph/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-6 py-3 text-lg font-semibold text-white bg-gradient-to-r from-orange-500 to-blue-600 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all"
-          >
-            Visit Biyaya Website
-          </a>
         </motion.div>
       </section>
 
