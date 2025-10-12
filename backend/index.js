@@ -23,6 +23,7 @@ app.use(express.json());
 // ✅ WORKING CORS CONFIGURATION
 const allowedOrigins = [
   "https://biyayaanimalcare.vercel.app",
+  "https://pawfect-6zf9.onrender.com",
   "http://localhost:3000",
   "http://localhost:3001",
   "http://localhost:5003",
