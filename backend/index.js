@@ -555,15 +555,12 @@ setInterval(() => {
 }, 300000);
 
 const PORT = process.env.PORT || 5003;
+
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`✅ Health check available at http://localhost:${PORT}/health`);
   console.log(`📌 WebSocket server ready for connections`);
-  console.log(
-    `🔑 Resend API Key: ${
-      process.env.RESEND_API_KEY ? "Configured ✓" : "Missing ✗"
-    }`
-  );
+ 
 });
 
 // Graceful shutdown
