@@ -23,6 +23,7 @@ import { useVideoStream } from "@/context/VideoStreamContext";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NetworkStatus } from "@/components/NetworkStatus";
 import { BASE_URL } from "@/utils/constants";
+import { toast } from "react-toastify";
 
 interface Schedule {
   _id: string;
@@ -151,15 +152,15 @@ export default function AdminLivePage() {
           duration: 60,
         });
         fetchUpcomingSchedules();
-        alert(
+        toast.success(
           "✅ Schedule created successfully! Notifications sent to all users."
         );
       } else {
-        alert("❌ Failed to create schedule: " + data.message);
+        toast.error("❌ Failed to create schedule: " + data.message);
       }
     } catch (error) {
       console.error("Error creating schedule:", error);
-      alert("❌ Error creating schedule");
+      toast.error("❌ Error creating schedule");
     } finally {
       setIsCreatingSchedule(false);
     }
@@ -183,11 +184,11 @@ export default function AdminLivePage() {
         if (selectedSchedule === scheduleId) {
           setSelectedSchedule("");
         }
-        alert("✅ Schedule deleted successfully!");
+        toast.success("✅ Schedule deleted successfully!");
       }
     } catch (error) {
       console.error("Error deleting schedule:", error);
-      alert("❌ Error deleting schedule");
+      toast.error("❌ Error deleting schedule");
     }
   };
 
