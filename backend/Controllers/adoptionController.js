@@ -276,3 +276,101 @@ exports.checkPetAvailability = async (req, res) => {
     });
   }
 };
+
+exports.updateAdoptionStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, adminMessage } = req.body;
+
+    console.log(`🔄 Updating adoption ${id} to status:`, status);
+
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: "Status is required.",
+      });
+    }
+
+    // Find and update adoption
+    const adoption = await Adoption.findByIdAndUpdate(
+      id,
+      {
+        status,
+        adminMessage: adminMessage || "",
+      },
+      { new: true }
+    )
+      .populate("user", "email fullname profilePicture")
+      .populate("pet", "name breed type age gender images");
+
+    if (!adoption) {
+      return res.status(404).json({
+        success: false,
+        message: "Adoption request not found.",
+      });
+    }
+
+    console.log("📧 Adoption details:", {
+      user: adoption.user,
+      userEmail: adoption.user?.email,
+      userFullname: adoption.user?.fullname,
+      pet: adoption.pet,
+      petName: adoption.pet?.name,
+      directEmail: adoption.email,
+      directFullname: adoption.fullname,
+    });
+
+    // ✅ FIXED: Handle both registered users and guest adoptions
+    const userEmail = adoption.user?.email || adoption.email;
+    const userFullname = adoption.user?.fullname || adoption.fullname;
+    const petName = adoption.pet?.name;
+
+    console.log("🔍 Final email details:", {
+      userEmail,
+      userFullname,
+      petName,
+      status,
+      userType: adoption.user ? "registered" : "guest",
+    });
+
+    // Send email notification
+    if (userEmail && userFullname) {
+      try {
+        await sendAdoptionStatusEmail({
+          userEmail,
+          userFullname,
+          petName,
+          status,
+          adminMessage: adminMessage || "",
+        });
+        console.log(
+          `✅ Email sent for ${
+            adoption.user ? "registered" : "guest"
+          } adoption ${id}`
+        );
+      } catch (emailError) {
+        console.error("❌ Email sending failed:", emailError);
+        // Don't fail the request if email fails
+      }
+    } else {
+      console.warn("⚠️ Cannot send email: Missing user email or fullname", {
+        userEmail,
+        userFullname,
+        adoptionId: id,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Adoption status updated to ${status}.`,
+      adoption,
+    });
+  } catch (error) {
+    console.error("❌ Error updating adoption status:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error updating adoption status.",
+      error: error.message,
+    });
+  }
+};

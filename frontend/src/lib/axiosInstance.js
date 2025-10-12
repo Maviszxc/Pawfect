@@ -19,8 +19,13 @@ axiosInstance.interceptors.request.use(
     }
 
     // 🐛 DEBUG: Log the full request URL to catch issues
-    console.log("🔍 Request URL:", config.baseURL + config.url);
-    console.log("🔍 Request params:", config.params);
+    const fullUrl =
+      (config.baseURL ? config.baseURL.replace(/\/$/, "") : "") +
+      (config.url ? config.url : "");
+    console.log("🔍 Request URL:", fullUrl);
+    if (config.params) {
+      console.log("🔍 Request params:", config.params);
+    }
 
     return config;
   },
@@ -29,36 +34,70 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-// Add response interceptor to handle token expiration
+// Add response interceptor to handle token expiration and HTML error responses
 axiosInstance.interceptors.response.use(
   (response) => {
+    // Detect HTML response (e.g. server error, 404 page)
+    if (
+      typeof response.data === "string" &&
+      response.data.trim().startsWith("<!DOCTYPE")
+    ) {
+      const error = new Error(
+        "API returned HTML instead of JSON. Check endpoint and backend."
+      );
+      error.name = "HTMLResponseError";
+      error.response = response;
+      throw error;
+    }
     return response;
   },
   async (error) => {
     const originalRequest = error.config;
 
-    // 🐛 DEBUG: Log error details
+    // Improved error logging: show status, url, and message if available
+    const status = error.response?.status;
+    const url =
+      (error.config?.baseURL ? error.config.baseURL.replace(/\/$/, "") : "") +
+      (error.config?.url ? error.config.url : "");
+    const message =
+      error.response?.data?.message ||
+      error.message ||
+      (error.response?.status === 404
+        ? "Endpoint not found (404)"
+        : "Unknown error");
+
     console.error("❌ API Error:", {
-      url: error.config?.url,
+      url,
       method: error.config?.method,
-      status: error.response?.status,
-      message: error.response?.data?.message,
+      status,
+      message,
     });
 
     // If the error is 401 (Unauthorized) and not already retrying
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-
-      // Handle token expiration - clear token and redirect to login
       localStorage.removeItem("accessToken");
       localStorage.removeItem("user");
-
-      // If we're in a browser environment, redirect to login
       if (typeof window !== "undefined") {
         window.location.href = "/login";
       }
-
       return Promise.reject(error);
+    }
+
+    // If 404, show a more helpful message
+    if (status === 404) {
+      error.message = "API endpoint not found (404): " + url;
+    }
+
+    // Detect HTML error response
+    if (
+      error.response &&
+      typeof error.response.data === "string" &&
+      error.response.data.trim().startsWith("<!DOCTYPE")
+    ) {
+      error.message =
+        "API returned HTML instead of JSON. Check endpoint and backend.";
+      error.name = "HTMLResponseError";
     }
 
     return Promise.reject(error);

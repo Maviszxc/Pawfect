@@ -28,7 +28,9 @@ import {
   EyeOff,
   CheckCircle,
   XCircle,
-  EyeIcon, // Added for user preview
+  EyeIcon,
+  Save,
+  X,
 } from "lucide-react";
 
 interface UserProfile {
@@ -45,6 +47,14 @@ export default function AdminProfile() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [formData, setFormData] = useState({
+    fullname: "",
+    email: "",
+    password: "",
+    newEmail: "",
+    profilePicture: "",
+  });
+  const [editMode, setEditMode] = useState(false);
+  const [tempFormData, setTempFormData] = useState({
     fullname: "",
     email: "",
     password: "",
@@ -88,6 +98,13 @@ export default function AdminProfile() {
         newEmail: "",
         profilePicture: userData.profilePicture || "",
       });
+      setTempFormData({
+        fullname: userData.fullname,
+        email: userData.email,
+        password: "",
+        newEmail: "",
+        profilePicture: userData.profilePicture || "",
+      });
     } catch (error) {
       console.error("Error fetching user:", error);
       toast.error("Failed to load profile");
@@ -97,9 +114,45 @@ export default function AdminProfile() {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setTempFormData({ ...tempFormData, [e.target.name]: e.target.value });
   };
 
+  const handleEditMode = () => {
+    setTempFormData(formData);
+    setEditMode(true);
+  };
+
+  const handleCancelEdit = () => {
+    setTempFormData(formData);
+    setEditMode(false);
+  };
+
+  const handleSaveChanges = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const response = await axiosInstance.put("/api/users/update-user", {
+        fullname: tempFormData.fullname,
+      });
+      if (response.data.success) {
+        setFormData(tempFormData);
+        setEditMode(false);
+        setUser((prev) =>
+          prev ? { ...prev, fullname: tempFormData.fullname } : null
+        );
+        toast.success("Name updated successfully.");
+      }
+    } catch (error: any) {
+      toast.error(
+        error.response?.data?.message ||
+          "Something went wrong. Please try again."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Add this function to handle the name update in the account view
   const handleUpdateName = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -108,9 +161,10 @@ export default function AdminProfile() {
         fullname: formData.fullname,
       });
       if (response.data.success) {
+        setUser((prev) =>
+          prev ? { ...prev, fullname: formData.fullname } : null
+        );
         toast.success("Name updated successfully.");
-        setView("main");
-        fetchUserData(); // Refresh user data
       }
     } catch (error: any) {
       toast.error(
@@ -186,7 +240,7 @@ export default function AdminProfile() {
 
     try {
       const response = await axiosInstance.post("/api/users/verify-otp", {
-        email: formData.email,
+        email: tempFormData.newEmail || formData.email,
         otp: otp,
       });
 
@@ -199,10 +253,22 @@ export default function AdminProfile() {
         toast.error(response.data.message || "Invalid OTP. Please try again.");
       }
     } catch (error: any) {
-      toast.error(
-        error.response?.data?.message ||
-          "Invalid OTP or verification failed. Please try again."
-      );
+      // Improved error logging for debugging
+      if (error.response) {
+        console.error("❌ API Error:", {
+          url: error.config?.url,
+          method: error.config?.method,
+          status: error.response?.status,
+          message: error.response?.data?.message,
+        });
+        toast.error(
+          error.response.data?.message ||
+            "Invalid OTP or verification failed. Please try again."
+        );
+      } else {
+        console.error("❌ API Error:", error);
+        toast.error("Invalid OTP or verification failed. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -251,7 +317,7 @@ export default function AdminProfile() {
       return;
     }
 
-    if (!formData.newEmail) {
+    if (!tempFormData.newEmail) {
       toast.error("Please enter your new email address");
       return;
     }
@@ -259,7 +325,7 @@ export default function AdminProfile() {
     setIsLoading(true);
     try {
       const response = await axiosInstance.put("/api/users/update-user", {
-        email: formData.newEmail,
+        email: tempFormData.newEmail,
         otp: verifiedOtp,
       });
 
@@ -269,7 +335,19 @@ export default function AdminProfile() {
         setVerifiedOtp("");
         setIsOtpVerified(false);
         setView("main");
-        fetchUserData(); // Refresh user data
+        setFormData((prev) => ({
+          ...prev,
+          email: tempFormData.newEmail,
+          newEmail: "",
+        }));
+        setTempFormData((prev) => ({
+          ...prev,
+          email: tempFormData.newEmail,
+          newEmail: "",
+        }));
+        setUser((prev) =>
+          prev ? { ...prev, email: tempFormData.newEmail } : null
+        );
       }
     } catch (error: any) {
       toast.error(
@@ -293,7 +371,7 @@ export default function AdminProfile() {
     setIsLoading(true);
     try {
       const response = await axiosInstance.put("/api/users/update-user", {
-        password: formData.password,
+        password: tempFormData.password,
         otp: verifiedOtp,
       });
       if (response.data.success) {
@@ -302,6 +380,7 @@ export default function AdminProfile() {
         setVerifiedOtp("");
         setIsOtpVerified(false);
         setFormData((prev) => ({ ...prev, password: "" }));
+        setTempFormData((prev) => ({ ...prev, password: "" }));
         setView("main");
       }
     } catch (error: any) {
@@ -586,7 +665,7 @@ export default function AdminProfile() {
                       id="newEmail"
                       type="email"
                       name="newEmail"
-                      value={formData.newEmail}
+                      value={tempFormData.newEmail}
                       onChange={handleChange}
                       placeholder="Enter your new email"
                       className="rounded-xl py-6 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
@@ -615,7 +694,7 @@ export default function AdminProfile() {
                         id="password"
                         type={showPassword ? "text" : "password"}
                         name="password"
-                        value={formData.password}
+                        value={tempFormData.password}
                         onChange={handleChange}
                         placeholder="Enter your new password"
                         className="rounded-xl py-6 bg-gray-50 border-gray-200 focus:bg-white transition-colors pr-12"
@@ -698,7 +777,9 @@ export default function AdminProfile() {
                       onClick={triggerFileInput}
                       className="text-xs text-gray-400 hover:text-orange-500 transition-colors cursor-pointer"
                     >
-                      {uploadingImage ? "Uploading..." : "Change profile picture"}
+                      {uploadingImage
+                        ? "Uploading..."
+                        : "Change profile picture"}
                     </button>
 
                     {/* Admin Badge */}
@@ -754,80 +835,126 @@ export default function AdminProfile() {
                 {sidebarView === "profile" ? (
                   <>
                     <div>
-                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-base sm:text-lg font-semibold text-gray-900">
                           Personal Information
                         </h3>
+                      </div>
 
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
-                                <User className="text-orange-500" size={16} />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-xs text-gray-500 mb-0.5">
-                                  Full Name
-                                </p>
+                      <div className="space-y-3">
+                        {/* Full Name Field - Direct Editing */}
+                        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
+                              <User className="text-orange-500" size={16} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs text-gray-500 mb-0.5">
+                                Full Name
+                              </p>
+                              {editMode ? (
+                                <Input
+                                  type="text"
+                                  name="fullname"
+                                  value={tempFormData.fullname}
+                                  onChange={handleChange}
+                                  className="bg-white border-gray-300"
+                                  placeholder="Enter your full name"
+                                />
+                              ) : (
                                 <p className="text-sm sm:text-base text-gray-900 font-medium truncate">
                                   {user.fullname}
                                 </p>
-                              </div>
+                              )}
                             </div>
+                          </div>
+                          {!editMode && (
                             <button
-                              onClick={() => setView("account")}
-                              className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0"
+                              onClick={handleEditMode}
+                              className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0 ml-2"
                               aria-label="Edit name"
                             >
                               <Edit size={16} />
                             </button>
-                          </div>
+                          )}
+                        </div>
 
-                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
-                                <Mail className="text-orange-500" size={16} />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-xs text-gray-500 mb-0.5">
-                                  Email Address
-                                </p>
-                                <p className="text-sm sm:text-base text-gray-900 font-medium truncate">
-                                  {user.email}
-                                </p>
-                              </div>
+                        {/* Email Field - OTP Required */}
+                        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
+                              <Mail className="text-orange-500" size={16} />
                             </div>
-                            <button
-                              onClick={handleSendOtpForEmail}
-                              className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0"
-                              aria-label="Edit email"
-                            >
-                              <Edit size={16} />
-                            </button>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs text-gray-500 mb-0.5">
+                                Email Address
+                              </p>
+                              <p className="text-sm sm:text-base text-gray-900 font-medium truncate">
+                                {user.email}
+                              </p>
+                              {editMode && (
+                                <p className="text-xs text-orange-500 mt-1">
+                                  Email changes require OTP verification
+                                </p>
+                              )}
+                            </div>
                           </div>
+                          <button
+                            onClick={handleSendOtpForEmail}
+                            className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0 ml-2"
+                            aria-label="Edit email"
+                          >
+                            <Edit size={16} />
+                          </button>
+                        </div>
 
-                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
-                                <Lock className="text-orange-500" size={16} />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-xs text-gray-500 mb-0.5">
-                                  Password
-                                </p>
-                                <p className="text-sm sm:text-base text-gray-900 font-medium">
-                                  ••••••••
-                                </p>
-                              </div>
+                        {/* Password Field - OTP Required */}
+                        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
+                              <Lock className="text-orange-500" size={16} />
                             </div>
-                            <button
-                              onClick={handleSendOtpForPassword}
-                              className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0"
-                              aria-label="Edit password"
-                            >
-                              <Edit size={16} />
-                            </button>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs text-gray-500 mb-0.5">
+                                Password
+                              </p>
+                              <p className="text-sm sm:text-base text-gray-900 font-medium">
+                                ••••••••
+                              </p>
+                              {editMode && (
+                                <p className="text-xs text-orange-500 mt-1">
+                                  Password changes require OTP verification
+                                </p>
+                              )}
+                            </div>
                           </div>
+                          <button
+                            onClick={handleSendOtpForPassword}
+                            className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0 ml-2"
+                            aria-label="Edit password"
+                          >
+                            <Edit size={16} />
+                          </button>
+                        </div>
                       </div>
+
+                      {/* Save Changes Button (for edit mode) */}
+                      {editMode && (
+                        <div className="mt-6 flex gap-3 justify-end">
+                          <Button
+                            onClick={handleCancelEdit}
+                            className="bg-gray-500 hover:bg-gray-600 text-white"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            onClick={handleSaveChanges}
+                            className="bg-orange-500 hover:bg-orange-600 text-white"
+                          >
+                            Save Changes
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </>
                 ) : (
@@ -903,7 +1030,6 @@ export default function AdminProfile() {
                 <div className="mt-8 pt-6 border-t border-gray-200">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                   
                       <button
                         onClick={() => setView("settings")}
                         className="p-2.5 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"

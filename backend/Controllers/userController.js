@@ -305,17 +305,18 @@ const getDashboard = async (req, res) => {
 };
 
 const updateUser = async (req, res) => {
-  const { fullname, email, password, otp } = req.body;
+  const { fullname, email, password, otp, newEmail } = req.body;
 
   console.log("Update user request received:", {
     fullname,
     email: email ? "provided" : "not provided",
+    newEmail: newEmail ? "provided" : "not provided",
     password: password ? "provided" : "not provided",
     otp: otp ? "provided" : "not provided",
     userId: req.user?.id,
   });
 
-  if (!fullname && !email && !password) {
+  if (!fullname && !email && !newEmail && !password) {
     console.log("Update user error: No fields to update");
     return res
       .status(400)
@@ -335,7 +336,8 @@ const updateUser = async (req, res) => {
       fullname: user.fullname,
     });
 
-    if (fullname && !email && !password) {
+    // Handle name update (no OTP required)
+    if (fullname && !email && !newEmail && !password) {
       user.fullname = fullname;
       await user.save();
       console.log("Name updated successfully");
@@ -345,16 +347,21 @@ const updateUser = async (req, res) => {
       });
     }
 
-    if (email || password) {
+    // Handle email/password updates (OTP required)
+    if (email || newEmail || password) {
       if (!otp) {
         console.log("Update user error: OTP required but not provided");
         return res
           .status(400)
-          .json({ error: true, message: "OTP is required" });
+          .json({
+            error: true,
+            message: "OTP is required for email or password changes",
+          });
       }
 
+      // Use the current user's email to find OTP record
       const otpRecord = await OtpVerification.findOne({
-        userEmail: user.email,
+        userEmail: user.email, // Use the current email, not the new one
       });
 
       if (!otpRecord) {
@@ -364,7 +371,7 @@ const updateUser = async (req, res) => {
         );
         return res.status(400).json({
           error: true,
-          message: "Invalid OTP or email. OTP record not found.",
+          message: "OTP not found. Please request a new OTP.",
         });
       }
 
@@ -391,25 +398,34 @@ const updateUser = async (req, res) => {
           .json({ error: true, message: "OTP has expired" });
       }
 
+      // Delete OTP after successful verification
       await OtpVerification.deleteOne({ userEmail: user.email });
       console.log("OTP record deleted after verification");
 
-      if (email) {
-        const emailExists = await User.findOne({ email });
+      // Handle email update
+      if (email || newEmail) {
+        const emailToUpdate = email || newEmail;
+        const emailExists = await User.findOne({ email: emailToUpdate });
         if (emailExists && emailExists._id.toString() !== user._id.toString()) {
-          console.log("Update user error: Email already in use", email);
+          console.log("Update user error: Email already in use", emailToUpdate);
           return res.status(400).json({
             error: true,
             message: "Email is already in use by another account",
           });
         }
-        console.log("Updating email from", user.email, "to", email);
-        user.email = email;
+        console.log("Updating email from", user.email, "to", emailToUpdate);
+        user.email = emailToUpdate;
       }
 
+      // Handle password update
       if (password) {
         console.log("Updating password");
         user.password = await bcrypt.hash(password, 10);
+      }
+
+      // Handle name update if provided with email/password
+      if (fullname) {
+        user.fullname = fullname;
       }
     }
 

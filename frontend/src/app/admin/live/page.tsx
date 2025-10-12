@@ -5,11 +5,47 @@ import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Camera, CameraOff, RefreshCw, Users, Eye } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Send,
+  Camera,
+  CameraOff,
+  RefreshCw,
+  Users,
+  Eye,
+  Plus,
+  Calendar,
+  Clock,
+  Trash2,
+} from "lucide-react";
 import AdminAuthWrapper from "@/components/AdminAuthWrapper";
 import { useVideoStream } from "@/context/VideoStreamContext";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NetworkStatus } from "@/components/NetworkStatus";
+import { BASE_URL } from "@/utils/constants";
+
+interface Schedule {
+  _id: string;
+  title: string;
+  description: string;
+  scheduledDate: string;
+  duration: number;
+  status: "scheduled" | "live" | "completed" | "cancelled";
+  createdBy: {
+    fullname: string;
+    email: string;
+  };
+  reminderSent: boolean;
+  startNotificationSent: boolean;
+  participants: Array<{
+    user: string;
+    email: string;
+    fullname: string;
+    notified: boolean;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export default function AdminLivePage() {
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -20,6 +56,18 @@ export default function AdminLivePage() {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const cameraVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Schedule states
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [selectedSchedule, setSelectedSchedule] = useState<string>("");
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [scheduleFormData, setScheduleFormData] = useState({
+    title: "",
+    description: "",
+    scheduledDate: "",
+    duration: 60,
+  });
+  const [isCreatingSchedule, setIsCreatingSchedule] = useState(false);
 
   const {
     setAdminStream,
@@ -54,10 +102,94 @@ export default function AdminLivePage() {
     }
   }, [cameraStream]);
 
-  // Fetch user data on component mount
+  // Fetch user data and schedules on component mount
   useEffect(() => {
     fetchCurrentUser();
+    fetchUpcomingSchedules();
   }, [fetchCurrentUser]);
+
+  const fetchUpcomingSchedules = async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      // ✅ FIX: Use BASE_URL for API calls
+      const response = await fetch(`${BASE_URL}/api/schedules/upcoming`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSchedules(data.schedules);
+      }
+    } catch (error) {
+      console.error("Error fetching schedules:", error);
+    }
+  };
+
+  const createSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsCreatingSchedule(true);
+
+    try {
+      const token = localStorage.getItem("accessToken");
+      const response = await fetch(`${BASE_URL}/api/schedules`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(scheduleFormData),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setShowScheduleForm(false);
+        setScheduleFormData({
+          title: "",
+          description: "",
+          scheduledDate: "",
+          duration: 60,
+        });
+        fetchUpcomingSchedules();
+        alert(
+          "✅ Schedule created successfully! Notifications sent to all users."
+        );
+      } else {
+        alert("❌ Failed to create schedule: " + data.message);
+      }
+    } catch (error) {
+      console.error("Error creating schedule:", error);
+      alert("❌ Error creating schedule");
+    } finally {
+      setIsCreatingSchedule(false);
+    }
+  };
+
+  const deleteSchedule = async (scheduleId: string) => {
+    if (!confirm("Are you sure you want to delete this schedule?")) return;
+
+    try {
+      const token = localStorage.getItem("accessToken");
+      // ✅ FIX: Use BASE_URL for API calls
+      const response = await fetch(`${BASE_URL}/api/schedules/${scheduleId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (data.success) {
+        fetchUpcomingSchedules();
+        if (selectedSchedule === scheduleId) {
+          setSelectedSchedule("");
+        }
+        alert("✅ Schedule deleted successfully!");
+      }
+    } catch (error) {
+      console.error("Error deleting schedule:", error);
+      alert("❌ Error deleting schedule");
+    }
+  };
 
   const startCamera = async () => {
     try {
@@ -75,6 +207,31 @@ export default function AdminLivePage() {
       setCameraStream(stream);
       setAdminStream(stream);
       setIsCameraActive(true);
+
+      // If a schedule is selected, mark it as live and send notifications
+      if (selectedSchedule) {
+        try {
+          const token = localStorage.getItem("accessToken");
+          // ✅ FIX: Use BASE_URL for API calls
+          const response = await fetch(
+            `${BASE_URL}/api/schedules/${selectedSchedule}/start`,
+            {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+          const data = await response.json();
+          if (data.success) {
+            console.log("✅ Live notifications sent for schedule");
+            fetchUpcomingSchedules(); // Refresh schedules to update status
+          }
+        } catch (error) {
+          console.error("❌ Failed to send live notifications:", error);
+        }
+      }
 
       await connectToRoom(roomId, true);
     } catch (error) {
@@ -161,6 +318,11 @@ export default function AdminLivePage() {
     return initials.toUpperCase();
   };
 
+  // Filter schedules to show only upcoming ones
+  const upcomingSchedules = schedules.filter(
+    (schedule) => schedule.status === "scheduled" || schedule.status === "live"
+  );
+
   return (
     <AdminAuthWrapper>
       <div className="min-h-screen bg-[#f8fafc] ">
@@ -238,8 +400,6 @@ export default function AdminLivePage() {
                       <span>LIVE</span>
                     </div>
                   )}
-
-                 
                 </div>
               </div>
 
@@ -326,6 +486,34 @@ export default function AdminLivePage() {
                       )}
                     </div>
 
+                    {/* Schedule Selector */}
+                    <div className="space-y-3">
+                      <label className="text-sm font-medium">
+                        Select Schedule (optional)
+                      </label>
+                      <select
+                        value={selectedSchedule}
+                        onChange={(e) => setSelectedSchedule(e.target.value)}
+                        className="w-full p-3 border border-gray-300 rounded-xl bg-white"
+                        disabled={isCameraActive}
+                      >
+                        <option value="">No schedule selected</option>
+                        {upcomingSchedules.map((schedule) => (
+                          <option key={schedule._id} value={schedule._id}>
+                            {schedule.title} -{" "}
+                            {new Date(schedule.scheduledDate).toLocaleString()}
+                          </option>
+                        ))}
+                      </select>
+                      {selectedSchedule && (
+                        <p className="text-sm text-green-600">
+                          ✅ This live stream will be associated with the
+                          selected schedule and notifications will be sent to
+                          users.
+                        </p>
+                      )}
+                    </div>
+
                     {!currentUser && (
                       <p className="text-yellow-600 text-sm">
                         Loading user profile...
@@ -380,39 +568,53 @@ export default function AdminLivePage() {
                     ref={chatContainerRef}
                     className="h-80 border rounded-xl p-4 overflow-y-auto space-y-2 bg-gray-50"
                   >
-                    {chatMessages.map((msg) => (
-                      <div
-                        key={msg.id}
-                        className={`p-3 rounded-xl flex items-start gap-3 ${
-                          msg.isStaff
-                            ? "bg-blue-100 text-blue-800 ml-8 border border-blue-200"
-                            : "bg-white text-gray-800 mr-8 border border-gray-200"
-                        }`}
-                      >
-                        <Avatar className="h-8 w-8 flex-shrink-0 mt-1">
-                          <AvatarImage
-                            src={getProfilePictureUrl(msg.profileUrl)}
-                            alt={msg.sender}
-                          />
-                          <AvatarFallback>
-                            {getInitials(msg.sender)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start mb-1">
-                            <span className="font-semibold text-sm">
-                              {msg.sender}
-                              {msg.isStaff && " (You)"}
-                              {!msg.isStaff && " (Viewer)"}
-                            </span>
-                            <span className="text-xs opacity-70">
-                              {msg.timestamp.toLocaleTimeString()}
+                    {chatMessages.map((msg) => {
+                      // Check if it's a system message
+                      if (msg.isSystem) {
+                        return (
+                          <div key={msg.id} className="text-center py-2">
+                            <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                              {msg.message}
                             </span>
                           </div>
-                          <p className="text-sm break-words">{msg.message}</p>
+                        );
+                      }
+
+                      // Regular chat message
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`p-3 rounded-xl flex items-start gap-3 ${
+                            msg.isStaff
+                              ? "bg-blue-100 text-blue-800 ml-8 border border-blue-200"
+                              : "bg-white text-gray-800 mr-8 border border-gray-200"
+                          }`}
+                        >
+                          <Avatar className="h-8 w-8 flex-shrink-0 mt-1">
+                            <AvatarImage
+                              src={getProfilePictureUrl(msg.profileUrl)}
+                              alt={msg.sender}
+                            />
+                            <AvatarFallback>
+                              {getInitials(msg.sender)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start mb-1">
+                              <span className="font-semibold text-sm">
+                                {msg.sender}
+                                {msg.isStaff && " (You)"}
+                                {!msg.isStaff && " (Viewer)"}
+                              </span>
+                              <span className="text-xs opacity-70">
+                                {msg.timestamp.toLocaleTimeString()}
+                              </span>
+                            </div>
+                            <p className="text-sm break-words">{msg.message}</p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {chatMessages.length === 0 && (
                       <div className="text-center text-gray-500 py-8">
                         No messages yet. Start the conversation!
@@ -450,6 +652,233 @@ export default function AdminLivePage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Schedule Management Section */}
+          <Card className="w-full rounded-2xl shadow">
+            <CardContent className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-[#0a1629]">
+                  Live Stream Schedules
+                </h2>
+                <Button
+                  onClick={() => setShowScheduleForm(!showScheduleForm)}
+                  className="bg-orange-500 hover:bg-orange-600"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Schedule
+                </Button>
+              </div>
+
+              {/* Schedule Creation Form */}
+              {showScheduleForm && (
+                <Card className="mb-6 border-orange-200">
+                  <CardContent className="p-6">
+                    <h3 className="text-lg font-semibold mb-4">
+                      Create New Schedule
+                    </h3>
+                    <form onSubmit={createSchedule} className="space-y-4">
+                      <Input
+                        placeholder="Schedule Title"
+                        value={scheduleFormData.title}
+                        onChange={(e) =>
+                          setScheduleFormData({
+                            ...scheduleFormData,
+                            title: e.target.value,
+                          })
+                        }
+                        required
+                        className="rounded-xl"
+                      />
+                      <Textarea
+                        placeholder="Schedule Description"
+                        value={scheduleFormData.description}
+                        onChange={(e) =>
+                          setScheduleFormData({
+                            ...scheduleFormData,
+                            description: e.target.value,
+                          })
+                        }
+                        required
+                        className="rounded-xl"
+                      />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input
+                          type="datetime-local"
+                          value={scheduleFormData.scheduledDate}
+                          onChange={(e) =>
+                            setScheduleFormData({
+                              ...scheduleFormData,
+                              scheduledDate: e.target.value,
+                            })
+                          }
+                          required
+                          className="rounded-xl"
+                        />
+                        <Input
+                          type="number"
+                          placeholder="Duration (minutes)"
+                          value={scheduleFormData.duration}
+                          onChange={(e) =>
+                            setScheduleFormData({
+                              ...scheduleFormData,
+                              duration: parseInt(e.target.value) || 60,
+                            })
+                          }
+                          min="1"
+                          className="rounded-xl"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          type="submit"
+                          className="bg-orange-500 hover:bg-orange-600 rounded-xl"
+                          disabled={isCreatingSchedule}
+                        >
+                          {isCreatingSchedule
+                            ? "Creating..."
+                            : "Create Schedule"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setShowScheduleForm(false)}
+                          className="rounded-xl"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Schedules List */}
+              <div className="space-y-4">
+                {upcomingSchedules.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No upcoming schedules. Create one to notify users!</p>
+                  </div>
+                ) : (
+                  upcomingSchedules.map((schedule) => (
+                    <Card
+                      key={schedule._id}
+                      className={
+                        schedule.status === "live"
+                          ? "border-green-200 bg-green-50"
+                          : schedule._id === selectedSchedule
+                          ? "border-orange-200 bg-orange-50"
+                          : ""
+                      }
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="text-lg font-semibold">
+                                {schedule.title}
+                              </h3>
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  schedule.status === "scheduled"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : schedule.status === "live"
+                                    ? "bg-red-100 text-red-800"
+                                    : "bg-gray-100 text-gray-800"
+                                }`}
+                              >
+                                {schedule.status}
+                              </span>
+                            </div>
+                            <p className="text-gray-600 mb-3">
+                              {schedule.description}
+                            </p>
+                            <div className="flex items-center gap-4 text-sm text-gray-500">
+                              <div className="flex items-center gap-1">
+                                <Calendar className="w-4 h-4" />
+                                {new Date(
+                                  schedule.scheduledDate
+                                ).toLocaleDateString()}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-4 h-4" />
+                                {new Date(
+                                  schedule.scheduledDate
+                                ).toLocaleTimeString()}
+                              </div>
+                              <span>Duration: {schedule.duration} minutes</span>
+                            </div>
+                            {schedule.reminderSent && (
+                              <div className="mt-2 text-xs text-green-600">
+                                ✅ 1-hour reminder sent
+                              </div>
+                            )}
+                            {schedule.startNotificationSent && (
+                              <div className="mt-2 text-xs text-red-600">
+                                🔴 Live notification sent
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            {schedule.status === "scheduled" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setSelectedSchedule(schedule._id)
+                                }
+                                className={
+                                  selectedSchedule === schedule._id
+                                    ? "bg-orange-500 text-white hover:bg-orange-600"
+                                    : ""
+                                }
+                              >
+                                {selectedSchedule === schedule._id
+                                  ? "Selected"
+                                  : "Select"}
+                              </Button>
+                            )}
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => deleteSchedule(schedule._id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+
+              {/* Information Panel */}
+              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                <h4 className="font-semibold text-blue-800 mb-2">
+                  How it works:
+                </h4>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>
+                    • Create a schedule to notify all users via email
+                    immediately
+                  </li>
+                  <li>
+                    • Users automatically get a reminder 1 hour before the
+                    stream
+                  </li>
+                  <li>
+                    • Select a schedule before starting camera to send live
+                    notifications
+                  </li>
+                  <li>
+                    • Users receive 3 emails: creation, 1-hour reminder, and
+                    live start
+                  </li>
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </AdminAuthWrapper>

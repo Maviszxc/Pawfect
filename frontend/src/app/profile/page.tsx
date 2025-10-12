@@ -32,6 +32,8 @@ import {
   Phone,
   MessageSquare,
   Calendar,
+  Save,
+  X,
 } from "lucide-react";
 
 interface Adoption {
@@ -66,12 +68,23 @@ interface UserData {
   isAdmin: boolean;
 }
 
+type AdoptionStatus = "All" | "Pending" | "Approved" | "Rejected" | "Completed";
+
 export default function Profile() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [formData, setFormData] = useState<UserData>({
+    fullname: "",
+    email: "",
+    password: "",
+    newEmail: "",
+    profilePicture: "",
+    isAdmin: false,
+  });
+  const [editMode, setEditMode] = useState(false);
+  const [tempFormData, setTempFormData] = useState<UserData>({
     fullname: "",
     email: "",
     password: "",
@@ -98,6 +111,8 @@ export default function Profile() {
     "profile"
   );
   const [refreshingAdoptions, setRefreshingAdoptions] = useState(false);
+  const [adoptionStatusFilter, setAdoptionStatusFilter] =
+    useState<AdoptionStatus>("All");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -115,7 +130,6 @@ export default function Profile() {
     try {
       setRefreshingAdoptions(true);
 
-      // Defensive: Check BASE_URL and token
       if (!BASE_URL) {
         toast.error("API URL not configured");
         setAdoptions([]);
@@ -132,7 +146,6 @@ export default function Profile() {
         return;
       }
 
-      // Try /my endpoint first
       const res = await axios.get(`${BASE_URL}/api/adoptions/my`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -151,11 +164,9 @@ export default function Profile() {
         return;
       } else {
         setAdoptions([]);
-        // Fallback to /user endpoint
         throw new Error("Invalid /my endpoint response");
       }
     } catch (err: any) {
-      // Fallback to /user endpoint
       try {
         const res = await axios.get(`${BASE_URL}/api/adoptions/user`, {
           headers: {
@@ -177,7 +188,6 @@ export default function Profile() {
           setAdoptions([]);
         }
       } catch (fallbackErr: any) {
-        // Only show error if not just "no adoptions"
         if (
           fallbackErr.response?.status !== 404 &&
           fallbackErr.code !== "ECONNREFUSED"
@@ -205,7 +215,6 @@ export default function Profile() {
     return adoptions.map((adoption, index) => {
       let petData = adoption.pet;
 
-      // Handle unpopulated or missing pet data
       if (!petData || typeof petData === "string") {
         petData = {
           _id: adoption.pet || `unknown-pet-${index}`,
@@ -259,6 +268,14 @@ export default function Profile() {
           profilePicture: user.profilePicture || "",
           isAdmin: user.isAdmin || false,
         });
+        setTempFormData({
+          fullname: user.fullname,
+          email: user.email,
+          password: "",
+          newEmail: "",
+          profilePicture: user.profilePicture || "",
+          isAdmin: user.isAdmin || false,
+        });
       }
     } catch (err) {
       toast.error("Error fetching user data. Please try again.");
@@ -266,16 +283,26 @@ export default function Profile() {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setTempFormData({ ...tempFormData, [e.target.name]: e.target.value });
   };
 
-  const handleUpdateName = async (e: React.FormEvent) => {
+  const handleEditMode = () => {
+    setTempFormData(formData);
+    setEditMode(true);
+  };
+
+  const handleCancelEdit = () => {
+    setTempFormData(formData);
+    setEditMode(false);
+  };
+
+  const handleSaveChanges = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
       const res = await axios.put(
         `${BASE_URL}/api/users/update-user`,
-        { fullname: formData.fullname },
+        { fullname: tempFormData.fullname },
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
@@ -283,8 +310,9 @@ export default function Profile() {
         }
       );
       if (res.data.success) {
-        toast.success("Name updated successfully.");
-        setView("main");
+        setFormData(tempFormData);
+        setEditMode(false);
+        toast.success("Profile updated successfully.");
       }
     } catch (err) {
       toast.error("Something went wrong. Please try again.");
@@ -407,17 +435,18 @@ export default function Profile() {
       return;
     }
 
-    if (!formData.newEmail) {
+    if (!tempFormData.newEmail || tempFormData.newEmail.trim() === "") {
       toast.error("Please enter your new email address");
       return;
     }
 
     setIsLoading(true);
     try {
+      // Use 'email' as the key for new email, not 'newEmail'
       const res = await axios.put(
         `${BASE_URL}/api/users/update-user`,
         {
-          email: formData.newEmail,
+          email: tempFormData.newEmail.trim(),
           otp: verifiedOtp,
         },
         {
@@ -435,7 +464,12 @@ export default function Profile() {
         setView("main");
         setFormData((prev) => ({
           ...prev,
-          email: formData.newEmail,
+          email: tempFormData.newEmail,
+          newEmail: "",
+        }));
+        setTempFormData((prev) => ({
+          ...prev,
+          email: tempFormData.newEmail,
           newEmail: "",
         }));
       }
@@ -463,12 +497,17 @@ export default function Profile() {
       return;
     }
 
+    if (!tempFormData.password) {
+      toast.error("Please enter your new password");
+      return;
+    }
+
     setIsLoading(true);
     try {
       const res = await axios.put(
         `${BASE_URL}/api/users/update-user`,
         {
-          password: formData.password,
+          password: tempFormData.password,
           otp: verifiedOtp,
         },
         {
@@ -483,10 +522,19 @@ export default function Profile() {
         setVerifiedOtp("");
         setIsOtpVerified(false);
         setFormData((prev) => ({ ...prev, password: "" }));
+        setTempFormData((prev) => ({ ...prev, password: "" }));
         setView("main");
       }
-    } catch (err) {
-      toast.error("Something went wrong. Please try again.");
+    } catch (err: any) {
+      if (err.response) {
+        toast.error(
+          err.response.data.message ||
+            err.response.data.error ||
+            "Something went wrong. Please try again."
+        );
+      } else {
+        toast.error("Something went wrong. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -528,6 +576,10 @@ export default function Profile() {
       if (res.data.success) {
         toast.success("Profile picture updated successfully");
         setFormData((prev) => ({
+          ...prev,
+          profilePicture: res.data.profilePicture,
+        }));
+        setTempFormData((prev) => ({
           ...prev,
           profilePicture: res.data.profilePicture,
         }));
@@ -583,6 +635,10 @@ export default function Profile() {
     }
   };
 
+  const handlePetClick = (petId: string) => {
+    router.push(`/pet?id=${petId}`);
+  };
+
   const getStatusInfo = (status: string) => {
     switch (status) {
       case "Approved":
@@ -615,6 +671,21 @@ export default function Profile() {
           borderColor: "border-yellow-200",
         };
     }
+  };
+  const getFilteredAdoptions = () => {
+    if (adoptionStatusFilter === "All") {
+      return adoptions;
+    }
+    return adoptions.filter(
+      (adoption) => adoption.status === adoptionStatusFilter
+    );
+  };
+
+  const getStatusCount = (status: AdoptionStatus) => {
+    if (status === "All") {
+      return adoptions.length;
+    }
+    return adoptions.filter((adoption) => adoption.status === status).length;
   };
 
   const containerVariants = {
@@ -687,7 +758,7 @@ export default function Profile() {
                   <Loader />
                 </div>
               ) : view === "account" ? (
-                <form className="space-y-6" onSubmit={handleUpdateName}>
+                <form className="space-y-6" onSubmit={handleSaveChanges}>
                   <div className="space-y-2">
                     <label
                       htmlFor="fullname"
@@ -795,7 +866,7 @@ export default function Profile() {
                       id="newEmail"
                       type="email"
                       name="newEmail"
-                      value={formData.newEmail}
+                      value={tempFormData.newEmail}
                       onChange={handleChange}
                       placeholder="Enter your new email"
                       className="rounded-xl py-6 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
@@ -821,7 +892,7 @@ export default function Profile() {
                     <PasswordInput
                       id="password"
                       name="password"
-                      value={formData.password}
+                      value={tempFormData.password}
                       onChange={handleChange}
                       placeholder="Enter your new password"
                       className="rounded-xl py-6 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
@@ -948,80 +1019,126 @@ export default function Profile() {
                 {sidebarView === "profile" ? (
                   <>
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                        Personal Information
-                      </h3>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Personal Information
+                        </h3>
+                      </div>
 
                       <div className="space-y-3">
+                        {/* Full Name Field - Direct Editing */}
                         <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                          <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
                             <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
                               <User className="text-orange-500" size={16} />
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <p className="text-xs text-gray-500 mb-0.5">
                                 Full Name
                               </p>
-                              <p className="text-base text-gray-900 font-medium truncate">
-                                {formData.fullname}
-                              </p>
+                              {editMode ? (
+                                <Input
+                                  type="text"
+                                  name="fullname"
+                                  value={tempFormData.fullname}
+                                  onChange={handleChange}
+                                  className="bg-white border-gray-300"
+                                  placeholder="Enter your full name"
+                                />
+                              ) : (
+                                <p className="text-base text-gray-900 font-medium truncate">
+                                  {formData.fullname}
+                                </p>
+                              )}
                             </div>
                           </div>
-                          <button
-                            onClick={() => setView("account")}
-                            className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0"
-                            aria-label="Edit name"
-                          >
-                            <Edit size={16} />
-                          </button>
+                          {!editMode && (
+                            <button
+                              onClick={handleEditMode}
+                              className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0 ml-2"
+                              aria-label="Edit name"
+                            >
+                              <Edit size={16} />
+                            </button>
+                          )}
                         </div>
 
+                        {/* Email Field - OTP Required */}
                         <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                          <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
                             <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
                               <Mail className="text-orange-500" size={16} />
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <p className="text-xs text-gray-500 mb-0.5">
                                 Email Address
                               </p>
                               <p className="text-base text-gray-900 font-medium truncate">
                                 {formData.email}
                               </p>
+                              {editMode && (
+                                <p className="text-xs text-orange-500 mt-1">
+                                  Email changes require OTP verification
+                                </p>
+                              )}
                             </div>
                           </div>
                           <button
                             onClick={handleSendOtpForEmail}
-                            className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0"
+                            className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0 ml-2"
                             aria-label="Edit email"
                           >
                             <Edit size={16} />
                           </button>
                         </div>
 
+                        {/* Password Field - OTP Required */}
                         <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                          <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
                             <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
                               <Lock className="text-orange-500" size={16} />
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <p className="text-xs text-gray-500 mb-0.5">
                                 Password
                               </p>
                               <p className="text-base text-gray-900 font-medium">
                                 ••••••••
                               </p>
+                              {editMode && (
+                                <p className="text-xs text-orange-500 mt-1">
+                                  Password changes require OTP verification
+                                </p>
+                              )}
                             </div>
                           </div>
                           <button
                             onClick={handleSendOtpForPassword}
-                            className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0"
+                            className="p-2 text-gray-400 hover:text-orange-500 transition-colors flex-shrink-0 ml-2"
                             aria-label="Edit password"
                           >
                             <Edit size={16} />
                           </button>
                         </div>
                       </div>
+
+                      {/* Save Changes Button (for edit mode) */}
+                      {editMode && (
+                        <div className="mt-6 flex gap-3 justify-end">
+                          <Button
+                            onClick={handleCancelEdit}
+                            className="bg-gray-500 hover:bg-gray-600 text-white"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            onClick={handleSaveChanges}
+                            className="bg-orange-500 hover:bg-orange-600 text-white"
+                          >
+                            Save Changes
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </>
                 ) : (
@@ -1044,6 +1161,51 @@ export default function Profile() {
                       </Button>
                     </div>
 
+                    {/* Status Filter Tabs */}
+                    <div className="mb-6">
+                      <div className="flex flex-wrap gap-2 sm:gap-4 border-b border-gray-200 pb-4">
+                        {(
+                          [
+                            "All",
+                            "Pending",
+                            "Approved",
+                            "Rejected",
+                            "Completed",
+                          ] as AdoptionStatus[]
+                        ).map((status) => (
+                          <button
+                            key={status}
+                            onClick={() => setAdoptionStatusFilter(status)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              adoptionStatusFilter === status
+                                ? "bg-orange-500 text-white"
+                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            }`}
+                          >
+                            {status === "All" && <PawPrint size={16} />}
+                            {status === "Pending" && <Clock size={16} />}
+                            {status === "Approved" && (
+                              <CheckCircle2 size={16} />
+                            )}
+                            {status === "Rejected" && <XCircle size={16} />}
+                            {status === "Completed" && (
+                              <CheckCircle2 size={16} />
+                            )}
+                            <span>{status}</span>
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs ${
+                                adoptionStatusFilter === status
+                                  ? "bg-white text-orange-500"
+                                  : "bg-gray-200 text-gray-600"
+                              }`}
+                            >
+                              {getStatusCount(status)}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     {refreshingAdoptions ? (
                       <div className="text-center py-12 bg-gray-50 rounded-lg">
                         <Loader />
@@ -1051,19 +1213,30 @@ export default function Profile() {
                           Loading your applications...
                         </p>
                       </div>
-                    ) : adoptions.length === 0 ? (
+                    ) : getFilteredAdoptions().length === 0 ? (
                       <div className="text-center py-12 bg-gray-50 rounded-lg">
                         <PawPrint
                           className="mx-auto text-gray-300 mb-3"
                           size={48}
                         />
                         <h4 className="text-gray-700 font-medium mb-2">
-                          No Adoption Applications Yet
+                          {adoptionStatusFilter === "All"
+                            ? "No Adoption Applications Yet"
+                            : `No ${adoptionStatusFilter} Applications`}
                         </h4>
                         <p className="text-gray-500 text-sm mb-6">
-                          You haven't submitted any adoption applications. Start
-                          your journey to find your perfect companion!
+                          {adoptionStatusFilter === "All"
+                            ? "You haven't submitted any adoption applications. Start your journey to find your perfect companion!"
+                            : `You don't have any ${adoptionStatusFilter.toLowerCase()} adoption applications at the moment.`}
                         </p>
+                        {adoptionStatusFilter !== "All" && (
+                          <Button
+                            onClick={() => setAdoptionStatusFilter("All")}
+                            className="bg-gray-100 hover:bg-gray-200 text-gray-700 mr-3"
+                          >
+                            View All Applications
+                          </Button>
+                        )}
                         <Button
                           onClick={() => router.push("/adoption")}
                           className="bg-orange-500 hover:bg-orange-600 text-white"
@@ -1073,7 +1246,7 @@ export default function Profile() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {adoptions.map((adoption) => {
+                        {getFilteredAdoptions().map((adoption) => {
                           const StatusIcon = getStatusInfo(
                             adoption.status
                           ).icon;
@@ -1092,7 +1265,8 @@ export default function Profile() {
                               key={adoption._id}
                               initial={{ opacity: 0, y: 20 }}
                               animate={{ opacity: 1, y: 0 }}
-                              className={`bg-white border-2 ${statusBorderColor} rounded-xl p-5 hover:shadow-lg transition-all`}
+                              className={`bg-white border-2 ${statusBorderColor} rounded-xl p-5 hover:shadow-lg transition-all cursor-pointer group relative`}
+                              onClick={() => handlePetClick(adoption.pet._id)}
                             >
                               <div className="flex flex-col sm:flex-row gap-4">
                                 {/* Pet Image */}
@@ -1103,7 +1277,7 @@ export default function Profile() {
                                       "/placeholder-pet.jpg"
                                     }
                                     alt={adoption.pet?.name}
-                                    className="w-full sm:w-28 h-28 rounded-lg object-cover"
+                                    className="w-full sm:w-28 h-28 rounded-lg object-cover group-hover:opacity-90 transition-opacity"
                                     onError={(e) => {
                                       e.currentTarget.src =
                                         "/placeholder-pet.jpg";
@@ -1115,8 +1289,8 @@ export default function Profile() {
                                 {/* Adoption Details */}
                                 <div className="flex-1 min-w-0">
                                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
-                                    <div>
-                                      <h4 className="font-bold text-gray-900 text-xl mb-2">
+                                    <div className="flex-1">
+                                      <h4 className="font-bold text-gray-900 text-xl mb-2 group-hover:text-orange-600 transition-colors">
                                         {adoption.pet?.name}
                                       </h4>
                                       <div className="flex flex-wrap gap-2 mb-3">
@@ -1294,6 +1468,9 @@ export default function Profile() {
                                   )}
                                 </div>
                               </div>
+
+                              {/* Click indicator overlay */}
+                              <div className="absolute inset-0 rounded-xl border-2 border-transparent group-hover:border-orange-200 transition-colors pointer-events-none"></div>
                             </motion.div>
                           );
                         })}

@@ -5,12 +5,35 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import axios from "axios";
-import { Video } from "lucide-react";
+import { Video, PawPrint } from "lucide-react";
 import { BASE_URL } from "@/utils/constants";
 
 interface NavItem {
   label: string;
   href: string;
+}
+
+interface Adoption {
+  _id: string;
+  pet: {
+    _id: string;
+    name: string;
+    type: string;
+    breed: string;
+    age: string;
+    gender: string;
+    images: { url: string }[];
+    description: string;
+  };
+  status: "Pending" | "Approved" | "Rejected" | "Completed";
+  fullname: string;
+  email: string;
+  phone: string;
+  address: string;
+  message: string;
+  adminMessage?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const navItems: NavItem[] = [
@@ -31,6 +54,10 @@ export default function AuthNavigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [adoptions, setAdoptions] = useState<Adoption[]>([]);
+  const [showAdoptionsDropdown, setShowAdoptionsDropdown] =
+    useState<boolean>(false);
+  const [adoptionsLoading, setAdoptionsLoading] = useState<boolean>(false);
 
   useEffect(() => {
     setActiveTab(pathname);
@@ -57,6 +84,8 @@ export default function AuthNavigation() {
           if (res.data.user.profilePicture) {
             setProfilePicture(res.data.user.profilePicture);
           }
+          // Fetch user adoptions after authentication
+          fetchUserAdoptions(token);
         }
       } catch (err) {
         console.error("Error fetching user data:", err);
@@ -68,6 +97,101 @@ export default function AuthNavigation() {
 
     fetchUserData();
   }, []);
+
+  const fetchUserAdoptions = async (token: string) => {
+    try {
+      setAdoptionsLoading(true);
+
+      if (!BASE_URL || !token) {
+        setAdoptions([]);
+        return;
+      }
+
+      // Try /my endpoint first
+      const res = await axios.get(`${BASE_URL}/api/adoptions/my`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      });
+
+      if (res.data && res.data.success && Array.isArray(res.data.adoptions)) {
+        setAdoptions(formatAdoptionData(res.data.adoptions));
+        return;
+      } else {
+        throw new Error("Invalid /my endpoint response");
+      }
+    } catch (err: any) {
+      // Fallback to /user endpoint
+      try {
+        const res = await axios.get(`${BASE_URL}/api/adoptions/user`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          timeout: 10000,
+        });
+
+        if (res.data && res.data.success && Array.isArray(res.data.adoptions)) {
+          setAdoptions(formatAdoptionData(res.data.adoptions));
+          return;
+        } else {
+          setAdoptions([]);
+        }
+      } catch (fallbackErr: any) {
+        setAdoptions([]);
+      }
+    } finally {
+      setAdoptionsLoading(false);
+    }
+  };
+
+  const formatAdoptionData = (adoptions: any[]): Adoption[] => {
+    if (!adoptions || !Array.isArray(adoptions)) {
+      return [];
+    }
+
+    return adoptions.map((adoption, index) => {
+      let petData = adoption.pet;
+
+      if (!petData || typeof petData === "string") {
+        petData = {
+          _id: adoption.pet || `unknown-pet-${index}`,
+          name: "Unknown Pet",
+          type: "Pet",
+          breed: "Unknown Breed",
+          age: "Unknown",
+          gender: "Unknown",
+          images: [],
+          description: "No description available",
+        };
+      }
+
+      return {
+        _id: adoption._id || `temp-${Date.now()}-${index}`,
+        pet: {
+          _id: petData._id || "unknown",
+          name: petData.name || "Unknown Pet",
+          type: petData.type || "Pet",
+          breed: petData.breed || "Mixed Breed",
+          age: petData.age || "Unknown",
+          gender: petData.gender || "Unknown",
+          images: petData.images || [],
+          description: petData.description || "No description available",
+        },
+        status: adoption.status || "Pending",
+        fullname: adoption.fullname || "Unknown",
+        email: adoption.email || "Unknown",
+        phone: adoption.phone || "Not provided",
+        address: adoption.address || "Not provided",
+        message: adoption.message || "No message provided",
+        adminMessage: adoption.adminMessage,
+        createdAt: adoption.createdAt || new Date().toISOString(),
+        updatedAt: adoption.updatedAt || new Date().toISOString(),
+      };
+    });
+  };
 
   const handleNavItemClick = (href: string) => {
     if (href === "/pet/live" && !isAuthenticated) {
@@ -85,6 +209,26 @@ export default function AuthNavigation() {
     if (searchQuery.trim()) {
       router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
       setSearchQuery("");
+    }
+  };
+
+  const handlePetClick = (petId: string) => {
+    setShowAdoptionsDropdown(false);
+    setMobileMenuOpen(false);
+    router.push(`/pet?id=${petId}`);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Approved":
+        return "text-green-600";
+      case "Rejected":
+        return "text-red-600";
+      case "Completed":
+        return "text-blue-600";
+      case "Pending":
+      default:
+        return "text-yellow-600";
     }
   };
 
@@ -119,7 +263,9 @@ export default function AuthNavigation() {
                   {item.label === "Live" && (
                     <Video className="w-4 h-4 text-red-500" />
                   )}
-                  <span className={isActive ? "font-medium text-orange-500" : ""}>
+                  <span
+                    className={isActive ? "font-medium text-orange-500" : ""}
+                  >
                     {item.label}
                   </span>
                   <span
@@ -137,6 +283,133 @@ export default function AuthNavigation() {
         </ul>
 
         <div className="flex items-center gap-3 sm:gap-5">
+          {/* My Adoptions Dropdown */}
+          {isAuthenticated && (
+            <div className="relative group">
+              <button
+                className="relative text-gray-600 hover:text-orange-500 transition-colors p-2"
+                aria-label="My Adoptions"
+                onClick={() => setShowAdoptionsDropdown(!showAdoptionsDropdown)}
+              >
+                <PawPrint size={20} />
+                {adoptions.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                    {adoptions.length}
+                  </span>
+                )}
+              </button>
+
+              {/* Adoptions Dropdown */}
+              {showAdoptionsDropdown && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-200 z-50 max-h-96 overflow-hidden"
+                >
+                  <div className="p-4 border-b border-gray-100">
+                    <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                      <PawPrint size={16} />
+                      My Adoption Applications
+                      {adoptions.length > 0 && (
+                        <span className="bg-orange-500 text-white text-xs rounded-full px-2 py-1">
+                          {adoptions.length}
+                        </span>
+                      )}
+                    </h3>
+                  </div>
+
+                  <div className="max-h-64 overflow-y-auto">
+                    {adoptionsLoading ? (
+                      <div className="p-4 text-center">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500 mx-auto"></div>
+                        <p className="text-gray-500 text-sm mt-2">Loading...</p>
+                      </div>
+                    ) : adoptions.length === 0 ? (
+                      <div className="p-6 text-center">
+                        <PawPrint
+                          className="mx-auto text-gray-300 mb-2"
+                          size={32}
+                        />
+                        <p className="text-gray-500 text-sm">
+                          No adoption applications yet
+                        </p>
+                        <button
+                          onClick={() => {
+                            setShowAdoptionsDropdown(false);
+                            router.push("/adoption");
+                          }}
+                          className="mt-3 text-orange-500 text-sm hover:text-orange-600"
+                        >
+                          Browse Pets
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="p-2">
+                        {adoptions.slice(0, 5).map((adoption) => (
+                          <motion.div
+                            key={adoption._id}
+                            whileHover={{ scale: 1.02 }}
+                            className="p-3 rounded-lg hover:bg-gray-50 cursor-pointer border border-transparent hover:border-orange-100 transition-all mb-2"
+                            onClick={() => handlePetClick(adoption.pet._id)}
+                          >
+                            <div className="flex items-start gap-3">
+                              <img
+                                src={
+                                  adoption.pet.images[0]?.url ||
+                                  "/placeholder-pet.jpg"
+                                }
+                                alt={adoption.pet.name}
+                                className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                                onError={(e) => {
+                                  e.currentTarget.src = "/placeholder-pet.jpg";
+                                  e.currentTarget.onerror = null;
+                                }}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between">
+                                  <h4 className="font-medium text-gray-900 text-sm truncate">
+                                    {adoption.pet.name}
+                                  </h4>
+                                  <span
+                                    className={`text-xs font-medium ${getStatusColor(
+                                      adoption.status
+                                    )} flex-shrink-0 ml-2`}
+                                  >
+                                    {adoption.status}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {adoption.pet.breed} • {adoption.pet.age}
+                                </p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  Applied:{" "}
+                                  {new Date(
+                                    adoption.createdAt
+                                  ).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                          </motion.div>
+                        ))}
+                        {adoptions.length > 5 && (
+                          <button
+                            onClick={() => {
+                              setShowAdoptionsDropdown(false);
+                              router.push("/profile");
+                            }}
+                            className="w-full text-center text-orange-500 text-sm py-2 hover:text-orange-600 transition-colors"
+                          >
+                            View all {adoptions.length} applications
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </div>
+          )}
+
           {/* Mobile menu button */}
           <button
             className="md:hidden text-gray-600 hover:text-orange-500 transition-colors"
@@ -168,84 +441,6 @@ export default function AuthNavigation() {
               )}
             </svg>
           </button>
-
-          {/* FAQs icon */}
-          {/* <Link
-            href="/faqs"
-            className="text-gray-600 hover:text-orange-500 transition-colors hidden sm:block"
-            aria-label="FAQs"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </Link> */}
-
-          {/* Search Icon
-          <div className="relative group">
-            <button
-              className="text-gray-600 hover:text-orange-500 transition-colors"
-              aria-label="Search"
-              onClick={() => document.getElementById("search-input")?.focus()}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-            </button>
-            <div className="absolute right-0 top-full mt-2 w-64 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
-              <div className="bg-white p-3 rounded-xl shadow-lg border border-gray-100">
-                <form onSubmit={handleSearch}>
-                  <div className="relative">
-                    <input
-                      id="search-input"
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
-                      placeholder="Search pets..."
-                    />
-                    <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4 text-gray-400"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div> */}
 
           {/* Profile picture */}
           {isLoading ? (
@@ -324,6 +519,28 @@ export default function AuthNavigation() {
                 </motion.li>
               );
             })}
+
+            {/* My Adoptions in Mobile Menu */}
+            {isAuthenticated && (
+              <motion.li whileTap={{ scale: 0.98 }} className="my-1">
+                <button
+                  className="w-full text-left py-2 px-3 rounded-lg flex items-center gap-2 hover:bg-gray-50"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    router.push("/profile");
+                  }}
+                >
+                  <PawPrint size={16} className="text-orange-500" />
+                  <span>My Adoptions</span>
+                  {adoptions.length > 0 && (
+                    <span className="ml-auto bg-orange-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {adoptions.length}
+                    </span>
+                  )}
+                </button>
+              </motion.li>
+            )}
+
             <li className="mt-3 pt-3 border-t border-gray-100">
               <Link
                 href="/faqs"
@@ -353,4 +570,3 @@ export default function AuthNavigation() {
     </nav>
   );
 }
-  

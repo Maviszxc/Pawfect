@@ -22,6 +22,7 @@ type ChatMessage = {
   isStaff: boolean;
   profileUrl?: string;
   senderId?: string;
+  isSystem?: boolean; // Add this flag for system messages
 };
 
 type UserInfo = {
@@ -465,6 +466,22 @@ export const VideoStreamProvider = ({
           setViewerCount(Math.max(0, data.participantCount - 1));
         }
 
+        // Add system message for user join
+        if (data.user?.name && data.user.id !== localSocketIdRef.current) {
+          const systemMessage: ChatMessage = {
+            id: `system-join-${Date.now()}-${Math.random()
+              .toString(36)
+              .slice(2)}`,
+            sender: "System",
+            message: `${data.user.name} joined the live stream`,
+            timestamp: new Date(),
+            isStaff: false,
+            isSystem: true,
+          };
+
+          setChatMessages((prev) => [...prev, systemMessage]);
+        }
+
         if (
           isAdminRef.current &&
           data.user?.id &&
@@ -630,6 +647,22 @@ export const VideoStreamProvider = ({
         if (data.participantCount !== undefined) {
           setTotalParticipants(data.participantCount);
           setViewerCount(Math.max(0, data.participantCount - 1));
+        }
+
+        // Add system message for user leave
+        if (data.user?.name && data.user.id !== localSocketIdRef.current) {
+          const systemMessage: ChatMessage = {
+            id: `system-left-${Date.now()}-${Math.random()
+              .toString(36)
+              .slice(2)}`,
+            sender: "System",
+            message: `${data.user.name} left the live stream`,
+            timestamp: new Date(),
+            isStaff: false,
+            isSystem: true,
+          };
+
+          setChatMessages((prev) => [...prev, systemMessage]);
         }
 
         if (data.userId) {

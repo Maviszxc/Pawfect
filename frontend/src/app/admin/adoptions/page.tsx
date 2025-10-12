@@ -163,15 +163,23 @@ export default function AdminAdoptionsPage() {
   const handleUpdateStatus = async () => {
     if (!selectedAdoption || !newStatus) return;
 
+    // For rejected status, require admin message
+    if (newStatus === "Rejected" && !adminMessage.trim()) {
+      toast.error(
+        "Admin message is required when rejecting an adoption request"
+      );
+      return;
+    }
+
     setIsProcessing(true);
     try {
       const token = localStorage.getItem("accessToken");
 
       const response = await axiosInstance.patch(
-        `${BASE_URL}/api/admin/adoptions/${selectedAdoption._id}/status`,
+        `${BASE_URL}/api/adoptions/${selectedAdoption._id}/status`,
         {
           status: newStatus,
-          adminMessage: adminMessage || "",
+          adminMessage: adminMessage.trim(),
         },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -186,14 +194,18 @@ export default function AdminAdoptionsPage() {
               ? {
                   ...adoption,
                   status: newStatus,
-                  adminMessage: adminMessage || "",
+                  adminMessage: adminMessage.trim(),
                 }
               : adoption
           )
         );
 
         toast.success(
-          `Adoption request ${newStatus.toLowerCase()} successfully`
+          `Adoption request ${newStatus.toLowerCase()} successfully${
+            newStatus === "Approved" || newStatus === "Rejected"
+              ? " and email sent to adopter"
+              : ""
+          }`
         );
 
         // Close modal and reset state
@@ -202,9 +214,12 @@ export default function AdminAdoptionsPage() {
         setNewStatus("");
         setAdminMessage("");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error updating adoption status:`, error);
-      toast.error(`Failed to update adoption request`);
+      toast.error(
+        error.response?.data?.message ||
+          `Failed to update adoption request to ${newStatus}`
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -502,13 +517,13 @@ export default function AdminAdoptionsPage() {
                               <SelectContent>
                                 <SelectItem value="all">All Status</SelectItem>
                                 <SelectItem value="pending">Pending</SelectItem>
-                                <SelectItem value="approved">
+                                <SelectItem value="Approved">
                                   Approved
                                 </SelectItem>
-                                <SelectItem value="rejected">
+                                <SelectItem value="Rejected">
                                   Rejected
                                 </SelectItem>
-                                <SelectItem value="completed">
+                                <SelectItem value="Completed">
                                   Completed
                                 </SelectItem>
                               </SelectContent>
@@ -1096,30 +1111,30 @@ export default function AdminAdoptionsPage() {
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="approved">Approved</SelectItem>
-                        <SelectItem value="rejected">Rejected</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="Pending">Pending</SelectItem>
+                        <SelectItem value="Approved">Approved</SelectItem>
+                        <SelectItem value="Rejected">Rejected</SelectItem>
+                        <SelectItem value="Completed">Completed</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Admin Message {newStatus === "rejected" && "(Required)"}
+                      Admin Message {newStatus === "Rejected" && "(Required)"}
                     </label>
                     <Textarea
                       placeholder={
-                        newStatus === "approved"
+                        newStatus === "Approved"
                           ? "Congratulations! Your adoption request has been approved..."
-                          : newStatus === "rejected"
+                          : newStatus === "Rejected"
                           ? "After careful consideration, we regret to inform you..."
                           : "Add any additional message for the adopter..."
                       }
                       value={adminMessage}
                       onChange={(e) => setAdminMessage(e.target.value)}
                       className="w-full min-h-[100px] resize-vertical"
-                      required={newStatus === "rejected"}
+                      required={newStatus === "Rejected"}
                     />
                   </div>
                 </div>
@@ -1142,7 +1157,7 @@ export default function AdminAdoptionsPage() {
                     onClick={handleUpdateStatus}
                     disabled={
                       isProcessing ||
-                      (newStatus === "rejected" && !adminMessage.trim())
+                      (newStatus === "Rejected" && !adminMessage.trim())
                     }
                     className="bg-orange-500 hover:bg-orange-600 text-white"
                   >

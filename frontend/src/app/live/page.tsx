@@ -267,11 +267,12 @@ export default function LivePage() {
       {isLoggedIn ? <AuthNavigation /> : <Navigation />}
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-20 py-6 pt-24 sm:pt-32 lg:pt-36 space-y-4 sm:space-y-6">
-      
         <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
           <div className="w-full sm:w-auto">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-              <h1 className="text-2xl sm:text-3xl font-bold text-[#0a1629]">Live Stream</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-[#0a1629]">
+                Live Stream
+              </h1>
               {/* Viewer Count Badge */}
               <div className="flex items-center gap-2 bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs sm:text-sm font-medium">
                 <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
@@ -448,41 +449,60 @@ export default function LivePage() {
                   ref={chatContainerRef}
                   className="h-64 sm:h-80 lg:max-h-96 border rounded-xl p-3 sm:p-4 overflow-y-auto space-y-2 bg-gray-50"
                 >
-                  {chatMessages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`p-2 sm:p-3 rounded-lg sm:rounded-xl flex items-start gap-2 sm:gap-3 ${
-                        msg.isStaff
-                          ? "bg-blue-100 text-blue-800 mr-4 sm:mr-8 border border-blue-200"
-                          : msg.senderId === currentUser?._id
-                          ? "bg-orange-50 text-orange-800 mr-4 sm:mr-8 border border-orange-200"
-                          : "bg-white text-gray-800 ml-4 sm:ml-8 border border-gray-200"
-                      }`}
-                    >
-                      <Avatar className="h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0 mt-1">
-                        <AvatarImage
-                          src={getProfilePictureUrl(msg.profileUrl)}
-                          alt={msg.sender}
-                        />
-                        <AvatarFallback>
-                          {getInitials(msg.sender)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start mb-1 gap-2">
-                          <span className="font-semibold text-xs sm:text-sm truncate">
-                            {msg.sender}
-                            {msg.senderId === currentUser?._id && " (You)"}
-                            {msg.isStaff && " (Admin)"}
-                          </span>
-                          <span className="text-xs opacity-70 flex-shrink-0">
-                            {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {chatMessages.map((msg) => {
+                    // Check if it's a system message
+                    if (msg.isSystem) {
+                      return (
+                        <div key={msg.id} className="text-center py-2">
+                          <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                            {msg.message}
                           </span>
                         </div>
-                        <p className="text-xs sm:text-sm break-words">{msg.message}</p>
+                      );
+                    }
+
+                    // Regular chat message
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`p-2 sm:p-3 rounded-lg sm:rounded-xl flex items-start gap-2 sm:gap-3 ${
+                          msg.isStaff
+                            ? "bg-blue-100 text-blue-800 mr-4 sm:mr-8 border border-blue-200"
+                            : msg.senderId === currentUser?._id
+                            ? "bg-orange-50 text-orange-800 mr-4 sm:mr-8 border border-orange-200"
+                            : "bg-white text-gray-800 ml-4 sm:ml-8 border border-gray-200"
+                        }`}
+                      >
+                        <Avatar className="h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0 mt-1">
+                          <AvatarImage
+                            src={getProfilePictureUrl(msg.profileUrl)}
+                            alt={msg.sender}
+                          />
+                          <AvatarFallback>
+                            {getInitials(msg.sender)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-start mb-1 gap-2">
+                            <span className="font-semibold text-xs sm:text-sm truncate">
+                              {msg.sender}
+                              {msg.senderId === currentUser?._id && " (You)"}
+                              {msg.isStaff && " (Admin)"}
+                            </span>
+                            <span className="text-xs opacity-70 flex-shrink-0">
+                              {msg.timestamp.toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </div>
+                          <p className="text-xs sm:text-sm break-words">
+                            {msg.message}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {chatMessages.length === 0 && (
                     <div className="text-center text-gray-500 py-8 text-sm">
                       No messages yet. Be the first to chat!

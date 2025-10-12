@@ -281,9 +281,237 @@ const sendDonationEmail = async (donationData, isInternational = false) => {
   }
 };
 
+// Fix: Always send email for status changes (approved, rejected, completed)
+
+// ✅ FIXED: Send adoption status email (handles both registered users and guests)
+const sendAdoptionStatusEmail = async ({
+  userEmail,
+  userFullname,
+  petName,
+  status,
+  adminMessage,
+}) => {
+  // Validate required fields
+  if (!userEmail || !userFullname) {
+    console.warn("⚠️ Cannot send email: Missing user email or fullname", {
+      userEmail,
+      userFullname,
+      petName,
+      status,
+    });
+    return;
+  }
+
+  console.log("📧 Starting to send adoption status email via SendGrid...");
+  console.log("📧 Email details:", {
+    userEmail,
+    userFullname,
+    petName,
+    status,
+    hasAdminMessage: !!adminMessage,
+    userType: userEmail.includes("@") ? "valid" : "invalid",
+  });
+
+  let subject = "";
+  let html = "";
+
+  // Create proper email templates based on status
+  switch (status.toLowerCase()) {
+    case "Approved":
+      subject = `🎉 Your Adoption Request for ${petName} Has Been Approved! - PawProject`;
+      html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #FF6B35; margin: 0;">PawProject</h1>
+            <h2 style="color: #333; margin-top: 10px;">Adoption Request Approved! 🎉</h2>
+          </div>
+          
+          <div style="background-color: #f9f9f9; border-radius: 10px; padding: 30px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <div style="background-color: #10b981; color: white; padding: 15px 25px; border-radius: 25px; display: inline-block;">
+                <h3 style="margin: 0; font-size: 24px;">Congratulations!</h3>
+              </div>
+            </div>
+            
+            <h3 style="color: #333; text-align: center;">Hello, ${userFullname}!</h3>
+            
+            <p style="color: #666; font-size: 16px; text-align: center;">
+              We're thrilled to inform you that your adoption request for <strong>${petName}</strong> has been <span style="color: #10b981; font-weight: bold;">APPROVED</span>!
+            </p>
+            
+            <div style="background-color: white; border: 2px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <h4 style="color: #333; margin-top: 0;">Next Steps:</h4>
+              <p style="color: #666; margin: 10px 0;">
+                ${
+                  adminMessage ||
+                  "Our team will contact you within 24-48 hours to arrange the pickup details and complete the adoption process."
+                }
+              </p>
+            </div>
+            
+            <div style="text-align: center; margin-top: 20px;">
+              <p style="color: #666; font-size: 14px;">
+                <strong>Please keep an eye on your email</strong> for further instructions.
+              </p>
+            </div>
+          </div>
+          
+          <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+            <p>Thank you for choosing to adopt and give a loving home to ${petName}!</p>
+            <p>© ${new Date().getFullYear()} PawProject. All rights reserved.</p>
+          </div>
+        </div>
+      `;
+      break;
+
+    case "Rejected":
+      subject = `Update on Your Adoption Request for ${petName} - PawProject`;
+      html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #FF6B35; margin: 0;">PawProject</h1>
+            <h2 style="color: #333; margin-top: 10px;">Adoption Request Update</h2>
+          </div>
+          
+          <div style="background-color: #f9f9f9; border-radius: 10px; padding: 30px;">
+            <h3 style="color: #333; text-align: center;">Hello, ${userFullname}</h3>
+            
+            <p style="color: #666; font-size: 16px; text-align: center;">
+              After careful consideration, we regret to inform you that your adoption request for <strong>${petName}</strong> has been <span style="color: #ef4444; font-weight: bold;">not approved</span> at this time.
+            </p>
+            
+            <div style="background-color: white; border: 2px solid #fecaca; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <h4 style="color: #333; margin-top: 0;">Message from our team:</h4>
+              <p style="color: #666; margin: 10px 0;">
+                ${
+                  adminMessage ||
+                  "Thank you for your interest in adopting. We encourage you to consider other available pets that might be a better fit for your situation."
+                }
+              </p>
+            </div>
+            
+            <div style="text-align: center; margin-top: 20px;">
+              <p style="color: #666; font-size: 14px;">
+                We appreciate your understanding and hope you'll consider adopting another pet in the future.
+              </p>
+            </div>
+          </div>
+          
+          <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+            <p>© ${new Date().getFullYear()} PawProject. All rights reserved.</p>
+          </div>
+        </div>
+      `;
+      break;
+
+    case "Completed":
+      subject = `🎊 Adoption Completed for ${petName}! - PawProject`;
+      html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #FF6B35; margin: 0;">PawProject</h1>
+            <h2 style="color: #333; margin-top: 10px;">Adoption Completed! 🎊</h2>
+          </div>
+          
+          <div style="background-color: #f9f9f9; border-radius: 10px; padding: 30px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <div style="background-color: #3b82f6; color: white; padding: 15px 25px; border-radius: 25px; display: inline-block;">
+                <h3 style="margin: 0; font-size: 24px;">Adoption Finalized!</h3>
+              </div>
+            </div>
+            
+            <h3 style="color: #333; text-align: center;">Congratulations, ${userFullname}!</h3>
+            
+            <p style="color: #666; font-size: 16px; text-align: center;">
+              We're delighted to inform you that your adoption of <strong>${petName}</strong> is now <span style="color: #3b82f6; font-weight: bold;">COMPLETED</span>!
+            </p>
+            
+            <div style="background-color: white; border: 2px solid #3b82f6; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <h4 style="color: #333; margin-top: 0;">Final Message:</h4>
+              <p style="color: #666; margin: 10px 0;">
+                ${
+                  adminMessage ||
+                  "Thank you for giving a loving home to ${petName}! We wish you both many happy years together."
+                }
+              </p>
+            </div>
+            
+            <div style="text-align: center; margin-top: 20px;">
+              <p style="color: #666; font-size: 14px;">
+                Remember that we're always here to support you and ${petName}. Don't hesitate to reach out if you need any post-adoption advice.
+              </p>
+            </div>
+          </div>
+          
+          <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+            <p>© ${new Date().getFullYear()} PawProject. All rights reserved.</p>
+          </div>
+        </div>
+      `;
+      break;
+
+    default:
+      subject = `Update on Your Adoption Request for ${petName} - PawProject`;
+      html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #FF6B35; margin: 0;">PawProject</h1>
+            <h2 style="color: #333; margin-top: 10px;">Adoption Request Update</h2>
+          </div>
+          
+          <div style="background-color: #f9f9f9; border-radius: 10px; padding: 30px;">
+            <h3 style="color: #333; text-align: center;">Hello, ${userFullname}</h3>
+            
+            <p style="color: #666; font-size: 16px; text-align: center;">
+              Your adoption request status for <strong>${petName}</strong> has been updated to: <strong>${status.toUpperCase()}</strong>.
+            </p>
+            
+            ${
+              adminMessage
+                ? `
+            <div style="background-color: white; border: 2px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <h4 style="color: #333; margin-top: 0;">Message from our team:</h4>
+              <p style="color: #666; margin: 10px 0;">${adminMessage}</p>
+            </div>
+            `
+                : ""
+            }
+          </div>
+          
+          <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+            <p>© ${new Date().getFullYear()} PawProject. All rights reserved.</p>
+          </div>
+        </div>
+      `;
+      break;
+  }
+
+  const msg = {
+    to: userEmail,
+    from: process.env.SENDGRID_VERIFIED_SENDER,
+    subject,
+    html,
+  };
+
+  try {
+    const result = await sgMail.send(msg);
+    console.log(`✅ Adoption status email sent successfully to ${userEmail}`);
+    console.log(`✅ Status: ${status}, Pet: ${petName}`);
+    return {
+      success: true,
+      messageId: result[0].headers["x-message-id"],
+      statusCode: result[0].statusCode,
+    };
+  } catch (error) {
+    console.error("❌ SendGrid error for adoption status email:", error);
+    throw new Error(`Failed to send adoption status email: ${error.message}`);
+  }
+};
+
 module.exports = {
   sendOtpEmail,
   sendAdoptionEmail,
   sendContactEmail,
   sendDonationEmail,
+  sendAdoptionStatusEmail,
 };
