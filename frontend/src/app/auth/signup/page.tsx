@@ -76,6 +76,12 @@ export default function SignUp() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validate password length
+    if (formData.password.length < 6) {
+      toast.error("Password must be at least 6 characters long");
+      return;
+    }
+
     // Validate password match before submitting
     if (formData.password !== formData.confirmPassword) {
       toast.error("Passwords do not match");
@@ -165,14 +171,20 @@ export default function SignUp() {
                 className="border border-gray-300 focus:border-orange-500 transition-colors bg-white/10 text-black placeholder:text-gray-500 rounded-xl py-6"
                 required
               />
-              <PasswordInput
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Password"
-                className="bg-white/10 border-gray-300 focus:border-orange-500 text-black placeholder:text-gray-500 rounded-xl py-6"
-                required
-              />
+              <div>
+                <PasswordInput
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Password (min. 6 characters)"
+                  className="bg-white/10 border-gray-300 focus:border-orange-500 text-black placeholder:text-gray-500 rounded-xl py-6"
+                  required
+                  minLength={6}
+                />
+                {formData.password && formData.password.length < 6 && (
+                  <p className="text-red-500 text-xs mt-1">Password must be at least 6 characters</p>
+                )}
+              </div>
               <div>
                 <PasswordInput
                   name="confirmPassword"

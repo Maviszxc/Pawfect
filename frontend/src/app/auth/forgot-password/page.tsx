@@ -28,6 +28,7 @@ export default function ForgotPassword() {
   const [otp, setOtp] = useState("");
   const [verifiedOtp, setVerifiedOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [isOtpVerified, setIsOtpVerified] = useState(false);
@@ -87,6 +88,16 @@ export default function ForgotPassword() {
   const handleResetPassword = async () => {
     if (!newPassword) {
       toast.error("Please enter a new password");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters long");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
       return;
     }
 
@@ -244,13 +255,33 @@ export default function ForgotPassword() {
             <p className="text-black mb-6">
               Create a new password for your account
             </p>
-            <PasswordInput
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="New Password"
-              className="bg-white/10 border-gray-300 focus:border-orange-500 text-black placeholder:text-gray-500 w-full text-center text-lg py-6 rounded-xl"
-              required
-            />
+            <div className="space-y-4">
+              <div>
+                <PasswordInput
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="New Password (min. 6 characters)"
+                  className="bg-white/10 border-gray-300 focus:border-orange-500 text-black placeholder:text-gray-500 w-full text-center text-lg py-6 rounded-xl"
+                  required
+                  minLength={6}
+                />
+                {newPassword && newPassword.length < 6 && (
+                  <p className="text-red-500 text-xs mt-1 text-center">Password must be at least 6 characters</p>
+                )}
+              </div>
+              <div>
+                <PasswordInput
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm New Password"
+                  className="bg-white/10 border-gray-300 focus:border-orange-500 text-black placeholder:text-gray-500 w-full text-center text-lg py-6 rounded-xl"
+                  required
+                />
+                {confirmPassword && newPassword !== confirmPassword && (
+                  <p className="text-red-500 text-xs mt-1 text-center">Passwords do not match</p>
+                )}
+              </div>
+            </div>
             <Button
               onClick={handleResetPassword}
               className="w-full bg-orange-500 hover:bg-orange-600 text-white py-6 text-lg mt-6 rounded-xl transition-all duration-300 font-medium"

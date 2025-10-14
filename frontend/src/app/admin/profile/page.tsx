@@ -65,6 +65,7 @@ export default function AdminProfile() {
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [isOtpVerified, setIsOtpVerified] = useState(false);
   const [verifiedOtp, setVerifiedOtp] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [view, setView] = useState<
     | "main"
     | "account"
@@ -365,6 +366,21 @@ export default function AdminProfile() {
     if (!isOtpVerified) {
       toast.error("Please verify your OTP first");
       setView("verifyPassword");
+      return;
+    }
+
+    if (!tempFormData.password) {
+      toast.error("Please enter your new password");
+      return;
+    }
+
+    if (tempFormData.password.length < 6) {
+      toast.error("Password must be at least 6 characters long");
+      return;
+    }
+
+    if (tempFormData.password !== confirmPassword) {
+      toast.error("Passwords do not match");
       return;
     }
 
@@ -696,7 +712,42 @@ export default function AdminProfile() {
                         name="password"
                         value={tempFormData.password}
                         onChange={handleChange}
-                        placeholder="Enter your new password"
+                        placeholder="Enter new password (min. 6 characters)"
+                        className="rounded-xl py-6 bg-gray-50 border-gray-200 focus:bg-white transition-colors pr-12"
+                        required
+                        minLength={6}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      >
+                        {showPassword ? (
+                          <EyeOff size={20} />
+                        ) : (
+                          <Eye size={20} />
+                        )}
+                      </button>
+                    </div>
+                    {tempFormData.password && tempFormData.password.length < 6 && (
+                      <p className="text-red-500 text-xs mt-1">Password must be at least 6 characters</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="confirmPassword"
+                      className="text-sm text-gray-600 font-medium"
+                    >
+                      Confirm New Password
+                    </label>
+                    <div className="relative">
+                      <Input
+                        id="confirmPassword"
+                        type={showPassword ? "text" : "password"}
+                        name="confirmPassword"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Confirm your new password"
                         className="rounded-xl py-6 bg-gray-50 border-gray-200 focus:bg-white transition-colors pr-12"
                         required
                       />
@@ -712,6 +763,9 @@ export default function AdminProfile() {
                         )}
                       </button>
                     </div>
+                    {confirmPassword && tempFormData.password !== confirmPassword && (
+                      <p className="text-red-500 text-xs mt-1">Passwords do not match</p>
+                    )}
                   </div>
 
                   <Button

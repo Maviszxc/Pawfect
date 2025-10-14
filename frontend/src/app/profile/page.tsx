@@ -96,6 +96,7 @@ export default function Profile() {
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [isOtpVerified, setIsOtpVerified] = useState(false);
   const [verifiedOtp, setVerifiedOtp] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [view, setView] = useState<
     | "main"
     | "account"
@@ -502,6 +503,16 @@ export default function Profile() {
       return;
     }
 
+    if (tempFormData.password.length < 6) {
+      toast.error("Password must be at least 6 characters long");
+      return;
+    }
+
+    if (tempFormData.password !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
     setIsLoading(true);
     try {
       const res = await axios.put(
@@ -894,10 +905,34 @@ export default function Profile() {
                       name="password"
                       value={tempFormData.password}
                       onChange={handleChange}
-                      placeholder="Enter your new password"
+                      placeholder="Enter new password (min. 6 characters)"
+                      className="rounded-xl py-6 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                      required
+                      minLength={6}
+                    />
+                    {tempFormData.password && tempFormData.password.length < 6 && (
+                      <p className="text-red-500 text-xs mt-1">Password must be at least 6 characters</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="confirmPassword"
+                      className="text-sm text-gray-600 font-medium"
+                    >
+                      Confirm New Password
+                    </label>
+                    <PasswordInput
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm your new password"
                       className="rounded-xl py-6 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
                       required
                     />
+                    {confirmPassword && tempFormData.password !== confirmPassword && (
+                      <p className="text-red-500 text-xs mt-1">Passwords do not match</p>
+                    )}
                   </div>
                   <Button
                     type="submit"
