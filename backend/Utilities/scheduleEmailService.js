@@ -68,7 +68,13 @@ const sendScheduleCreationEmail = async (email, fullname, schedule) => {
             <p>© ${new Date().getFullYear()} PawProject. All rights reserved.</p>
           </div>
         </div>
-      `,
+      `;
+
+    const msg = {
+      to: email,
+      from: process.env.SENDGRID_VERIFIED_SENDER,
+      subject: `🎉 New Live Stream: ${schedule.title}`,
+      html: htmlContent,
     };
 
     const result = await sgMail.send(msg);
@@ -123,7 +129,13 @@ const sendScheduleReminderEmail = async (email, fullname, schedule) => {
             <p>© ${new Date().getFullYear()} PawProject. All rights reserved.</p>
           </div>
         </div>
-      `,
+      `;
+
+    const msg = {
+      to: email,
+      from: process.env.SENDGRID_VERIFIED_SENDER,
+      subject: `⏰ Reminder: ${schedule.title} starts in 1 hour!`,
+      html: htmlContent,
     };
 
     const result = await sgMail.send(msg);
@@ -188,7 +200,13 @@ const sendLiveStartedEmail = async (email, fullname, schedule) => {
             <p>© ${new Date().getFullYear()} PawProject. All rights reserved.</p>
           </div>
         </div>
-      `,
+      `;
+
+    const msg = {
+      to: email,
+      from: process.env.SENDGRID_VERIFIED_SENDER,
+      subject: `🔴 LIVE NOW: ${schedule.title}`,
+      html: htmlContent,
     };
 
     const result = await sgMail.send(msg);

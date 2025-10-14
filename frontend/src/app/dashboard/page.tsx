@@ -15,6 +15,7 @@ import DonateModal from "@/components/DonateModal";
 import ContactModal from "@/components/ContactModal";
 import { useVideoStream } from "@/context/VideoStreamContext";
 import { Video, Calendar, Clock, Users, Play } from "lucide-react";
+import { toast } from "react-toastify";
 import Footer from "@/components/Footer";
 
 // Dynamically import FloatingBotDemo with SSR disabled
@@ -116,21 +117,41 @@ export default function Home() {
     }
   }, [adminStream]);
 
-  const handleDonationSubmit = (e: React.FormEvent) => {
+  const handleDonationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle donation confirmation logic here
-    console.log("Donation confirmed:", donationForm);
-    // You can add API call to submit donation confirmation
-    setShowDonateModal(false);
-    setDonationForm({
-      name: "",
-      mobileNumber: "",
-      email: "",
-      amount: "",
-      donationFor: "general",
-      receiveUpdates: false,
-      notRobot: false,
-    });
+    
+    try {
+      const response = await axios.post(`${BASE_URL}/api/donations`, {
+        name: donationForm.name,
+        email: donationForm.email,
+        mobileNumber: donationForm.mobileNumber,
+        amount: donationForm.amount,
+        donationFor: donationForm.donationFor,
+        donationType: activeTab, // "local" or "international"
+        receiveUpdates: donationForm.receiveUpdates,
+      });
+
+      if (response.data.success) {
+        toast.success(response.data.message || "Thank you for your donation!");
+        setShowDonateModal(false);
+        setDonationForm({
+          name: "",
+          mobileNumber: "",
+          email: "",
+          amount: "",
+          donationFor: "general",
+          receiveUpdates: false,
+          notRobot: false,
+        });
+      } else {
+        toast.error(response.data.message || "Failed to process donation");
+      }
+    } catch (error: any) {
+      console.error("Error submitting donation:", error);
+      toast.error(
+        error.response?.data?.message || "Failed to submit donation. Please try again."
+      );
+    }
   };
 
   return (

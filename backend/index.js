@@ -10,6 +10,8 @@ const petRoutes = require("./Routes/petRoutes");
 const adoptionRoutes = require("./Routes/adoptionRoutes");
 const adminRoutes = require("./Routes/adminRoutes");
 const scheduleRoutes = require("./Routes/scheduleRoutes");
+const contactRoutes = require("./Routes/contactRoutes");
+const donationRoutes = require("./Routes/donationRoutes");
 const scheduleReminderService = require("./Utilities/scheduleReminderService");
 
 dotenv.config();
@@ -96,6 +98,8 @@ app.use("/api/pets", petRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/adoptions", adoptionRoutes);
 app.use("/api/schedules", scheduleRoutes);
+app.use("/api/contact", contactRoutes);
+app.use("/api/donations", donationRoutes);
 
 app.get("/", (req, res) => {
   res.send("Hello World!");

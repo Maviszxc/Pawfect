@@ -56,21 +56,21 @@ export default function About() {
       role: "Founder & President",
       description:
         "The heart and mind behind Biyaya Animal Care. Rina's passion for animal welfare has been the driving force behind our organization since its inception.",
-      emoji: "👩‍💼",
+      image: "./rina.png",
     },
     {
       name: "Our Veterinary Partners",
       role: "Medical Care Team",
       description:
         "A network of dedicated veterinary professionals who provide comprehensive medical care, spay/neuter services, and emergency treatment for all our rescued animals.",
-      emoji: "🐾",
+      image: "./vet.png",
     },
     {
       name: "Our Dedicated Team",
       role: "Volunteers & Staff",
       description:
         "A group of compassionate individuals working tirelessly to make a difference in the lives of animals every day through rescue, rehabilitation, and adoption services.",
-      emoji: "👥",
+      image: "./staff.jpg",
     },
   ];
 
@@ -237,7 +237,7 @@ export default function About() {
               </div>
           </section>
 
-          {/* Team Section - USING EMOJIS INSTEAD OF IMAGES */}
+          {/* Team Section */}
           <section className="py-20 bg-white">
               <div className="max-w-6xl mx-auto px-6">
                   <motion.div
@@ -263,10 +263,17 @@ export default function About() {
                               transition={{ delay: index * 0.2 }}
                               className={`flex flex-col ${index % 2 === 0 ? "lg:flex-row" : "lg:flex-row-reverse"} gap-8 items-center bg-gradient-to-br from-orange-50 to-blue-50 rounded-3xl p-8 shadow-lg`}
                           >
-                              {/* LANDSCAPE Emoji Area - NO IMAGE FILES NEEDED */}
+                              {/* Team Member Image */}
                               <div className="lg:w-2/5">
-                                  <div className="w-full h-64 bg-gradient-to-br from-orange-200 to-blue-200 rounded-2xl flex items-center justify-center shadow-lg">
-                                      <div className="text-8xl">{member.emoji}</div>
+                                  <div className="w-full h-64 rounded-2xl overflow-hidden shadow-lg">
+                                      <img
+                                          src={member.image}
+                                          alt={member.name}
+                                          className="w-full h-full object-cover"
+                                          onError={(e) => {
+                                              e.currentTarget.src = "/placeholder-team.jpg";
+                                          }}
+                                      />
                                   </div>
                               </div>
 

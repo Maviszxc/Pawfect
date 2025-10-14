@@ -43,21 +43,21 @@ interface ChatInterfaceProps {
   onClose: () => void;
 }
 
-// FAQ questions for quick access
+// FAQ questions for quick access - Biyaya specific
 const faqQuestions = [
-  "How does the adoption process work?",
-  "What are the adoption fees?",
-  "Do you offer pet insurance?",
-  "How do I prepare my home for a new pet?",
-  "What vaccinations do your pets have?",
+  "What is Biyaya Animal Care?",
+  "Where are your branches?",
+  "How can I adopt an Aspin or Puspin?",
+  "What services do you offer?",
+  "How can I support your mission?",
 ];
 
 // AI Assistant profile information
 const assistantProfile = {
-  name: "Pet Assistant",
+  name: "Biyaya Assistant",
   avatar: "/logows.png",
   description:
-    "AI-powered pet matching assistant to help you find your perfect companion.",
+    "Your guide to Biyaya Animal Care - helping you find your perfect Aspin or Puspin companion!",
 };
 
 // Default user profile
@@ -73,7 +73,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
       id: "welcome",
       role: "assistant",
       content:
-        "🐾 **Welcome to PetMatch!** \n\nHi there! I'm your pet matching assistant. I can help you find the perfect pet companion based on your preferences. \n\nWould you like to start the matching quiz?",
+        "🐾 **Kumusta! Welcome to Biyaya!** \n\nI'm your Biyaya Pet Assistant. I can help you learn about Biyaya Animal Care, our services, and find your perfect Aspin or Puspin companion! \n\nWould you like to start the pet matching quiz?",
       options: ["Yes, let's start", "Tell me more first"],
     },
   ]);
@@ -300,59 +300,89 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
     setShowFaqButtons(false);
   };
 
-  // Process message with Gemini AI - Updated to handle more natural responses
+  // Process message with Gemini AI - Updated with Biyaya-specific information
   const processWithGemini = async (message: string): Promise<string> => {
     try {
-      // In a real application, call your backend API which then calls Gemini API
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
       const lowerMessage = message.toLowerCase();
 
+      // Biyaya-specific responses
       if (
-        lowerMessage.includes("adoption process") ||
-        lowerMessage.includes("how to adopt")
+        lowerMessage.includes("biyaya") ||
+        lowerMessage.includes("what is biyaya") ||
+        lowerMessage.includes("about biyaya")
       ) {
-        return "**Our Adoption Process:**\n\n1. **Browse Available Pets** - View our pets online or visit our shelter\n2. **Submit Application** - Fill out our adoption form\n3. **Meet & Greet** - Schedule time with your potential pet\n4. **Home Check** - Optional visit to ensure a good fit\n5. **Finalize Adoption** - Complete paperwork and pay fees\n6. **Take Home** - Welcome your new family member!\n\nThe process typically takes 3-7 days. We're here to help every step of the way! 🐾";
+        return "**About Biyaya Animal Care** 🐾\n\nBiyaya is a social enterprise transforming every support into hope for stray animals. We believe that compassion changes lives—not just for pets, but for the people and communities who care for them.\n\n**We offer:**\n• **Veterinary Hospital & Clinic Network** - Professional medical services from preventive care to emergency treatments\n• **Pawshoppe** - Premium pet essentials and services\n• **Animal Sanctuary** - Rescue and rehoming for abandoned pets, especially Aspins and Puspins\n\n**Our Mission:** Working towards a #StrayFreeRabiesFreePhilippines2035 🇵🇭";
       } else if (
-        lowerMessage.includes("fee") ||
-        lowerMessage.includes("cost") ||
-        lowerMessage.includes("price")
+        lowerMessage.includes("services") ||
+        lowerMessage.includes("what do you offer")
       ) {
-        return "**Adoption Fees:**\n\n• **Cats/Kittens**: $75 - $150\n• **Dogs/Puppies**: $150 - $300\n• **Small Animals**: $25 - $75\n\n💰 *Fees include:*\n- Spay/neuter surgery\n- Initial vaccinations\n- Microchipping\n- Health check-up\n- Deworming treatment\n\nWe offer discounts for seniors and multiple pet adoptions!";
-      } else if (lowerMessage.includes("insurance")) {
-        return "**Pet Insurance Options:**\n\nWe partner with several insurance providers to offer:\n\n• **Basic Coverage**: $20-30/month - Accident protection\n• **Comprehensive**: $40-60/month - Illness + accidents\n• **Wellness Plans**: $15-25/month - Preventive care\n\n🏥 *Most plans cover:*\n- Emergency visits\n- Surgeries\n- Medications\n- Specialist care\n\nLet me know if you'd like specific provider recommendations!";
+        return "**Biyaya Animal Care Services** 🏥\n\n• **Consultation** - Professional veterinary advice\n• **Surgery** - Advanced surgical procedures\n• **Spay & Neuter** - Low-cost kapon services\n• **Laboratory & Diagnostics** - Complete testing facilities\n• **Dental Care** - Dental prophylaxis packages\n• **Confinement Services** - 24/7 pet care\n\n**Special Programs:**\n✨ Low-cost Spay and Neuter\n✨ Dental Prophylaxis Packages\n✨ Standard Pet Wellness Packages\n\nVisit any of our 3 branches!";
       } else if (
-        lowerMessage.includes("prepare") ||
-        lowerMessage.includes("home") ||
-        lowerMessage.includes("supplies")
+        lowerMessage.includes("branch") ||
+        lowerMessage.includes("location") ||
+        lowerMessage.includes("where")
       ) {
-        return "**Preparing Your Home:**\n\n**Essentials Checklist:**\n\n🐕 **For Dogs:**\n- Food and water bowls\n- Quality dog food\n- Collar with ID tags\n- Leash and harness\n- Comfortable bed\n- Chew toys\n- Grooming supplies\n- Crate (if crate training)\n\n🐈 **For Cats:**\n- Litter box and litter\n- Scratching post\n- Food and water bowls\n- Quality cat food\n- Cozy bed\n- Interactive toys\n- Carrier\n\n**Pet-proofing Tips:**\n- Secure electrical cords\n- Remove toxic plants\n- Store chemicals safely\n- Create a safe space\n- Baby gates if needed";
+        return "**Biyaya Branches** 📍\n\n🏥 **Mandala Pet Hospital**\n📞 0917-142-0171\n\n🏥 **Rockwell Pet Clinic**\n📞 0917-137-1157\n\n🏥 **Katarungan Spay and Neuter Clinic**\n📞 0917-543-3444\n\nVisit us for quality pet care!";
       } else if (
-        lowerMessage.includes("vaccination") ||
-        lowerMessage.includes("vaccine") ||
-        lowerMessage.includes("shots")
+        lowerMessage.includes("adoption") ||
+        lowerMessage.includes("adopt") ||
+        lowerMessage.includes("rescue")
       ) {
-        return "**Vaccination Information:**\n\nAll our pets receive age-appropriate vaccinations:\n\n🐶 **Dogs:**\n- Rabies\n- DHPP (Distemper, Hepatitis, Parainfluenza, Parvovirus)\n- Bordetella (Kennel Cough)\n- Leptospirosis\n\n🐱 **Cats:**\n- Rabies\n- FVRCP (Feline Viral Rhinotracheitis, Calicivirus, Panleukopenia)\n- Feline Leukemia (FeLV)\n\n📋 *We provide:*\n- Complete medical records\n- Vaccination certificates\n- Spay/neuter documentation\n- Microchip information\n\nAll pets are vet-checked before adoption!";
+        return "**Biyaya Animal Sanctuary - Adoption** 🏠\n\nWe give abandoned and neglected pets—especially **Aspins** (Filipino dogs) and **Puspins** (Filipino cats)—a second chance at life!\n\n**Adoption Process:**\n1. Browse available rescued pets\n2. Submit adoption application\n3. Meet your potential companion\n4. Home assessment (if needed)\n5. Complete adoption paperwork\n6. Welcome your new family member!\n\nEvery stray deserves a second chance. Be a Biyaya! 💛";
+      } else if (
+        lowerMessage.includes("aspin") ||
+        lowerMessage.includes("puspin") ||
+        lowerMessage.includes("filipino")
+      ) {
+        return "**Aspins & Puspins - Filipino Pride!** 🇵🇭\n\n**Aspins** (Asong Pinoy) - Filipino dogs\n• Resilient and adaptable\n• Loyal and intelligent\n• Perfect family companions\n• Low maintenance\n\n**Puspins** (Pusang Pinoy) - Filipino cats\n• Independent yet affectionate\n• Natural hunters\n• Hardy and healthy\n• Great for Filipino climate\n\nAt Biyaya, we're proud advocates for our local breeds. They deserve love too! 💕";
+      } else if (
+        lowerMessage.includes("spay") ||
+        lowerMessage.includes("neuter") ||
+        lowerMessage.includes("kapon")
+      ) {
+        return "**Low-Cost Kapon (Spay/Neuter)** ✂️\n\nBiyaya offers affordable spay and neuter services to help control pet population and improve pet health.\n\n**Benefits:**\n• Prevents unwanted litters\n• Reduces health risks\n• Improves behavior\n• Helps end animal homelessness\n\n**Visit our Katarungan Branch:**\n📞 0917-543-3444\n\nHelping create a #StrayFreePhilippines!";
+      } else if (
+        lowerMessage.includes("donate") ||
+        lowerMessage.includes("donation") ||
+        lowerMessage.includes("support")
+      ) {
+        return "**Support Biyaya's Mission** 💛\n\nYour compassion gives stray animals a chance for a better tomorrow!\n\n**Ways to Help:**\n• **Donate** - Support rescued animals\n• **Sponsor a Pet** - Cover medical costs\n• **Shop with Purpose** - Buy from Pawshoppe\n• **Volunteer** - Join our team\n• **Adopt** - Give a pet a forever home\n\nEvery contribution transforms lives. Be a Biyaya! 🐾";
+      } else if (
+        lowerMessage.includes("pawshoppe") ||
+        lowerMessage.includes("shop") ||
+        lowerMessage.includes("store")
+      ) {
+        return "**Pawshoppe by Biyaya** 🛍️\n\nYour one-stop shop for premium pet essentials!\n\n**We offer:**\n• Quality pet food\n• Toys and accessories\n• Grooming supplies\n• Health supplements\n• Pet care services\n\n**Shop with Purpose** - Every purchase supports our rescue mission and helps stray animals find hope! 💚";
+      } else if (
+        lowerMessage.includes("fur mom") ||
+        lowerMessage.includes("fur parent") ||
+        lowerMessage.includes("pet parent")
+      ) {
+        return "**Being a Fur Parent** 🐕🐈\n\n**Responsibilities:**\n• Provide nutritious food and clean water\n• Regular vet check-ups and vaccinations\n• Daily exercise and playtime\n• Grooming and hygiene\n• Love, patience, and training\n• Safe and comfortable home\n\n**Tips for Filipino Fur Parents:**\n✨ Consider Aspins/Puspins - they're adapted to our climate\n✨ Regular anti-tick/flea treatment (tropical weather)\n✨ Keep pets cool during summer\n✨ Spay/neuter to prevent overpopulation\n\nBiyaya is here to support your fur parenting journey!";
       } else if (
         lowerMessage.includes("hello") ||
         lowerMessage.includes("hi") ||
-        lowerMessage.includes("hey")
+        lowerMessage.includes("hey") ||
+        lowerMessage.includes("kumusta")
       ) {
-        return "Hello! 👋 I'm your Pet Matching Assistant! \n\nI can help you:\n• Find your perfect pet companion 🐕🐈\n• Answer adoption questions ❓\n• Guide you through our process 📋\n• Provide pet care information 📚\n\nHow can I help you today?";
+        return "**Kumusta! 👋**\n\nI'm your Biyaya Pet Assistant! I can help you with:\n\n🐾 Information about Biyaya Animal Care\n🏥 Our veterinary services\n🏠 Pet adoption and rescue\n💉 Spay/neuter programs\n🛍️ Pawshoppe products\n💛 How to support our mission\n📍 Branch locations\n\nWhat would you like to know?";
       } else if (lowerMessage.includes("thank")) {
-        return "You're very welcome! 😊 I'm happy to help. If you have any other questions about pet adoption, care, or our available pets, just let me know! 🐾";
+        return "Walang anuman! You're very welcome! 😊\n\nIf you have more questions about Biyaya, our services, or how to be a responsible fur parent, just ask! We're here to help. 🐾💛";
       } else if (
         lowerMessage.includes("quiz") ||
         lowerMessage.includes("match") ||
         lowerMessage.includes("start over")
       ) {
         handleStartOver();
-        return "🔄 **Starting Over**\n\nLet's begin the matching quiz to find your perfect pet companion!";
+        return "🔄 **Starting Pet Matching Quiz**\n\nLet's find your perfect companion from our rescued Aspins and Puspins!";
       }
 
-      return "I'm here to help you find your perfect pet companion! 🐕🐈\n\nI can:\n• Help you take our matching quiz to find compatible pets\n• Answer questions about adoption processes and fees\n• Provide information on pet care and preparation\n• Tell you about our available pets\n\nWhat would you like to know? You can also type 'quiz' to start our matching process!";
+      // Default response - guide users to relevant topics
+      return "**I'm here to help!** 🐾\n\nI can answer questions about:\n\n• **Biyaya Animal Care** - Our mission and services\n• **Veterinary Services** - Consultations, surgery, spay/neuter\n• **Pet Adoption** - Rescued Aspins and Puspins\n• **Fur Parenting** - Tips and responsibilities\n• **Branches** - Locations and contact info\n• **Support** - How to donate or volunteer\n\nWhat would you like to know? You can also type **'quiz'** to find your perfect pet match!";
     } catch (error) {
-      console.error("Error calling Gemini API:", error);
+      console.error("Error processing message:", error);
       throw error;
     }
   };
@@ -380,7 +410,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content:
-          "📋 **How It Works:**\n\nI'll ask you 5 simple questions about your:\n• Preferred pet type 🐕🐈\n• Activity level 🏃‍♂️\n• Available time ⏰\n• Temperament preference 😊\n• Current pets 🐶🐱\n\nBased on your answers, I'll match you with pets from our database that would be a perfect fit for your lifestyle!\n\nReady to find your new best friend?",
+          "📋 **How It Works:**\n\nI'll ask you 5 simple questions about your:\n• Preferred pet type (Aspin or Puspin) 🐕🐈\n• Activity level 🏃‍♂️\n• Available time ⏰\n• Temperament preference 😊\n• Current pets 🐶🐱\n\nBased on your answers, I'll match you with rescued Aspins and Puspins from Biyaya Animal Sanctuary that would be perfect for your lifestyle!\n\nReady to give a rescued pet a second chance?",
         options: ["Yes, let's start", "No thanks"],
       };
       setMessages((prev) => [...prev, infoMessage]);
@@ -393,7 +423,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content:
-          "No problem! 😊 Feel free to chat with me anytime you're ready to find your perfect pet companion. I'm here to help with any questions! 🐾",
+          "No problem! 😊 Feel free to chat with me anytime you're ready to adopt, or if you have questions about Biyaya's services. Every stray deserves a second chance! 🐾💛",
       };
       setMessages((prev) => [...prev, goodbyeMessage]);
       return;
@@ -687,7 +717,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
         id: "welcome",
         role: "assistant",
         content:
-          "🐾 **Welcome to PetMatch!** \n\nHi there! I'm your pet matching assistant. I can help you find the perfect pet companion based on your preferences. \n\nWould you like to start the matching quiz?",
+          "🐾 **Kumusta! Welcome to Biyaya!** \n\nI'm your Biyaya Pet Assistant. I can help you learn about Biyaya Animal Care, our services, and find your perfect Aspin or Puspin companion! \n\nWould you like to start the pet matching quiz?",
         options: ["Yes, let's start", "Tell me more first"],
       },
     ]);
@@ -770,12 +800,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
             </Avatar>
             <div>
               <div className="flex items-center">
-                <h3 className="font-semibold text-lg">Pet Assistant</h3>
-                <span className="ml-2 bg-blue-600 text-xs px-1.5 py-0.5 rounded-full">
+                <h3 className="font-semibold text-lg">Biyaya Assistant</h3>
+                <span className="ml-2 bg-orange-600 text-xs px-1.5 py-0.5 rounded-full">
                   ✓
                 </span>
               </div>
-              <p className="text-xs text-gray-400">Active</p>
+              <p className="text-xs text-gray-400">Always here to help</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">

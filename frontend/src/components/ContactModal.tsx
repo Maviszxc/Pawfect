@@ -1,6 +1,9 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/dynamic-button";
 import { useState } from "react";
+import axios from "axios";
+import { BASE_URL } from "@/utils/constants";
+import { toast } from "react-toastify";
 
 interface ContactModalProps {
   showContactModal: boolean;
@@ -48,30 +51,39 @@ const ContactModal = ({
     setIsSubmitting(true);
 
     try {
-      // Handle contact form submission logic here
-      console.log("Contact form submitted:", contactForm);
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Reset form and close modal on success
-      setContactForm({
-        name: "",
-        email: "",
-        phone: "",
-        subject: "",
-        message: "",
-        contactMethod: "email",
-        receiveUpdates: false,
+      const response = await axios.post(`${BASE_URL}/api/contact`, {
+        name: contactForm.name,
+        email: contactForm.email,
+        phone: contactForm.phone,
+        subject: contactForm.subject,
+        message: contactForm.message,
+        contactMethod: contactForm.contactMethod,
+        receiveUpdates: contactForm.receiveUpdates,
       });
 
-      setShowContactModal(false);
+      if (response.data.success) {
+        toast.success(response.data.message || "Thank you for your message! We'll get back to you soon.");
+        
+        // Reset form and close modal on success
+        setContactForm({
+          name: "",
+          email: "",
+          phone: "",
+          subject: "",
+          message: "",
+          contactMethod: "email",
+          receiveUpdates: false,
+        });
 
-      // You can add a success toast here
-      alert("Thank you for your message! We'll get back to you soon.");
-    } catch (error) {
+        setShowContactModal(false);
+      } else {
+        toast.error(response.data.message || "Failed to send message");
+      }
+    } catch (error: any) {
       console.error("Error submitting contact form:", error);
-      alert("There was an error sending your message. Please try again.");
+      toast.error(
+        error.response?.data?.message || "There was an error sending your message. Please try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
