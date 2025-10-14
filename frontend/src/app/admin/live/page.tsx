@@ -17,6 +17,10 @@ import {
   Calendar,
   Clock,
   Trash2,
+  Mic,
+  MicOff,
+  Pause,
+  Play,
 } from "lucide-react";
 import AdminAuthWrapper from "@/components/AdminAuthWrapper";
 import { useVideoStream } from "@/context/VideoStreamContext";
@@ -56,7 +60,10 @@ export default function AdminLivePage() {
   const [cameraError, setCameraError] = useState("");
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [streamDuration, setStreamDuration] = useState(0);
   const cameraVideoRef = useRef<HTMLVideoElement>(null);
+  const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Schedule states
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -82,6 +89,9 @@ export default function AdminLivePage() {
     connectedUsers,
     viewerCount,
     totalParticipants,
+    isPaused,
+    pauseStream,
+    resumeStream,
   } = useVideoStream();
 
   const roomId = "pet-live-room";
@@ -235,6 +245,12 @@ export default function AdminLivePage() {
       }
 
       await connectToRoom(roomId, true);
+      
+      // Start duration timer
+      setStreamDuration(0);
+      durationIntervalRef.current = setInterval(() => {
+        setStreamDuration((prev) => prev + 1);
+      }, 1000);
     } catch (error) {
       console.error("Error accessing camera:", error);
       setCameraError(
@@ -244,14 +260,87 @@ export default function AdminLivePage() {
     }
   };
 
-  const stopCamera = () => {
+  const stopCamera = async () => {
     if (cameraStream) {
       cameraStream.getTracks().forEach((track) => track.stop());
       setCameraStream(null);
       setAdminStream(null);
       setIsCameraActive(false);
+      setIsMuted(false);
       disconnectFromRoom();
+      
+      // Stop duration timer
+      if (durationIntervalRef.current) {
+        clearInterval(durationIntervalRef.current);
+        durationIntervalRef.current = null;
+      }
+      setStreamDuration(0);
+
+      // If a schedule was selected, mark it as completed
+      if (selectedSchedule) {
+        try {
+          const token = localStorage.getItem("accessToken");
+          const response = await fetch(
+            `${BASE_URL}/api/schedules/${selectedSchedule}/complete`,
+            {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+          const data = await response.json();
+          if (data.success) {
+            console.log("✅ Schedule marked as completed");
+            toast.success("Live stream ended. Schedule marked as completed.");
+            fetchUpcomingSchedules(); // Refresh schedules
+            setSelectedSchedule(""); // Clear selection
+          }
+        } catch (error) {
+          console.error("❌ Failed to mark schedule as completed:", error);
+        }
+      } else {
+        toast.info("Live stream ended.");
+      }
     }
+  };
+
+  const toggleMute = () => {
+    if (cameraStream) {
+      const audioTracks = cameraStream.getAudioTracks();
+      audioTracks.forEach((track) => {
+        track.enabled = !track.enabled;
+      });
+      setIsMuted(!isMuted);
+    }
+  };
+
+  const handlePauseStream = () => {
+    if (cameraStream) {
+      // Disable all tracks when pausing
+      cameraStream.getTracks().forEach((track) => {
+        track.enabled = false;
+      });
+    }
+    pauseStream();
+  };
+
+  const handleResumeStream = () => {
+    if (cameraStream) {
+      // Re-enable all tracks when resuming
+      cameraStream.getTracks().forEach((track) => {
+        track.enabled = true;
+      });
+      // Restore mute state
+      if (isMuted) {
+        const audioTracks = cameraStream.getAudioTracks();
+        audioTracks.forEach((track) => {
+          track.enabled = false;
+        });
+      }
+    }
+    resumeStream();
   };
 
   const handleSendMessage = () => {
@@ -290,6 +379,18 @@ export default function AdminLivePage() {
     }
   }, [chatMessages]);
 
+  // Format duration as HH:MM:SS
+  const formatDuration = (seconds: number): string => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (hrs > 0) {
+      return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   // Helper function to get profile picture URL
   const getProfilePictureUrl = (profilePicture: string | undefined): string => {
     if (
@@ -326,118 +427,107 @@ export default function AdminLivePage() {
 
   return (
     <AdminAuthWrapper>
-      <div className="min-h-screen bg-[#f8fafc] ">
-        <div className="container mx-auto px-7 pt-2 space-y-6">
-          {/* Stream Statistics Card */}
-          <Card className="w-full rounded-2xl bg-orange-500 border border-orange-200">
-            <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-4 text-white">
-                Stream Statistics
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-blue-50 p-4 rounded-xl text-center">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {viewerCount}
-                  </div>
-                  <div className="text-sm text-blue-800">Current Viewers</div>
-                </div>
-                <div className="bg-green-50 p-4 rounded-xl text-center">
-                  <div className="text-2xl font-bold text-green-600">
-                    {totalParticipants}
-                  </div>
-                  <div className="text-sm text-green-800">
-                    Total Participants
-                  </div>
-                </div>
-                <div className="bg-orange-50 p-4 rounded-xl text-center">
-                  <div className="text-2xl font-bold text-orange-600">
-                    {connectedUsers.size}
-                  </div>
-                  <div className="text-sm text-orange-800">
-                    Active Connections
-                  </div>
-                </div>
-                <div className="bg-purple-50 p-4 rounded-xl text-center">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {chatMessages.length}
-                  </div>
-                  <div className="text-sm text-purple-800">Chat Messages</div>
-                </div>
-              </div>
-
-              {isCameraActive && (
-                <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-green-800 font-medium">
-                      Live stream is active
-                    </span>
-                    <span className="text-green-600 text-sm">
-                      Broadcasting to {viewerCount} viewer
-                      {viewerCount !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Network Status */}
-          <NetworkStatus />
-
-          <div className="flex justify-between p-5  items-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+          {/* Header Section */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <div className="flex items-center pt-2 gap-5">
-                <h1 className="text-3xl font-bold text-[#0a1629]">
-                  Live Stream Admin
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                  Live Stream Control
                 </h1>
-
-                {/* Admin Stats */}
-                <div className="flex items-center gap-3">
-                  {/* Live Status Badge */}
-                  {isCameraActive && (
-                    <div className="flex items-center gap-2 bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
-                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                      <span>LIVE</span>
-                    </div>
-                  )}
-                </div>
+                {isCameraActive && (
+                  <div className="flex items-center gap-2 bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-semibold">
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                    LIVE
+                  </div>
+                )}
               </div>
-
               {currentUser && (
                 <div className="flex items-center gap-2 mt-2">
-                  <Avatar className="h-6 w-6">
+                  <Avatar className="h-5 w-5">
                     <AvatarImage
                       src={getProfilePictureUrl(currentUser.profilePicture)}
                       alt={currentUser.fullname}
                     />
-                    <AvatarFallback>
+                    <AvatarFallback className="text-xs">
                       {getInitials(currentUser.fullname)}
                     </AvatarFallback>
                   </Avatar>
                   <span className="text-sm text-gray-600">
-                    Streaming as {currentUser.fullname}
+                    {currentUser.fullname}
                   </span>
-                  {connectedUsers.size > 0 && (
-                    <span className="text-xs text-green-600 ml-2">
-                      • {connectedUsers.size} active connection
-                      {connectedUsers.size !== 1 ? "s" : ""}
-                    </span>
-                  )}
                 </div>
               )}
             </div>
             <Button
               onClick={reconnect}
               variant="outline"
+              size="sm"
               className="flex items-center gap-2"
               disabled={isRefreshing}
             >
               <RefreshCw
                 className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
               />
-              Refresh Connection
+              <span className="hidden sm:inline">Refresh</span>
             </Button>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            <Card className="rounded-xl border-0 shadow-sm bg-white">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Eye className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-gray-900">{viewerCount}</div>
+                    <div className="text-xs text-gray-500">Viewers</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="rounded-xl border-0 shadow-sm bg-white">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <Users className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-gray-900">{totalParticipants}</div>
+                    <div className="text-xs text-gray-500">Total</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="rounded-xl border-0 shadow-sm bg-white">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <RefreshCw className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-gray-900">{connectedUsers.size}</div>
+                    <div className="text-xs text-gray-500">Connected</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="rounded-xl border-0 shadow-sm bg-white">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Send className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-gray-900">{chatMessages.length}</div>
+                    <div className="text-xs text-gray-500">Messages</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -451,13 +541,33 @@ export default function AdminLivePage() {
                   <div className="space-y-4">
                     <div className="relative aspect-video bg-black rounded-xl overflow-hidden">
                       {cameraStream ? (
-                        <video
-                          ref={cameraVideoRef}
-                          autoPlay
-                          playsInline
-                          muted
-                          className="w-full h-full object-cover"
-                        />
+                        <>
+                          <video
+                            ref={cameraVideoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className={`w-full h-full object-cover ${
+                              isPaused ? "opacity-0" : ""
+                            }`}
+                          />
+                          {isPaused && (
+                            <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-black flex flex-col items-center justify-center text-white z-10">
+                              <div className="text-center p-6">
+                                <Pause className="w-20 h-20 mb-6 mx-auto text-yellow-400 animate-pulse" />
+                                <h3 className="text-3xl font-bold mb-3">
+                                  Stream Paused
+                                </h3>
+                                <p className="text-gray-300 mb-4">
+                                  Your viewers see a "Stream Paused" message
+                                </p>
+                                <p className="text-sm text-gray-400">
+                                  Click Resume to continue broadcasting
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </>
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center text-white">
                           <CameraOff className="w-12 h-12 opacity-50" />
@@ -473,17 +583,43 @@ export default function AdminLivePage() {
                           disabled={!currentUser}
                         >
                           <Camera className="w-4 h-4 mr-2" />
-                          Start Camera
+                          Start Live
                         </Button>
                       ) : (
-                        <Button
-                          onClick={stopCamera}
-                          variant="destructive"
-                          className="flex-1 rounded-xl"
-                        >
-                          <CameraOff className="w-4 h-4 mr-2" />
-                          Stop Camera
-                        </Button>
+                        <>
+                          <Button
+                            onClick={stopCamera}
+                            variant="destructive"
+                            className="flex-1 rounded-xl"
+                          >
+                            <CameraOff className="w-4 h-4 mr-2" />
+                            End Live  
+                          </Button>
+                          <Button
+                            onClick={isPaused ? handleResumeStream : handlePauseStream}
+                            variant={isPaused ? "default" : "outline"}
+                            className="rounded-xl px-4"
+                            title={isPaused ? "Resume Stream" : "Pause Stream"}
+                          >
+                            {isPaused ? (
+                              <Play className="w-4 h-4" />
+                            ) : (
+                              <Pause className="w-4 h-4" />
+                            )}
+                          </Button>
+                          <Button
+                            onClick={toggleMute}
+                            variant={isMuted ? "destructive" : "outline"}
+                            className="rounded-xl px-4"
+                            title={isMuted ? "Unmute" : "Mute"}
+                          >
+                            {isMuted ? (
+                              <MicOff className="w-4 h-4" />
+                            ) : (
+                              <Mic className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </>
                       )}
                     </div>
 
@@ -526,17 +662,27 @@ export default function AdminLivePage() {
                     )}
 
                     {isCameraActive && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">
-                          Status: {connectionStatus}
-                        </span>
-                        <div className="flex items-center gap-3 text-sm">
-                          <span className="text-blue-600">
-                            Broadcasting to {viewerCount} viewer
-                            {viewerCount !== 1 ? "s" : ""}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">
+                            Status: {connectionStatus}
                           </span>
-                          <span className="text-green-600">
-                            • Streaming active
+                          <div className="flex items-center gap-3 text-sm">
+                            <span className="text-blue-600">
+                              Broadcasting to {viewerCount} viewer
+                              {viewerCount !== 1 ? "s" : ""}
+                            </span>
+                            <span className="text-green-600">
+                              • Streaming active
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                          <span className="text-sm font-medium text-gray-700">
+                            Stream Duration:
+                          </span>
+                          <span className="text-lg font-bold text-orange-600 font-mono">
+                            {formatDuration(streamDuration)}
                           </span>
                         </div>
                       </div>

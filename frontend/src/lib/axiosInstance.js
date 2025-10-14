@@ -5,7 +5,7 @@ import { BASE_URL } from "../utils/constants";
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000,
+  timeout: 15000, // Increased from 10s to 15s for slow API responses
   headers: {
     "Content-Type": "application/json",
   },
@@ -66,12 +66,21 @@ axiosInstance.interceptors.response.use(
         ? "Endpoint not found (404)"
         : "Unknown error");
 
+    // Log full error details for debugging
     console.error("❌ API Error:", {
       url,
       method: error.config?.method,
       status,
       message,
+      errorName: error.name,
+      errorCode: error.code,
+      isTimeout: error.code === 'ECONNABORTED',
     });
+    
+    // Also log the raw error for complete context
+    if (error.code === 'ECONNABORTED') {
+      console.error("⏱️ Request timed out after", error.config?.timeout, "ms");
+    }
 
     // If the error is 401 (Unauthorized) and not already retrying
     if (status === 401 && !originalRequest._retry) {

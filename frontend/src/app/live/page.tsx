@@ -5,13 +5,28 @@ import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, RefreshCw, Play } from "lucide-react";
+import { Send, RefreshCw, Play, Pause, CameraOff, Calendar, Clock, Video } from "lucide-react";
 import { useVideoStream } from "@/context/VideoStreamContext";
 import Navigation from "@/components/Navigation";
 import AuthNavigation from "@/components/authNavigation";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import Footer from "@/components/Footer";
 import { NetworkStatus } from "@/components/NetworkStatus";
+import { BASE_URL } from "@/utils/constants";
+import axios from "axios";
+
+interface Schedule {
+  _id: string;
+  title: string;
+  description: string;
+  scheduledDate: string;
+  duration: number;
+  status: "scheduled" | "live" | "completed" | "cancelled";
+  createdBy: {
+    fullname: string;
+    email: string;
+  };
+}
 
 export default function LivePage() {
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -21,6 +36,9 @@ export default function LivePage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [videoError, setVideoError] = useState("");
+  const [isJoined, setIsJoined] = useState(false);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [schedulesLoading, setSchedulesLoading] = useState(true);
 
   const {
     adminStream,
@@ -35,6 +53,7 @@ export default function LivePage() {
     connectedUsers,
     viewerCount,
     totalParticipants,
+    isPaused,
   } = useVideoStream();
 
   const roomId = "pet-live-room";
@@ -46,6 +65,9 @@ export default function LivePage() {
     if (token) {
       fetchCurrentUser();
     }
+
+    // Fetch upcoming schedules
+    fetchUpcomingSchedules();
 
     // Add user interaction listener
     const handleUserInteraction = () => {
@@ -66,19 +88,20 @@ export default function LivePage() {
     };
   }, [fetchCurrentUser]);
 
-  // Connect to room on component mount
-  useEffect(() => {
-    console.log("Viewer: Connecting to room...");
-    connectToRoom(roomId, false).catch((error) => {
-      console.error("Failed to connect to room:", error);
-      setVideoError("Failed to connect to live stream");
-    });
+  const fetchUpcomingSchedules = async () => {
+    try {
+      const response = await axios.get(`${BASE_URL}/api/schedules/upcoming`);
+      if (response.data.success) {
+        setSchedules(response.data.schedules.slice(0, 3)); // Show only 3 upcoming
+      }
+    } catch (error) {
+      console.error("Error fetching schedules:", error);
+    } finally {
+      setSchedulesLoading(false);
+    }
+  };
 
-    return () => {
-      console.log("Viewer: Disconnecting from room...");
-      disconnectFromRoom();
-    };
-  }, [roomId, connectToRoom, disconnectFromRoom]);
+  // Auto-connect removed - users now manually join/leave
 
   // Update video element when stream changes with better error handling
   useEffect(() => {
@@ -209,6 +232,29 @@ export default function LivePage() {
     }
   };
 
+  const handleJoinStream = async () => {
+    setIsRefreshing(true);
+    setVideoError("");
+
+    try {
+      console.log("Viewer: Joining live stream...");
+      await connectToRoom(roomId, false);
+      setIsJoined(true);
+    } catch (error) {
+      console.error("Failed to join stream:", error);
+      setVideoError("Failed to join live stream");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleLeaveStream = () => {
+    console.log("Viewer: Leaving live stream...");
+    disconnectFromRoom();
+    setIsJoined(false);
+    setVideoError("");
+  };
+
   const reconnect = async () => {
     setIsRefreshing(true);
     setVideoError("");
@@ -320,18 +366,44 @@ export default function LivePage() {
               </span>
             )}
           </div>
-          <Button
-            onClick={reconnect}
-            variant="outline"
-            className="flex items-center gap-2 w-full sm:w-auto text-sm"
-            disabled={isRefreshing}
-          >
-            <RefreshCw
-              className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
-            />
-            <span className="hidden sm:inline">Refresh Connection</span>
-            <span className="sm:hidden">Refresh</span>
-          </Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            {!isJoined ? (
+              <Button
+                onClick={handleJoinStream}
+                className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white flex-1 sm:flex-initial"
+                disabled={isRefreshing}
+              >
+                <Play className="w-4 h-4" />
+                <span>Join Stream</span>
+              </Button>
+            ) : (
+              <>
+                <Button
+                  onClick={handleLeaveStream}
+                  variant="destructive"
+                  className="flex items-center gap-2"
+                >
+                  <CameraOff className="w-4 h-4" />
+                  <span className="hidden sm:inline">Leave Stream</span>
+                  <span className="sm:hidden">Leave</span>
+                </Button>
+                <Button
+                  onClick={reconnect}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  disabled={isRefreshing}
+                >
+                  <RefreshCw
+                    className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+                  />
+                  <span className="hidden sm:inline">Refresh</span>
+                  <span className="sm:hidden">
+                    <RefreshCw className="w-4 h-4" />
+                  </span>
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
@@ -343,22 +415,52 @@ export default function LivePage() {
               </h2>
               <div className="space-y-4">
                 <div className="relative aspect-video bg-black rounded-xl overflow-hidden">
-                  {adminStream ? (
+                  {!isJoined ? (
+                    <div className="absolute inset-0 flex items-center justify-center text-white">
+                      <div className="text-center p-6">
+                        <Play className="w-16 h-16 mx-auto mb-4 opacity-70" />
+                        <h3 className="text-xl font-bold mb-2">
+                          Join the Live Stream
+                        </h3>
+                        <p className="text-gray-400 text-sm">
+                          Click the "Join Stream" button above to start watching
+                        </p>
+                      </div>
+                    </div>
+                  ) : adminStream ? (
                     <>
                       <video
                         ref={videoRef}
                         autoPlay
                         playsInline
-                        controls
+                        controls={false}
                         muted={false}
-                        className="w-full h-full object-cover"
+                        className={`w-full h-full object-cover ${
+                          isPaused ? "hidden" : ""
+                        }`}
                         onError={(e) => {
                           console.error("Video element error:", e);
                           setVideoError("Video playback error");
                         }}
                       />
-                      {(!hasUserInteracted || videoError) && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70">
+                      {isPaused && (
+                        <div className="absolute inset-0 bg-black flex flex-col items-center justify-center text-white z-50">
+                          <div className="flex flex-col items-center justify-center p-6 text-center">
+                            <Pause className="w-20 h-20 mb-6 text-white opacity-80 animate-pulse" />
+                            <h3 className="text-3xl font-bold text-white mb-3">
+                              Stream Paused
+                            </h3>
+                            <p className="text-lg text-gray-300 mb-2">
+                              The broadcaster has paused the stream
+                            </p>
+                            <p className="text-sm text-gray-400">
+                              Please wait, it will resume shortly...
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      {(!hasUserInteracted || videoError) && !isPaused && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 z-10">
                           <div className="text-center text-white">
                             <Button
                               onClick={handlePlayButtonClick}
@@ -379,6 +481,21 @@ export default function LivePage() {
                         </div>
                       )}
                     </>
+                  ) : !isAdminStreaming ? (
+                    <div className="absolute inset-0 flex items-center justify-center text-white">
+                      <div className="text-center p-6">
+                        <div className="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <CameraOff className="w-10 h-10 text-gray-400" />
+                        </div>
+                        <h3 className="text-2xl font-bold mb-2">Stream Ended</h3>
+                        <p className="text-gray-300 text-sm mb-4">
+                          The live stream has ended. Thank you for watching!
+                        </p>
+                        <p className="text-gray-400 text-xs">
+                          Check the schedule below for upcoming streams
+                        </p>
+                      </div>
+                    </div>
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-white">
                       <div className="text-center">
@@ -414,9 +531,24 @@ export default function LivePage() {
                   )}
                 </div>
 
+                {/* Pause Status Message */}
+                {isPaused && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-center gap-3">
+                    <Pause className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-yellow-800">
+                        Stream is currently paused
+                      </p>
+                      <p className="text-xs text-yellow-600 mt-0.5">
+                        The broadcaster has paused the stream. It will resume shortly.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs sm:text-sm">
                   <span className="text-gray-600">
-                    Status: {connectionStatus}
+                    Status: {isPaused ? "Paused" : connectionStatus}
                   </span>
                   <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                     <span className="text-gray-600">
@@ -429,8 +561,11 @@ export default function LivePage() {
                         {connectedUsers.size !== 1 ? "s" : ""}
                       </span>
                     )}
-                    {isAdminStreaming && (
+                    {isAdminStreaming && !isPaused && (
                       <span className="text-green-600">● Live now</span>
+                    )}
+                    {isPaused && (
+                      <span className="text-yellow-600">⏸ Paused</span>
                     )}
                   </div>
                 </div>
@@ -540,6 +675,78 @@ export default function LivePage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Upcoming Schedules Section */}
+        <Card className="w-full rounded-xl sm:rounded-2xl shadow mt-6">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Calendar className="w-5 h-5 text-orange-500" />
+              <h2 className="text-lg sm:text-xl font-semibold text-[#0a1629]">
+                Upcoming Streams
+              </h2>
+            </div>
+
+            <div className="space-y-3">
+              {schedulesLoading ? (
+                [...Array(3)].map((_, index) => (
+                  <div key={index} className="animate-pulse">
+                    <div className="h-20 bg-gray-200 rounded-xl"></div>
+                  </div>
+                ))
+              ) : schedules.length > 0 ? (
+                schedules.map((schedule) => {
+                  const scheduleDate = new Date(schedule.scheduledDate);
+                  const isLive = schedule.status === "live";
+
+                  return (
+                    <div
+                      key={schedule._id}
+                      className={`p-4 rounded-xl border-2 transition-all ${
+                        isLive
+                          ? "border-red-500 bg-red-50"
+                          : "border-gray-200 hover:border-orange-500/30 bg-white"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Video className="w-5 h-5 text-orange-500" />
+                          <h4 className="font-semibold text-gray-900">{schedule.title}</h4>
+                        </div>
+                        {isLive && (
+                          <span className="flex items-center gap-1 text-xs font-medium text-red-500">
+                            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                            LIVE NOW
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600 mb-3">{schedule.description}</p>
+                      <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          <span>{scheduleDate.toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          <span>{scheduleDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          <span>{schedule.duration} min</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-sm">No upcoming streams scheduled</p>
+                  <p className="text-xs mt-1">Check back later for updates</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
       <Footer />
     </div>

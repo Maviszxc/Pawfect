@@ -96,6 +96,11 @@ class Signaling {
       this.callbacks.onUserLeft?.(data);
     });
 
+    this.socket.on("stream-control", (data: any) => {
+      console.log("Stream control received:", data);
+      this.callbacks.onStreamControl?.(data);
+    });
+
     this.socket.on("room-info", (data: any) => {
       console.log("Room info:", data);
       this.callbacks.onRoomInfo?.(data);
@@ -206,6 +211,17 @@ class Signaling {
     });
 
     this.socket.emit("chat-message", messageData);
+  }
+
+  sendStreamControl(action: "pause" | "resume", roomId: string) {
+    if (!this.socket) return;
+
+    console.log(`Sending stream control: ${action} for room ${roomId}`);
+
+    this.socket.emit("stream-control", {
+      action,
+      roomId,
+    });
   }
 
   setCallbacks(callbacks: any) {

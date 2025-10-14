@@ -132,7 +132,32 @@ router.get("/user", verifyToken, async (req, res) => {
 // Get all adoption requests (admin only)
 router.get("/all", verifyToken, verifyAdmin, async (req, res) => {
   try {
-    const adoptions = await Adoption.find({})
+    const { userId } = req.query;
+
+    // Build query - if userId is provided, filter by it
+    let query = {};
+    if (userId) {
+      query = {
+        $or: [
+          { user: userId },
+          // Also match by email if the adoption was made as guest
+          // We'll need to fetch the user's email first
+        ],
+      };
+
+      // If userId is provided, also try to match guest adoptions by email
+      try {
+        const User = require("../Models/userModels");
+        const user = await User.findById(userId);
+        if (user && user.email) {
+          query.$or.push({ email: user.email });
+        }
+      } catch (err) {
+        console.error("Error fetching user for email match:", err);
+      }
+    }
+
+    const adoptions = await Adoption.find(query)
       .populate("pet", "name type breed images")
       .populate("user", "fullname email profilePicture")
       .sort({ createdAt: -1 });

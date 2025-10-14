@@ -54,6 +54,9 @@ type VideoStreamContextType = {
   connectedUsers: Set<string>;
   viewerCount: number;
   totalParticipants: number;
+  isPaused: boolean;
+  pauseStream: () => void;
+  resumeStream: () => void;
 };
 
 const VideoStreamContext = createContext<VideoStreamContextType>({
@@ -72,6 +75,9 @@ const VideoStreamContext = createContext<VideoStreamContextType>({
   connectedUsers: new Set(),
   viewerCount: 0,
   totalParticipants: 0,
+  isPaused: false,
+  pauseStream: () => {},
+  resumeStream: () => {},
 });
 
 export const VideoStreamProvider = ({
@@ -91,6 +97,7 @@ export const VideoStreamProvider = ({
   const [viewerCount, setViewerCount] = useState<number>(0);
   const [totalParticipants, setTotalParticipants] = useState<number>(0);
   const [iceServers, setIceServers] = useState<RTCIceServer[]>([]);
+  const [isPaused, setIsPaused] = useState(false);
 
   // Refs for stable references
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -152,8 +159,11 @@ export const VideoStreamProvider = ({
     }${profilePicture}`;
   };
 
-  // Fetch current user data from backend
-  const fetchCurrentUser = useCallback(async () => {
+  // Fetch current user data from backend with retry logic
+  const fetchCurrentUser = useCallback(async (retryCount = 0) => {
+    const MAX_RETRIES = 2;
+    const TIMEOUT_MS = 15000; // Increased from 10s to 15s
+    
     try {
       const token = localStorage.getItem("accessToken");
       if (!token) {
@@ -162,11 +172,13 @@ export const VideoStreamProvider = ({
         return;
       }
 
+      console.log(`Fetching current user (attempt ${retryCount + 1}/${MAX_RETRIES + 1})...`);
+
       const response = await axiosInstance.get(
         `${BASE_URL}/api/users/current-user`,
         {
           headers: { Authorization: `Bearer ${token}` },
-          timeout: 10000,
+          timeout: TIMEOUT_MS,
         }
       );
 
@@ -183,22 +195,64 @@ export const VideoStreamProvider = ({
         setCurrentUser(userData);
         localStorage.setItem("user", JSON.stringify(userData));
 
-        console.log("Current user fetched:", {
+        console.log("✅ Current user fetched successfully:", {
           name: userData.fullname,
           email: userData.email,
           isAdmin: userData.isAdmin,
           profilePicture: userData.profilePicture ? "Yes" : "No",
         });
       }
-    } catch (error) {
-      console.error("Error fetching current user:", error);
+    } catch (error: any) {
+      const isTimeout = error.code === 'ECONNABORTED' || error.message?.includes('timeout');
+      const isNetworkError = error.message?.includes('Network Error') || !error.response;
+      
+      console.error("❌ Error fetching current user:", {
+        attempt: retryCount + 1,
+        isTimeout,
+        isNetworkError,
+        errorCode: error.code,
+        errorMessage: error.message,
+        status: error.response?.status,
+      });
+
+      // Retry logic for timeout or network errors
+      if ((isTimeout || isNetworkError) && retryCount < MAX_RETRIES) {
+        const delayMs = (retryCount + 1) * 2000; // 2s, 4s
+        console.log(`⏳ Retrying in ${delayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        return fetchCurrentUser(retryCount + 1);
+      }
+
+      // If all retries failed or it's a different error, handle gracefully
+      if (retryCount >= MAX_RETRIES) {
+        console.warn("⚠️ Failed to fetch user after all retries. Using cached data if available.");
+        
+        // Try to use cached user data
+        const cachedUserStr = localStorage.getItem("user");
+        if (cachedUserStr) {
+          try {
+            const cachedUser = JSON.parse(cachedUserStr);
+            if (cachedUser._id && cachedUser.fullname) {
+              setCurrentUser(cachedUser);
+              console.log("📦 Using cached user data");
+              return;
+            }
+          } catch (e) {
+            console.error("Failed to parse cached user data");
+          }
+        }
+      }
+
       setCurrentUser(null);
+      
+      // Handle 401 Unauthorized
       if (
         typeof error === "object" &&
         error !== null &&
         "response" in error &&
-        (error as any).response?.status === 401
+        error.response?.status === 401
       ) {
+        console.log("🔒 Unauthorized - clearing tokens");
         localStorage.removeItem("accessToken");
         localStorage.removeItem("user");
       }
@@ -684,6 +738,16 @@ export const VideoStreamProvider = ({
           );
         }
       },
+
+      onStreamControl: (data: any) => {
+        console.log("Stream control received:", data);
+        
+        if (data.action === "pause") {
+          setIsPaused(true);
+        } else if (data.action === "resume") {
+          setIsPaused(false);
+        }
+      },
     };
 
     signaling.setCallbacks(callbacks);
@@ -826,6 +890,20 @@ export const VideoStreamProvider = ({
     [currentUser, getUserInfo]
   );
 
+  const pauseStream = useCallback(() => {
+    if (roomIdRef.current && isAdminRef.current) {
+      setIsPaused(true);
+      signaling.sendStreamControl("pause", roomIdRef.current);
+    }
+  }, []);
+
+  const resumeStream = useCallback(() => {
+    if (roomIdRef.current && isAdminRef.current) {
+      setIsPaused(false);
+      signaling.sendStreamControl("resume", roomIdRef.current);
+    }
+  }, []);
+
   const setAdminStreamHandler = useCallback((stream: MediaStream | null) => {
     streamRef.current = stream;
     setAdminStream(stream);
@@ -880,6 +958,9 @@ export const VideoStreamProvider = ({
         connectedUsers,
         viewerCount,
         totalParticipants,
+        isPaused,
+        pauseStream,
+        resumeStream,
       }}
     >
       {children}

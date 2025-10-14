@@ -77,6 +77,7 @@ export default function AdminUsersPage() {
   const [viewUser, setViewUser] = useState<User | null>(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [viewUserAdoptions, setViewUserAdoptions] = useState<any[]>([]);
+  const [isLoadingAdoptions, setIsLoadingAdoptions] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -245,10 +246,11 @@ export default function AdminUsersPage() {
 
   // Fetch adoptions for a user
   const fetchUserAdoptions = async (userId: string) => {
+    setIsLoadingAdoptions(true);
     try {
       const token = localStorage.getItem("accessToken");
       const response = await axiosInstance.get(
-        `${BASE_URL}/api/admin/adoptions?userId=${userId}`,
+        `${BASE_URL}/api/adoptions/all?userId=${userId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -257,16 +259,26 @@ export default function AdminUsersPage() {
         setViewUserAdoptions(response.data.adoptions);
       }
     } catch (error) {
+      console.error("Error fetching user adoptions:", error);
       setViewUserAdoptions([]);
+    } finally {
+      setIsLoadingAdoptions(false);
     }
   };
 
   const handleViewUser = async (user: User) => {
     setViewUser(user);
+    setViewUserAdoptions([]); // Clear previous adoptions
     setViewModalOpen(true);
     if (user._id) {
       await fetchUserAdoptions(user._id);
     }
+  };
+
+  const handleCloseModal = () => {
+    setViewModalOpen(false);
+    setViewUser(null);
+    setViewUserAdoptions([]); // Clear adoptions when closing
   };
 
   // Filter users by archive status
@@ -668,7 +680,11 @@ export default function AdminUsersPage() {
                   <h4 className="font-semibold text-lg mb-3 text-[#0a1629]">
                     Adoption Forms Submitted
                   </h4>
-                  {viewUserAdoptions.length === 0 ? (
+                  {isLoadingAdoptions ? (
+                    <div className="flex justify-center items-center py-8">
+                      <Loader />
+                    </div>
+                  ) : viewUserAdoptions.length === 0 ? (
                     <div className="text-gray-500 text-sm">
                       No adoption forms submitted.
                     </div>
@@ -709,7 +725,7 @@ export default function AdminUsersPage() {
                     variant="outline"
                     size="icon"
                     className="rounded-full h-10 w-10 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border-red-200"
-                    onClick={() => setViewModalOpen(false)}
+                    onClick={handleCloseModal}
                     title="Close"
                   >
                     <X className="h-5 w-5" />

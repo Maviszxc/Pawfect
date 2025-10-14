@@ -1,5 +1,6 @@
 // Utilities/emailService.js
 const sgMail = require("@sendgrid/mail");
+const { getEmailConfig } = require("./emailConfig");
 require("dotenv").config();
 
 // Validate configuration
@@ -20,11 +21,7 @@ const sendOtpEmail = async (email, otp) => {
   try {
     console.log("📧 Attempting to send OTP email via SendGrid to:", email);
 
-    const msg = {
-      to: email,
-      from: process.env.SENDGRID_VERIFIED_SENDER,
-      subject: "Verification Code - PawProject",
-      html: `
+    const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
             <h1 style="color: #FF6B35; margin: 0;">PawProject</h1>
@@ -42,9 +39,21 @@ const sendOtpEmail = async (email, otp) => {
             <p>© ${new Date().getFullYear()} PawProject. All rights reserved.</p>
           </div>
         </div>
-      `,
-    };
+      `;
 
+    const textContent = `
+PawProject - Verification Code
+
+Your verification code is: ${otp}
+
+This code is valid for 1 hour.
+
+If you didn't request this code, please ignore this email.
+
+© ${new Date().getFullYear()} PawProject. All rights reserved.
+    `;
+
+    const msg = getEmailConfig(email, "Verification Code - PawProject", htmlContent, textContent);
     const result = await sgMail.send(msg);
     console.log("✅ OTP Email sent successfully via SendGrid");
     return {
@@ -63,12 +72,8 @@ const sendAdoptionEmail = async (email, subject, html) => {
   try {
     console.log("📧 Attempting to send adoption email via SendGrid to:", email);
 
-    const msg = {
-      to: email,
-      from: process.env.SENDGRID_VERIFIED_SENDER,
-      subject: subject,
-      html: html,
-    };
+    const textContent = html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    const msg = getEmailConfig(email, subject, html, textContent);
 
     const result = await sgMail.send(msg);
     console.log("✅ Adoption Email sent successfully via SendGrid");
@@ -88,11 +93,7 @@ const sendContactEmail = async (contactData) => {
   try {
     console.log("📧 Attempting to send contact form email to admin");
 
-    const msg = {
-      to: "pawprojectsystem@gmail.com", // Your admin email
-      from: process.env.SENDGRID_VERIFIED_SENDER,
-      subject: `New Contact Form: ${contactData.subject}`,
-      html: `
+    const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
             <h1 style="color: #FF6B35; margin: 0;">PawProject</h1>
@@ -158,9 +159,29 @@ const sendContactEmail = async (contactData) => {
             <p>© ${new Date().getFullYear()} PawProject. All rights reserved.</p>
           </div>
         </div>
-      `,
-    };
+      `;
 
+    const textContent = `
+PawProject - New Contact Form Submission
+
+Contact Information:
+Name: ${contactData.name}
+Email: ${contactData.email}
+Phone: ${contactData.phone || "Not provided"}
+Contact Method: ${contactData.contactMethod}
+Subject: ${contactData.subject}
+
+Message:
+${contactData.message}
+
+Preferences:
+Receive updates: ${contactData.receiveUpdates ? "Yes" : "No"}
+Submitted: ${new Date().toLocaleString()}
+
+© ${new Date().getFullYear()} PawProject. All rights reserved.
+    `;
+
+    const msg = getEmailConfig("pawprojectsystem@gmail.com", `New Contact Form: ${contactData.subject}`, htmlContent, textContent);
     const result = await sgMail.send(msg);
     console.log("✅ Contact form email sent successfully to admin");
     return {
@@ -183,11 +204,7 @@ const sendDonationEmail = async (donationData, isInternational = false) => {
       ? `$${donationData.amount} USD`
       : `₱${donationData.amount}`;
 
-    const msg = {
-      to: "pawprojectsystem@gmail.com", // Your admin email
-      from: process.env.SENDGRID_VERIFIED_SENDER,
-      subject: `New Donation: ${amount} from ${donationData.name}`,
-      html: `
+    const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
             <h1 style="color: #FF6B35; margin: 0;">PawProject</h1>
@@ -265,9 +282,26 @@ const sendDonationEmail = async (donationData, isInternational = false) => {
             <p>© ${new Date().getFullYear()} PawProject. All rights reserved.</p>
           </div>
         </div>
-      `,
-    };
+      `;
 
+    const textContent = `
+PawProject - New Donation Received
+
+Amount: ${amount}
+
+Donor Information:
+Name: ${donationData.name}
+Email: ${donationData.email}
+${!isInternational ? `Mobile: ${donationData.mobileNumber}\n` : ""}Type: ${isInternational ? "International (PayPal)" : "Local (QR Code)"}
+${!isInternational ? `Purpose: ${donationData.donationFor || "General Support"}\n` : ""}
+Donor Preferences:
+Receive updates: ${donationData.receiveUpdates ? "Yes" : "No"}
+Submitted: ${new Date().toLocaleString()}
+
+© ${new Date().getFullYear()} PawProject. All rights reserved.
+    `;
+
+    const msg = getEmailConfig("pawprojectsystem@gmail.com", `New Donation: ${amount} from ${donationData.name}`, htmlContent, textContent);
     const result = await sgMail.send(msg);
     console.log("✅ Donation email sent successfully to admin");
     return {
@@ -486,12 +520,8 @@ const sendAdoptionStatusEmail = async ({
       break;
   }
 
-  const msg = {
-    to: userEmail,
-    from: process.env.SENDGRID_VERIFIED_SENDER,
-    subject,
-    html,
-  };
+  const textContent = html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  const msg = getEmailConfig(userEmail, subject, html, textContent);
 
   try {
     const result = await sgMail.send(msg);

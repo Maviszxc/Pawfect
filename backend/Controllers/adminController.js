@@ -57,12 +57,53 @@ exports.updateUserAdminStatus = async (req, res) => {
   }
 };
 
-// Get all adoptions
+// Get all adoptions (with optional userId filter)
 exports.getAllAdoptions = async (req, res) => {
   try {
-    const adoptions = await Adoption.find()
+    const { userId } = req.query;
+    
+    let query = {};
+    
+    // If userId is provided, fetch adoptions for that user
+    if (userId) {
+      // First, get the user's email to also match guest adoptions
+      const user = await User.findById(userId).select("email");
+      
+      if (user) {
+        console.log(`🔍 Fetching adoptions for user: ${userId}, email: ${user.email}`);
+        
+        // Match:
+        // 1. Registered adoptions (by user ID)
+        // 2. Guest adoptions (by email where user field is null/undefined)
+        query = {
+          $or: [
+            { user: userId },
+            { email: user.email, user: { $exists: false } },
+            { email: user.email, user: null }
+          ]
+        };
+      } else {
+        console.log(`⚠️ User not found: ${userId}`);
+        // If user not found, just search by user ID
+        query = { user: userId };
+      }
+    }
+    
+    const adoptions = await Adoption.find(query)
       .populate("pet", "name type breed images")
-      .populate("user", "fullname email profilePicture");
+      .populate("user", "fullname email profilePicture")
+      .sort({ createdAt: -1 });
+
+    console.log(`📊 Fetched ${adoptions.length} adoptions for userId: ${userId}`);
+    if (adoptions.length > 0) {
+      console.log(`📋 Adoption details:`, adoptions.map(a => ({
+        id: a._id,
+        petName: a.pet?.name,
+        email: a.email,
+        hasUser: !!a.user,
+        userId: a.user?._id
+      })));
+    }
 
     res.status(200).json({
       success: true,
@@ -143,17 +184,28 @@ exports.updateAdoptionStatus = async (req, res) => {
       }
     }
 
-    // Update pet status immediately
-    if (status === "Approved" || status === "Completed") {
+    // Update pet status based on adoption status
+    if (status === "Approved") {
+      // When adoption is approved, set pet status to "processed"
       await Pet.findByIdAndUpdate(adoption.pet, {
-        adoptionStatus: status === "Approved" ? "pending" : "adopted",
-        owner: adoption.user,
+        adoptionStatus: "processed",
+        owner: adoption.user || null,
       });
-    } else if (status === "Rejected") {
+      console.log(`🐾 Pet ${adoption.pet._id} status updated to: processed`);
+    } else if (status === "Completed") {
+      // When adoption is completed, set pet status to "adopted"
+      await Pet.findByIdAndUpdate(adoption.pet, {
+        adoptionStatus: "adopted",
+        owner: adoption.user || null,
+      });
+      console.log(`🐾 Pet ${adoption.pet._id} status updated to: adopted`);
+    } else if (status === "Rejected" || status === "Pending") {
+      // When adoption is rejected or back to pending, set pet status to "available"
       await Pet.findByIdAndUpdate(adoption.pet, {
         adoptionStatus: "available",
         owner: null,
       });
+      console.log(`🐾 Pet ${adoption.pet._id} status updated to: available`);
     }
 
     console.log(`✅ Adoption ${adoptionId} status updated to: ${status}`);
@@ -478,7 +530,7 @@ exports.deleteUser = async (req, res) => {
 
     if (!user) {
       return res.status(404).json({
-        success: false,
+        success: false, 
         message: "User not found",
       });
     }

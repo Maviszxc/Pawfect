@@ -14,10 +14,10 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: "Home", href: "/" },
-  { label: "Services", href: "/services" },
   { label: "Adoption", href: "/adoption" },
   { label: "Articles", href: "/articles" },
   { label: "Merchandise", href: "/merchandise" },
+  { label: "Services", href: "/services" },
 ];
 
 const profileItem = {

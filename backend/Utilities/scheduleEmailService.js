@@ -1,5 +1,6 @@
 // Utilities/scheduleEmailService.js
 const sgMail = require("@sendgrid/mail");
+const { getEmailConfig } = require("./emailConfig");
 require("dotenv").config();
 
 if (!process.env.SENDGRID_API_KEY) {
@@ -27,11 +28,7 @@ const sendScheduleCreationEmail = async (email, fullname, schedule) => {
   try {
     console.log(`📧 Sending creation email to: ${email}`);
 
-    const msg = {
-      to: email,
-      from: process.env.SENDGRID_VERIFIED_SENDER,
-      subject: `📅 New Live Stream: ${schedule.title} - PawProject`,
-      html: `
+    const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
             <h1 style="color: #FF6B35; margin: 0;">PawProject</h1>
@@ -91,11 +88,7 @@ const sendScheduleReminderEmail = async (email, fullname, schedule) => {
   try {
     console.log(`⏰ Sending 1-hour reminder to: ${email}`);
 
-    const msg = {
-      to: email,
-      from: process.env.SENDGRID_VERIFIED_SENDER,
-      subject: `⏰ Reminder: Live Stream Starting Soon - ${schedule.title}`,
-      html: `
+    const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
             <h1 style="color: #FF6B35; margin: 0;">PawProject</h1>
@@ -150,11 +143,7 @@ const sendLiveStartedEmail = async (email, fullname, schedule) => {
   try {
     console.log(`🔴 Sending live started notification to: ${email}`);
 
-    const msg = {
-      to: email,
-      from: process.env.SENDGRID_VERIFIED_SENDER,
-      subject: `🔴 LIVE NOW: ${schedule.title} - PawProject`,
-      html: `
+    const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
             <h1 style="color: #FF6B35; margin: 0;">PawProject</h1>

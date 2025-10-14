@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import Navigation from "@/components/Navigation";
@@ -13,6 +13,9 @@ import { BASE_URL } from "@/utils/constants";
 import Loader from "@/components/Loader";
 import DonateModal from "@/components/DonateModal";
 import ContactModal from "@/components/ContactModal";
+import { useVideoStream } from "@/context/VideoStreamContext";
+import { Video, Calendar, Clock, Users, Play } from "lucide-react";
+import Footer from "@/components/Footer";
 
 // Dynamically import FloatingBotDemo with SSR disabled
 const FloatingBotDemo = dynamic(() => import("@/components/FloatingBotDemo"), {
@@ -33,6 +36,19 @@ const stagger = {
   },
 };
 
+interface Schedule {
+  _id: string;
+  title: string;
+  description: string;
+  scheduledDate: string;
+  duration: number;
+  status: "scheduled" | "live" | "completed" | "cancelled";
+  createdBy: {
+    fullname: string;
+    email: string;
+  };
+}
+
 export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [featuredPets, setFeaturedPets] = useState([]);
@@ -51,6 +67,11 @@ export default function Home() {
     receiveUpdates: false,
     notRobot: false,
   });
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [schedulesLoading, setSchedulesLoading] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const { adminStream, isAdminStreaming, viewerCount } = useVideoStream();
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
@@ -70,8 +91,30 @@ export default function Home() {
       }
     };
 
+    // Fetch upcoming schedules
+    const fetchSchedules = async () => {
+      try {
+        const response = await axios.get(`${BASE_URL}/api/schedules/upcoming`);
+        if (response.data.success) {
+          setSchedules(response.data.schedules.slice(0, 3)); // Show only 3 upcoming
+        }
+      } catch (error) {
+        console.error("Error fetching schedules:", error);
+      } finally {
+        setSchedulesLoading(false);
+      }
+    };
+
     fetchPets();
+    fetchSchedules();
   }, []);
+
+  // Update video element when stream changes
+  useEffect(() => {
+    if (videoRef.current && adminStream) {
+      videoRef.current.srcObject = adminStream;
+    }
+  }, [adminStream]);
 
   const handleDonationSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,6 +240,8 @@ export default function Home() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
             </div>
 
+            
+
             {/* Floating Stats Card */}
             <motion.div
               className="absolute -bottom-6 -left-6 bg-white/90 backdrop-blur-md p-6 rounded-2xl shadow-lg border border-orange-500/20"
@@ -229,6 +274,172 @@ export default function Home() {
           </motion.div>
         </div>
       </div>
+
+       {/* Live Stream Section */}
+        <section className="mb-32 py-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col items-center mb-16 text-center">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="inline-flex items-center gap-2 px-6 py-2 bg-red-500/10 rounded-full text-red-500 font-medium mb-4"
+              >
+                <Video className="w-4 h-4" />
+                <span>Live Stream</span>
+              </motion.div>
+              <motion.h2
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="text-4xl font-bold text-foreground mb-4"
+              >
+                Watch Our Pets Live
+              </motion.h2>
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="text-muted-foreground max-w-2xl mb-12"
+              >
+                Join our live streams to see our adorable pets in action and interact with our community.
+              </motion.p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Live Stream Preview */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                className="bg-white rounded-2xl shadow-lg border border-orange-500/10 overflow-hidden"
+              >
+                <div className="relative aspect-video bg-black">
+                  {isAdminStreaming && adminStream ? (
+                    <>
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-4 left-4 flex items-center gap-2 bg-red-500 text-white px-3 py-1.5 rounded-full text-sm font-medium">
+                        <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                        <span>LIVE</span>
+                      </div>
+                      <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/60 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-sm">
+                        <Users className="w-4 h-4" />
+                        <span>{viewerCount}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+                      <div className="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center mb-4">
+                        <Video className="w-10 h-10 text-gray-400" />
+                      </div>
+                      <p className="text-lg font-medium mb-2">Stream is Offline</p>
+                      <p className="text-sm text-gray-400">Check the schedule below for upcoming streams</p>
+                    </div>
+                  )}
+                </div>
+                <div className="p-6">
+                  <h3 className="text-xl font-semibold mb-2">Pet Adoption Live Stream</h3>
+                  <p className="text-gray-600 mb-4">
+                    {isAdminStreaming
+                      ? "Join us now to see our adorable pets looking for their forever homes!"
+                      : "We're currently offline. Check back during scheduled times or view our upcoming schedule."}
+                  </p>
+                  <Link href="/live">
+                    <Button className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-xl flex items-center justify-center gap-2">
+                      <Play className="w-4 h-4" />
+                      {isAdminStreaming ? "Join Live Stream" : "Go to Live Page"}
+                    </Button>
+                  </Link>
+                </div>
+              </motion.div>
+
+              {/* Upcoming Schedules */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                className="bg-white rounded-2xl shadow-lg border border-orange-500/10 p-6"
+              >
+                <div className="flex items-center gap-2 mb-6">
+                  <Calendar className="w-5 h-5 text-orange-500" />
+                  <h3 className="text-xl font-semibold">Upcoming Streams</h3>
+                </div>
+
+                <div className="space-y-4">
+                  {schedulesLoading ? (
+                    [...Array(3)].map((_, index) => (
+                      <div key={index} className="animate-pulse">
+                        <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                      </div>
+                    ))
+                  ) : schedules.length > 0 ? (
+                    schedules.map((schedule) => {
+                      const scheduleDate = new Date(schedule.scheduledDate);
+                      const isLive = schedule.status === "live";
+
+                      return (
+                        <div
+                          key={schedule._id}
+                          className={`p-4 rounded-xl border-2 transition-all ${
+                            isLive
+                              ? "border-red-500 bg-red-50"
+                              : "border-gray-200 hover:border-orange-500/30"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="font-semibold text-gray-900">{schedule.title}</h4>
+                            {isLive && (
+                              <span className="flex items-center gap-1 text-xs font-medium text-red-500">
+                                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                                LIVE
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600 mb-3">{schedule.description}</p>
+                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              <span>{scheduleDate.toLocaleDateString()}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              <span>{scheduleDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              <span>{schedule.duration} min</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                      <p className="text-sm">No upcoming streams scheduled</p>
+                      <p className="text-xs mt-1">Check back later for updates</p>
+                    </div>
+                  )}
+                </div>
+
+                {schedules.length > 0 && (
+                  <Link href="/live" className="block mt-6">
+                    <Button variant="outline" className="w-full rounded-xl border-2 border-orange-500/20 hover:bg-orange-500/5">
+                      View All Schedules
+                    </Button>
+                  </Link>
+                )}
+              </motion.div>
+            </div>
+          </div>
+        </section>
 
       {/* Stats Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -643,7 +854,11 @@ export default function Home() {
             </motion.div>
           </div>
         </section>
+
+       
+      
       </div>
+      <Footer/>
 
       {/* Floating About Button */}
       <Link
@@ -654,6 +869,8 @@ export default function Home() {
       </Link>
 
       {isAuthenticated ? <AuthNavigation /> : <Navigation />}
+     
+
     </main>
   );
 }
