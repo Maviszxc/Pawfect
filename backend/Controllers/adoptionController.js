@@ -1,43 +1,65 @@
 const Adoption = require("../Models/adoptionModels");
 const Pet = require("../Models/petModels");
 const User = require("../Models/userModels");
+const { sendAdoptionEmail } = require("../Utilities/emailService");
 
 exports.createAdoption = async (req, res) => {
   try {
-    const {
-      pet,
-      message,
-      fullname,
-      email,
-      phone,
-      address,
-      profilePicture,
-      adoptionFormUrl, // coming from frontend after Supabase upload
+    console.log("📦 RAW REQUEST BODY:", JSON.stringify(req.body, null, 2));
+    
+    // ✅ FIXED: Extract adoptionFormUrl properly
+    const { 
+      pet, 
+      message, 
+      fullname, 
+      email, 
+      phone, 
+      address, 
+      profilePicture, 
+      adoptionFormUrl 
     } = req.body;
 
-    console.log("📝 Creating adoption request:", {
+    console.log("🔍 Creating adoption request:", {
       pet,
       fullname,
       email,
       hasUser: !!req.user,
+      hasAdoptionForm: !!adoptionFormUrl,
+      adoptionFormUrl: adoptionFormUrl || "NOT PROVIDED",
+      adoptionFormUrlLength: adoptionFormUrl ? adoptionFormUrl.length : 0,
     });
 
-    if (!pet || !fullname || !email || !phone || !address || !message) {
+    // ✅ Validate required fields (adoptionFormUrl is optional for backward compatibility)
+    if (!pet || !fullname || !email || !phone || !address) {
+      console.error("❌ Missing required fields:", {
+        pet: !!pet,
+        fullname: !!fullname,
+        email: !!email,
+        phone: !!phone,
+        address: !!address,
+        adoptionFormUrl: !!adoptionFormUrl
+      });
+      
       return res.status(400).json({
         success: false,
-        message: "All fields are required.",
+        message: "All required fields must be provided.",
+        missingFields: {
+          pet: !pet,
+          fullname: !fullname,
+          email: !email,
+          phone: !phone,
+          address: !address
+        }
       });
     }
 
-    // Optional validation for URL if provided
-    if (adoptionFormUrl && typeof adoptionFormUrl === "string") {
-      const looksLikeUrl = /^https?:\/\//i.test(adoptionFormUrl);
-      if (!looksLikeUrl) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid adoptionFormUrl. Must be an http(s) URL.",
-        });
-      }
+    // ✅ Validate adoptionFormUrl format if provided
+    if (adoptionFormUrl && !adoptionFormUrl.startsWith('http')) {
+      console.error("❌ Invalid adoption form URL format:", adoptionFormUrl);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid adoption form URL format. Must be a valid URL.",
+      });
     }
 
     // Check if pet exists
@@ -114,8 +136,8 @@ exports.createAdoption = async (req, res) => {
       }
     }
 
-    // Create new adoption request
-    const adoption = new Adoption({
+    // ✅ FIXED: Create adoption data with explicit adoptionFormUrl
+    const adoptionData = {
       pet,
       user: userId || undefined,
       status: "Pending",
@@ -123,24 +145,46 @@ exports.createAdoption = async (req, res) => {
       email,
       phone,
       address,
-      message,
+      message: message || "Adoption form submitted",
       adminMessage: "",
       profilePicture: profilePicture || "",
-      adoptionFormUrl: adoptionFormUrl || "",
-    });
+      adoptionFormUrl: adoptionFormUrl || "", // ✅ This will be saved properly
+    };
 
+    console.log("📨 Creating adoption with data:", JSON.stringify(adoptionData, null, 2));
+
+    // ✅ Create and save adoption - SIMPLIFIED APPROACH
+    const adoption = new Adoption(adoptionData);
+    
+    console.log("💾 BEFORE SAVE - adoption.adoptionFormUrl:", adoption.adoptionFormUrl);
+
+    // Save the adoption
     await adoption.save();
 
-    console.log("✅ Adoption request created:", {
+    console.log("✅ AFTER SAVE - Adoption request created:", {
       id: adoption._id,
-      hasFormUrl: !!adoption.adoptionFormUrl,
       adoptionFormUrl: adoption.adoptionFormUrl,
+      hasFormUrl: !!adoption.adoptionFormUrl,
+      adoptionFormUrlType: typeof adoption.adoptionFormUrl,
+      adoptionFormUrlLength: adoption.adoptionFormUrl ? adoption.adoptionFormUrl.length : 0,
+    });
+
+    // ✅ Verify by fetching from database
+    const savedAdoption = await Adoption.findById(adoption._id)
+      .populate("pet", "name breed type images")
+      .populate("user", "fullname email profilePicture");
+      
+    console.log("🔍 FETCHED FROM DB:", {
+      id: savedAdoption._id,
+      adoptionFormUrl: savedAdoption.adoptionFormUrl,
+      hasFormUrl: !!savedAdoption.adoptionFormUrl,
+      adoptionFormUrlLength: savedAdoption.adoptionFormUrl ? savedAdoption.adoptionFormUrl.length : 0,
     });
 
     res.status(201).json({
       success: true,
       message: "Adoption request submitted successfully.",
-      adoption,
+      adoption: savedAdoption,
     });
   } catch (error) {
     console.error("❌ Adoption request error:", error);
@@ -306,7 +350,7 @@ exports.updateAdoptionStatus = async (req, res) => {
     const { id } = req.params;
     const { status, adminMessage } = req.body;
 
-    console.log(`🔄 Updating adoption ${id} to status:`, status);
+    console.log(`📄 Updating adoption ${id} to status:`, status);
 
     if (!status) {
       return res.status(400).json({
@@ -342,9 +386,10 @@ exports.updateAdoptionStatus = async (req, res) => {
       petName: adoption.pet?.name,
       directEmail: adoption.email,
       directFullname: adoption.fullname,
+      adoptionFormUrl: adoption.adoptionFormUrl,
     });
 
-    // ✅ FIXED: Handle both registered users and guest adoptions
+    // ✅ Handle both registered users and guest adoptions
     const userEmail = adoption.user?.email || adoption.email;
     const userFullname = adoption.user?.fullname || adoption.fullname;
     const petName = adoption.pet?.name;
@@ -355,6 +400,7 @@ exports.updateAdoptionStatus = async (req, res) => {
       petName,
       status,
       userType: adoption.user ? "registered" : "guest",
+      hasAdoptionForm: !!adoption.adoptionFormUrl,
     });
 
     // Send email notification
@@ -374,7 +420,6 @@ exports.updateAdoptionStatus = async (req, res) => {
         );
       } catch (emailError) {
         console.error("❌ Email sending failed:", emailError);
-        // Don't fail the request if email fails
       }
     } else {
       console.warn("⚠️ Cannot send email: Missing user email or fullname", {
@@ -395,6 +440,154 @@ exports.updateAdoptionStatus = async (req, res) => {
       success: false,
       message: "Error updating adoption status.",
       error: error.message,
+    });
+  }
+};
+
+// Helper function to send adoption status email
+const sendAdoptionStatusEmail = async ({ userEmail, userFullname, petName, status, adminMessage }) => {
+  try {
+    console.log("📧 Starting to send adoption status email...");
+
+    let subject, html;
+
+    switch (status) {
+      case "Approved":
+        subject = `🎉 Your Adoption Request for ${petName} Has Been Approved!`;
+        html = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #4CAF50;">🎉 Adoption Request Approved!</h2>
+            <p>Dear <strong>${userFullname}</strong>,</p>
+            <p>We are pleased to inform you that your adoption request for <strong>${petName}</strong> has been <strong style="color: #4CAF50;">approved</strong>!</p>
+            <p>Our team will contact you shortly to arrange the next steps and schedule the adoption process.</p>
+            ${
+              adminMessage
+                ? `<div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #4CAF50; margin: 20px 0;">
+              <p style="margin: 0;"><strong>Admin Message:</strong> ${adminMessage}</p>
+            </div>`
+                : ""
+            }
+            <p>Thank you for choosing to give a loving home to a pet in need! 🐾</p>
+            <br>
+            <p>Best regards,<br><strong>PawProject Team</strong></p>
+          </div>
+        `;
+        break;
+
+      case "Rejected":
+        subject = `Update on Your Adoption Request for ${petName}`;
+        html = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #f44336;">Update on Your Adoption Request</h2>
+            <p>Dear <strong>${userFullname}</strong>,</p>
+            <p>After careful consideration, we regret to inform you that your adoption request for <strong>${petName}</strong> has not been approved at this time.</p>
+            ${
+              adminMessage
+                ? `<div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #f44336; margin: 20px 0;">
+              <p style="margin: 0;"><strong>Reason:</strong> ${adminMessage}</p>
+            </div>`
+                : ""
+            }
+            <p>We understand this might be disappointing, but we encourage you to explore other available pets that might be a better fit for your situation.</p>
+            <p>Thank you for your understanding and for considering adoption.</p>
+            <br>
+            <p>Best regards,<br><strong>PawProject Team</strong></p>
+          </div>
+        `;
+        break;
+
+      case "Completed":
+        subject = `🏠 Congratulations! Your Adoption of ${petName} is Complete!`;
+        html = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #2196F3;">🏠 Adoption Completed!</h2>
+            <p>Dear <strong>${userFullname}</strong>,</p>
+            <p>Congratulations! The adoption process for <strong>${petName}</strong> has been successfully <strong style="color: #2196F3;">completed</strong>!</p>
+            <p><strong>${petName}</strong> is now officially part of your family! 🎉</p>
+            ${
+              adminMessage
+                ? `<div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #2196F3; margin: 20px 0;">
+              <p style="margin: 0;"><strong>Note:</strong> ${adminMessage}</p>
+            </div>`
+                : ""
+            }
+            <p>We wish you and <strong>${petName}</strong> a wonderful life together filled with joy, love, and happy moments! 🐾</p>
+            <br>
+            <p>Best regards,<br><strong>PawProject Team</strong></p>
+          </div>
+        `;
+        break;
+
+      default:
+        console.log(`📧 No email needed for status: ${status}`);
+        return;
+    }
+
+    console.log("📧 Sending via SendGrid...");
+    const result = await sendAdoptionEmail(userEmail, subject, html);
+
+    console.log("✅ Adoption status email sent successfully via SendGrid:", {
+      to: userEmail,
+      messageId: result.messageId,
+      status: status,
+    });
+  } catch (error) {
+    console.error("❌ Error sending adoption status email via SendGrid:", {
+      message: error.message,
+      stack: error.stack,
+    });
+  }
+};
+
+// ✅ Get user's adoptions with form URLs
+exports.getUserAdoptions = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const adoptions = await Adoption.find({ user: userId })
+      .populate("pet", "name breed type images")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      adoptions,
+    });
+  } catch (error) {
+    console.error("Error fetching user adoptions:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching adoptions.",
+    });
+  }
+};
+
+// Test endpoint to check adoption form URLs
+exports.testAdoptionFormUrl = async (req, res) => {
+  try {
+    const adoptions = await Adoption.find({})
+      .populate("pet", "name")
+      .populate("user", "fullname email")
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    const adoptionData = adoptions.map(adoption => ({
+      id: adoption._id,
+      adopter: adoption.user?.fullname || adoption.fullname,
+      pet: adoption.pet?.name,
+      hasAdoptionFormUrl: !!adoption.adoptionFormUrl,
+      adoptionFormUrl: adoption.adoptionFormUrl,
+      createdAt: adoption.createdAt
+    }));
+
+    res.status(200).json({
+      success: true,
+      message: `Found ${adoptions.length} adoptions`,
+      adoptions: adoptionData
+    });
+  } catch (error) {
+    console.error("Error testing adoption form URLs:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error testing adoption form URLs"
     });
   }
 };
