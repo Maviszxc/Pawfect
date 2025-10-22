@@ -13,6 +13,7 @@ import Loader from "@/components/Loader";
 import { toast } from "react-toastify";
 import axiosInstance from "@/lib/axiosInstance";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { uploadFile } from "@/lib/supabase";
 
 // Dynamically import Tabs components
 const Tabs = dynamic(
@@ -138,6 +139,9 @@ function PetDetailsContent() {
   });
   const [adoptSubmitting, setAdoptSubmitting] = useState(false);
   const [adoptSuccess, setAdoptSuccess] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedFileUrl, setUploadedFileUrl] = useState<string>("");
+  const [isUploading, setIsUploading] = useState(false);
   const [userDetails, setUserDetails] = useState<{
     id: string;
     fullname: string;
@@ -404,6 +408,30 @@ function PetDetailsContent() {
     setAdoptForm({ ...adoptForm, [e.target.name]: e.target.value });
   };
 
+  // Handle file selection
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (file.type !== "application/pdf") {
+        toast.error("Please upload a PDF file");
+        return;
+      }
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("File size must be less than 10MB");
+        return;
+      }
+      setUploadedFile(file);
+    }
+  };
+
+  // Remove selected file
+  const handleRemoveFile = () => {
+    setUploadedFile(null);
+    setUploadedFileUrl("");
+  };
+
   // Handle adopt form submit
   const handleAdoptSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -426,6 +454,37 @@ function PetDetailsContent() {
         return;
       }
 
+      // Upload file to Supabase if provided
+      let fileUrl = "";
+      if (uploadedFile) {
+        setIsUploading(true);
+        try {
+          console.log("📤 Uploading file to Supabase...", {
+            fileName: uploadedFile.name,
+            petId: pet?._id,
+          });
+          fileUrl = await uploadFile(uploadedFile, "adoption-forms", pet?._id);
+          setUploadedFileUrl(fileUrl);
+          console.log("✅ File uploaded successfully:", fileUrl);
+          toast.success("Form uploaded successfully!");
+        } catch (uploadError) {
+          console.error("❌ Error uploading file:", uploadError);
+          toast.error("Failed to upload the form. Please try again.");
+          setAdoptSubmitting(false);
+          setIsUploading(false);
+          return;
+        }
+        setIsUploading(false);
+      }
+
+      console.log("📨 Sending adoption request to backend:", {
+        pet: pet?._id,
+        fullname: userDetails.fullname,
+        email: userDetails.email,
+        hasAdoptionFormUrl: !!fileUrl,
+        adoptionFormUrl: fileUrl,
+      });
+
       await axios.post(
         `${BASE_URL}/api/adoptions`,
         {
@@ -437,6 +496,7 @@ function PetDetailsContent() {
           address: adoptForm.address,
           message: adoptForm.message,
           profilePicture: userDetails.profilePicture || "",
+          adoptionFormUrl: fileUrl, // Add the file URL
         },
         token
           ? {
@@ -458,6 +518,8 @@ function PetDetailsContent() {
         address: "",
         message: "",
       });
+      setUploadedFile(null);
+      setUploadedFileUrl("");
 
       // Refresh adoption status after submission
       if (userDetails?.email) {
@@ -500,6 +562,10 @@ function PetDetailsContent() {
         fullname: userDetails.fullname,
         email: userDetails.email,
       }));
+    } else if (!showAdoptModal) {
+      // Reset file upload when modal is closed
+      setUploadedFile(null);
+      setUploadedFileUrl("");
     }
   }, [showAdoptModal, userDetails]);
 
@@ -978,6 +1044,79 @@ function PetDetailsContent() {
                     required
                   />
                 </div>
+
+                {/* File Upload Section */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Upload Adoption Form (PDF) - Optional
+                  </label>
+                  {!uploadedFile ? (
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        id="file-upload"
+                      />
+                      <label
+                        htmlFor="file-upload"
+                        className="cursor-pointer flex flex-col items-center"
+                      >
+                        <svg
+                          className="w-8 h-8 text-gray-400 mb-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                          />
+                        </svg>
+                        <span className="text-sm text-gray-600">
+                          Click to upload PDF form
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          Max 10MB
+                        </span>
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <svg
+                          className="w-5 h-5 text-green-600"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                        <span className="text-sm font-medium text-green-800">
+                          {uploadedFile.name}
+                        </span>
+                        <span className="text-xs text-green-600">
+                          ({(uploadedFile.size / 1024 / 1024).toFixed(2)} MB)
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveFile}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <DialogFooter>
                   <Button
                     type="button"
@@ -990,9 +1129,13 @@ function PetDetailsContent() {
                   <Button
                     type="submit"
                     className="bg-orange-500 hover:bg-orange-600 text-white"
-                    disabled={adoptSubmitting}
+                    disabled={adoptSubmitting || isUploading}
                   >
-                    {adoptSubmitting ? "Submitting..." : "Submit Application"}
+                    {isUploading
+                      ? "Uploading..."
+                      : adoptSubmitting
+                      ? "Submitting..."
+                      : "Submit Application"}
                   </Button>
                 </DialogFooter>
               </form>
