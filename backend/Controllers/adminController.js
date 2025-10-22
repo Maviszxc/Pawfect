@@ -94,15 +94,23 @@ exports.getAllAdoptions = async (req, res) => {
       .populate("user", "fullname email profilePicture")
       .sort({ createdAt: -1 });
 
-    console.log(`📊 Fetched ${adoptions.length} adoptions for userId: ${userId}`);
+    console.log(`📊 Fetched ${adoptions.length} adoptions${userId ? ` for userId: ${userId}` : ''}`);
+    
+    // Debug: Log adoption form URLs
     if (adoptions.length > 0) {
-      console.log(`📋 Adoption details:`, adoptions.map(a => ({
-        id: a._id,
-        petName: a.pet?.name,
-        email: a.email,
-        hasUser: !!a.user,
-        userId: a.user?._id
-      })));
+      console.log(`📋 Adoption details with form URLs:`);
+      adoptions.forEach((adoption, index) => {
+        console.log(`Adoption ${index + 1}:`, {
+          id: adoption._id,
+          petName: adoption.pet?.name,
+          email: adoption.email,
+          hasUser: !!adoption.user,
+          userId: adoption.user?._id,
+          hasAdoptionForm: !!adoption.adoptionFormUrl,
+          adoptionFormUrl: adoption.adoptionFormUrl,
+          adoptionFormUrlLength: adoption.adoptionFormUrl ? adoption.adoptionFormUrl.length : 0
+        });
+      });
     }
 
     res.status(200).json({
@@ -118,7 +126,6 @@ exports.getAllAdoptions = async (req, res) => {
   }
 };
 
-// Update adoption status
 // Update adoption status
 exports.updateAdoptionStatus = async (req, res) => {
   try {
@@ -145,6 +152,7 @@ exports.updateAdoptionStatus = async (req, res) => {
       userFullname: adoption.user?.fullname,
       pet: adoption.pet,
       petName: adoption.pet?.name,
+      adoptionFormUrl: adoption.adoptionFormUrl, // Log the form URL
     });
 
     // Then update the adoption
@@ -530,7 +538,7 @@ exports.deleteUser = async (req, res) => {
 
     if (!user) {
       return res.status(404).json({
-        success: false, 
+        success: false,
         message: "User not found",
       });
     }
@@ -555,27 +563,13 @@ exports.sendEmail = async (req, res) => {
   try {
     const { to, subject, text, html } = req.body;
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.AUTH_EMAIL,
-        pass: process.env.AUTH_PASSWORD,
-      },
-    });
-
-    const mailOptions = {
-      from: process.env.AUTH_EMAIL,
-      to,
-      subject,
-      text,
-      html,
-    };
-
-    await transporter.sendMail(mailOptions);
+    // Use the imported sendAdoptionEmail function instead of nodemailer directly
+    const result = await sendAdoptionEmail(to, subject, html || text);
 
     res.status(200).json({
       success: true,
       message: "Email sent successfully",
+      messageId: result.messageId,
     });
   } catch (error) {
     console.error("Error sending email:", error);
@@ -645,6 +639,39 @@ exports.restoreAdoption = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error",
+    });
+  }
+};
+
+// Test endpoint to check adoption form URLs in admin
+exports.testAdoptionFormUrls = async (req, res) => {
+  try {
+    const adoptions = await Adoption.find({})
+      .populate("pet", "name")
+      .populate("user", "fullname email")
+      .sort({ createdAt: -1 });
+
+    const adoptionData = adoptions.map(adoption => ({
+      id: adoption._id,
+      adopter: adoption.user?.fullname || adoption.fullname,
+      pet: adoption.pet?.name,
+      status: adoption.status,
+      hasAdoptionFormUrl: !!adoption.adoptionFormUrl,
+      adoptionFormUrl: adoption.adoptionFormUrl,
+      createdAt: adoption.createdAt
+    }));
+
+    res.status(200).json({
+      success: true,
+      message: `Found ${adoptions.length} adoptions`,
+      totalWithForms: adoptionData.filter(a => a.hasAdoptionFormUrl).length,
+      adoptions: adoptionData
+    });
+  } catch (error) {
+    console.error("Error testing adoption form URLs:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error testing adoption form URLs"
     });
   }
 };

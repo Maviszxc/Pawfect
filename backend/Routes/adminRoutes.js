@@ -47,6 +47,9 @@ router.put("/pets/:petId", adminController.updatePet);
 // Delete a user
 router.delete("/users/:userId", adminController.deleteUser);
 
+// Test endpoint to check adoption form URLs
+router.get("/test/adoption-form-urls", adminController.testAdoptionFormUrls);
+
 router.patch(
   "/adoptions/:adoptionId/status",
   (req, res, next) => {
