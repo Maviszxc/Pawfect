@@ -50,6 +50,10 @@ const adoptionSchema = new Schema(
       type: String,
       default: "",
     },
+    adoptionFormUrl: {
+      type: String,
+      default: "",
+    },
     isArchived: {
       type: Boolean,
       default: false,

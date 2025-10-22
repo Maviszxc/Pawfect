@@ -4,7 +4,7 @@ const User = require("../Models/userModels");
 
 exports.createAdoption = async (req, res) => {
   try {
-    const { pet, message, fullname, email, phone, address, profilePicture } =
+    const { pet, message, fullname, email, phone, address, profilePicture, adoptionFormUrl } =
       req.body;
 
     console.log("📝 Creating adoption request:", {
@@ -12,6 +12,8 @@ exports.createAdoption = async (req, res) => {
       fullname,
       email,
       hasUser: !!req.user,
+      hasAdoptionFormUrl: !!adoptionFormUrl,
+      adoptionFormUrl: adoptionFormUrl || "NOT PROVIDED",
     });
 
     if (!pet || !fullname || !email || !phone || !address || !message) {
@@ -107,11 +109,17 @@ exports.createAdoption = async (req, res) => {
       message,
       adminMessage: "",
       profilePicture: profilePicture || "",
+      adoptionFormUrl: adoptionFormUrl || "",
     });
 
     await adoption.save();
 
-    console.log("✅ Adoption request created:", adoption._id);
+    console.log("✅ Adoption request created:", {
+      id: adoption._id,
+      adoptionFormUrl: adoption.adoptionFormUrl,
+      hasFormUrl: !!adoption.adoptionFormUrl,
+      formUrlLength: adoption.adoptionFormUrl ? adoption.adoptionFormUrl.length : 0
+    });
 
     res.status(201).json({
       success: true,

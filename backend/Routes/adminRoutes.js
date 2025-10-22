@@ -19,36 +19,6 @@ router.get("/adoptions", adminController.getAllAdoptions);
 // Update adoption status
 router.patch(
   "/adoptions/:adoptionId/status",
-  adminController.updateAdoptionStatus
-);
-
-// Add to adminRoutes.js
-// Archive adoption
-router.patch("/adoptions/:adoptionId/archive", adminController.archiveAdoption);
-
-// Restore adoption
-router.patch("/adoptions/:adoptionId/restore", adminController.restoreAdoption);
-
-// Add to adminRoutes.js
-
-
-// Get dashboard statistics
-router.get("/stats", adminController.getDashboardStats);
-
-// Get all pets
-router.get("/pets", adminController.getAllPets);
-
-// Delete a pet
-router.delete("/pets/:petId", adminController.deletePet);
-
-// Update a pet
-router.put("/pets/:petId", adminController.updatePet);
-
-// Delete a user
-router.delete("/users/:userId", adminController.deleteUser);
-
-router.patch(
-  "/adoptions/:adoptionId/status",
   (req, res, next) => {
     console.log(
       `⏱️  Starting adoption status update for: ${req.params.adoptionId}`
@@ -67,5 +37,29 @@ router.patch(
   },
   adminController.updateAdoptionStatus
 );
+
+// Archive adoption
+router.patch("/adoptions/:adoptionId/archive", adminController.archiveAdoption);
+
+// Restore adoption
+router.patch("/adoptions/:adoptionId/restore", adminController.restoreAdoption);
+
+// Get dashboard statistics
+router.get("/stats", adminController.getDashboardStats);
+
+// Get all pets
+router.get("/pets", adminController.getAllPets);
+
+// Delete a pet
+router.delete("/pets/:petId", adminController.deletePet);
+
+// Update a pet
+router.put("/pets/:petId", adminController.updatePet);
+
+// Delete a user
+router.delete("/users/:userId", adminController.deleteUser);
+
+// Test endpoint to check adoption form URLs
+router.get("/test/adoption-form-urls", adminController.testAdoptionFormUrls);
 
 module.exports = router;

@@ -101,7 +101,10 @@ exports.getAllAdoptions = async (req, res) => {
         petName: a.pet?.name,
         email: a.email,
         hasUser: !!a.user,
-        userId: a.user?._id
+        userId: a.user?._id,
+        hasAdoptionForm: !!a.adoptionFormUrl,
+        adoptionFormUrl: a.adoptionFormUrl,
+        adoptionFormUrlLength: a.adoptionFormUrl ? a.adoptionFormUrl.length : 0
       })));
     }
 
@@ -645,6 +648,40 @@ exports.restoreAdoption = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error",
+    });
+  }
+};
+
+// Test endpoint to check adoption form URLs in admin
+exports.testAdoptionFormUrls = async (req, res) => {
+  try {
+    const adoptions = await Adoption.find({})
+      .populate("pet", "name")
+      .populate("user", "fullname email")
+      .sort({ createdAt: -1 });
+
+    const adoptionData = adoptions.map(adoption => ({
+      id: adoption._id,
+      adopter: adoption.user?.fullname || adoption.fullname,
+      pet: adoption.pet?.name,
+      status: adoption.status,
+      hasAdoptionFormUrl: !!adoption.adoptionFormUrl,
+      adoptionFormUrl: adoption.adoptionFormUrl,
+      adoptionFormUrlLength: adoption.adoptionFormUrl ? adoption.adoptionFormUrl.length : 0,
+      createdAt: adoption.createdAt
+    }));
+
+    res.status(200).json({
+      success: true,
+      message: `Found ${adoptions.length} adoptions`,
+      totalWithForms: adoptionData.filter(a => a.hasAdoptionFormUrl).length,
+      adoptions: adoptionData
+    });
+  } catch (error) {
+    console.error("Error testing adoption form URLs:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error testing adoption form URLs"
     });
   }
 };
