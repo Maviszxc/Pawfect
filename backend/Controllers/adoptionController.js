@@ -4,8 +4,16 @@ const User = require("../Models/userModels");
 
 exports.createAdoption = async (req, res) => {
   try {
-    const { pet, message, fullname, email, phone, address, profilePicture } =
-      req.body;
+    const {
+      pet,
+      message,
+      fullname,
+      email,
+      phone,
+      address,
+      profilePicture,
+      adoptionFormUrl,
+    } = req.body;
 
     console.log("📝 Creating adoption request:", {
       pet,
@@ -107,6 +115,8 @@ exports.createAdoption = async (req, res) => {
       message,
       adminMessage: "",
       profilePicture: profilePicture || "",
+      // Save Supabase PDF public URL when provided
+      adoptionFormUrl: adoptionFormUrl || "",
     });
 
     await adoption.save();
