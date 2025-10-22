@@ -50,6 +50,12 @@ const adoptionSchema = new Schema(
       type: String,
       default: "",
     },
+    // URL to the adopter's uploaded PDF form (stored in Supabase)
+    adoptionFormUrl: {
+      type: String,
+      required: false,
+      default: "",
+    },
     isArchived: {
       type: Boolean,
       default: false,

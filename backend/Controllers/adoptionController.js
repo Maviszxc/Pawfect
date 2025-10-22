@@ -4,8 +4,16 @@ const User = require("../Models/userModels");
 
 exports.createAdoption = async (req, res) => {
   try {
-    const { pet, message, fullname, email, phone, address, profilePicture } =
-      req.body;
+    const {
+      pet,
+      message,
+      fullname,
+      email,
+      phone,
+      address,
+      profilePicture,
+      adoptionFormUrl, // coming from frontend after Supabase upload
+    } = req.body;
 
     console.log("📝 Creating adoption request:", {
       pet,
@@ -19,6 +27,17 @@ exports.createAdoption = async (req, res) => {
         success: false,
         message: "All fields are required.",
       });
+    }
+
+    // Optional validation for URL if provided
+    if (adoptionFormUrl && typeof adoptionFormUrl === "string") {
+      const looksLikeUrl = /^https?:\/\//i.test(adoptionFormUrl);
+      if (!looksLikeUrl) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid adoptionFormUrl. Must be an http(s) URL.",
+        });
+      }
     }
 
     // Check if pet exists
@@ -107,11 +126,16 @@ exports.createAdoption = async (req, res) => {
       message,
       adminMessage: "",
       profilePicture: profilePicture || "",
+      adoptionFormUrl: adoptionFormUrl || "",
     });
 
     await adoption.save();
 
-    console.log("✅ Adoption request created:", adoption._id);
+    console.log("✅ Adoption request created:", {
+      id: adoption._id,
+      hasFormUrl: !!adoption.adoptionFormUrl,
+      adoptionFormUrl: adoption.adoptionFormUrl,
+    });
 
     res.status(201).json({
       success: true,
