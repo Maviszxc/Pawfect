@@ -4,7 +4,7 @@ const User = require("../Models/userModels");
 
 exports.createAdoption = async (req, res) => {
   try {
-    const { pet, message, fullname, email, phone, address, profilePicture } =
+    const { pet, message, fullname, email, phone, address, profilePicture, adoptionFormUrl } =
       req.body;
 
     console.log("📝 Creating adoption request:", {
@@ -107,6 +107,7 @@ exports.createAdoption = async (req, res) => {
       message,
       adminMessage: "",
       profilePicture: profilePicture || "",
+      adoptionFormUrl: adoptionFormUrl || "",
     });
 
     await adoption.save();

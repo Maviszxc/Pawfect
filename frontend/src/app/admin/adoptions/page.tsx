@@ -26,6 +26,9 @@ import {
   XCircle,
   Filter,
   ChevronDown,
+  FileText,
+  Download,
+  ExternalLink,
 } from "lucide-react";
 import {
   Table,
@@ -72,6 +75,7 @@ interface Adoption {
   address?: string;
   message?: string;
   adminMessage?: string;
+  adoptionFormUrl?: string;
   user?: {
     _id: string;
     fullname: string;
@@ -150,6 +154,21 @@ export default function AdminAdoptionsPage() {
 
       if (response.data.success) {
         setAdoptions(response.data.adoptions);
+        console.log(`📋 Fetched ${response.data.adoptions.length} adoptions`);
+        
+        // Debug: Check which adoptions have PDF forms
+        response.data.adoptions.forEach((adoption: Adoption, index: number) => {
+          console.log(`Adoption ${index + 1}:`, {
+            id: adoption._id,
+            adopter: adoption.user?.fullname || adoption.fullname,
+            pet: adoption.pet?.name || adoption.petName,
+            hasAdoptionFormUrl: !!adoption.adoptionFormUrl,
+            adoptionFormUrl: adoption.adoptionFormUrl
+          });
+        });
+        
+        const adoptionsWithForms = response.data.adoptions.filter((a: Adoption) => a.adoptionFormUrl);
+        console.log(`📎 Adoptions with PDF forms: ${adoptionsWithForms.length}/${response.data.adoptions.length}`);
       }
     } catch (error) {
       console.error("Error fetching adoptions:", error);
@@ -666,12 +685,19 @@ export default function AdminAdoptionsPage() {
                                         }
                                       </AvatarFallback>
                                     </Avatar>
-                                    <div>
-                                      <div className="font-medium text-[#0a1629]">
-                                        {adoption.user?.fullname ||
-                                          adoption.fullname ||
-                                          adoption.adopterName ||
-                                          "Unknown User"}
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium text-[#0a1629]">
+                                          {adoption.user?.fullname ||
+                                            adoption.fullname ||
+                                            adoption.adopterName ||
+                                            "Unknown User"}
+                                        </span>
+                                        {adoption.adoptionFormUrl && (
+                                          <div title="PDF form attached">
+                                            <FileText className="w-4 h-4 text-blue-600" />
+                                          </div>
+                                        )}
                                       </div>
                                       {adoption.user && (
                                         <div className="text-xs text-gray-500">
@@ -1021,6 +1047,64 @@ export default function AdminAdoptionsPage() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Adoption Form PDF */}
+                    {viewAdoption.adoptionFormUrl ? (
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-200">
+                        <div className="flex items-start gap-4">
+                          <div className="flex-shrink-0">
+                            <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
+                              <FileText className="w-6 h-6 text-white" />
+                            </div>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-lg mb-1 text-[#0a1629]">
+                              Adoption Form (PDF)
+                            </h4>
+                            <p className="text-sm text-gray-600 mb-3">
+                              View the completed adoption form submitted by the adopter
+                            </p>
+                            <div className="flex gap-2">
+                              <a
+                                href={viewAdoption.adoptionFormUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                Open PDF
+                              </a>
+                              <a
+                                href={viewAdoption.adoptionFormUrl}
+                                download
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 text-blue-600 border-2 border-blue-600 rounded-lg transition-colors text-sm font-medium"
+                              >
+                                <Download className="w-4 h-4" />
+                                Download
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-gray-50 rounded-xl p-6 border-2 border-gray-200">
+                        <div className="flex items-start gap-4">
+                          <div className="flex-shrink-0">
+                            <div className="w-12 h-12 bg-gray-300 rounded-lg flex items-center justify-center">
+                              <FileText className="w-6 h-6 text-gray-500" />
+                            </div>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-lg mb-1 text-gray-700">
+                              No Adoption Form
+                            </h4>
+                            <p className="text-sm text-gray-600">
+                              This adoption was submitted before the PDF form system was implemented. Contact information and message are available below.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Message Sections */}
                     <div className="space-y-4">

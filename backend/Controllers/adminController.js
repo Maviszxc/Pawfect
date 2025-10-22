@@ -101,7 +101,9 @@ exports.getAllAdoptions = async (req, res) => {
         petName: a.pet?.name,
         email: a.email,
         hasUser: !!a.user,
-        userId: a.user?._id
+        userId: a.user?._id,
+        hasAdoptionFormUrl: !!a.adoptionFormUrl,
+        adoptionFormUrl: a.adoptionFormUrl
       })));
     }
 
