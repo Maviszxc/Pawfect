@@ -50,6 +50,11 @@ const adoptionSchema = new Schema(
       type: String,
       default: "",
     },
+    adoptionFormUrl: {
+      type: String,
+      required: false,
+      default: "",
+    },
     isArchived: {
       type: Boolean,
       default: false,
@@ -58,8 +63,18 @@ const adoptionSchema = new Schema(
   },
   {
     timestamps: true,
+    strict: false,
+    minimize: false,
   }
 );
+
+// Pre-save hook to ensure adoptionFormUrl is always set
+adoptionSchema.pre('save', function(next) {
+  if (this.adoptionFormUrl === undefined || this.adoptionFormUrl === null) {
+    this.adoptionFormUrl = "";
+  }
+  next();
+});
 
 // Compound index for better query performance
 adoptionSchema.index({ user: 1, email: 1 });
