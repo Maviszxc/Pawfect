@@ -4,20 +4,60 @@ const User = require("../Models/userModels");
 
 exports.createAdoption = async (req, res) => {
   try {
-    const { pet, message, fullname, email, phone, address, profilePicture } =
-      req.body;
+    console.log("📦 RAW REQUEST BODY:", JSON.stringify(req.body, null, 2));
+    
+    // ✅ FIXED: Extract adoptionFormUrl properly
+    const { 
+      pet, 
+      message, 
+      fullname, 
+      email, 
+      phone, 
+      address, 
+      profilePicture, 
+      adoptionFormUrl 
+    } = req.body;
 
-    console.log("📝 Creating adoption request:", {
+    console.log("🔍 Creating adoption request:", {
       pet,
       fullname,
       email,
       hasUser: !!req.user,
+      hasAdoptionForm: !!adoptionFormUrl,
+      adoptionFormUrl: adoptionFormUrl || "NOT PROVIDED",
+      adoptionFormUrlLength: adoptionFormUrl ? adoptionFormUrl.length : 0,
     });
 
-    if (!pet || !fullname || !email || !phone || !address || !message) {
+    // ✅ Validate required fields (adoptionFormUrl is optional for backward compatibility)
+    if (!pet || !fullname || !email || !phone || !address) {
+      console.error("❌ Missing required fields:", {
+        pet: !!pet,
+        fullname: !!fullname,
+        email: !!email,
+        phone: !!phone,
+        address: !!address,
+        adoptionFormUrl: !!adoptionFormUrl
+      });
+      
       return res.status(400).json({
         success: false,
-        message: "All fields are required.",
+        message: "All required fields must be provided.",
+        missingFields: {
+          pet: !pet,
+          fullname: !fullname,
+          email: !email,
+          phone: !phone,
+          address: !address
+        }
+      });
+    }
+
+    // ✅ Validate adoptionFormUrl format if provided
+    if (adoptionFormUrl && !adoptionFormUrl.startsWith('http')) {
+      console.error("❌ Invalid adoption form URL format:", adoptionFormUrl);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid adoption form URL format. Must be a valid URL.",
       });
     }
 
@@ -95,8 +135,8 @@ exports.createAdoption = async (req, res) => {
       }
     }
 
-    // Create new adoption request
-    const adoption = new Adoption({
+    // ✅ FIXED: Create adoption data with explicit adoptionFormUrl
+    const adoptionData = {
       pet,
       user: userId || undefined,
       status: "Pending",
@@ -104,19 +144,46 @@ exports.createAdoption = async (req, res) => {
       email,
       phone,
       address,
-      message,
+      message: message || "Adoption form submitted",
       adminMessage: "",
       profilePicture: profilePicture || "",
-    });
+      adoptionFormUrl: adoptionFormUrl || "", // ✅ This will be saved properly
+    };
 
+    console.log("📨 Creating adoption with data:", JSON.stringify(adoptionData, null, 2));
+
+    // ✅ Create and save adoption - SIMPLIFIED APPROACH
+    const adoption = new Adoption(adoptionData);
+    
+    console.log("💾 BEFORE SAVE - adoption.adoptionFormUrl:", adoption.adoptionFormUrl);
+
+    // Save the adoption
     await adoption.save();
 
-    console.log("✅ Adoption request created:", adoption._id);
+    console.log("✅ AFTER SAVE - Adoption request created:", {
+      id: adoption._id,
+      adoptionFormUrl: adoption.adoptionFormUrl,
+      hasFormUrl: !!adoption.adoptionFormUrl,
+      adoptionFormUrlType: typeof adoption.adoptionFormUrl,
+      adoptionFormUrlLength: adoption.adoptionFormUrl ? adoption.adoptionFormUrl.length : 0,
+    });
+
+    // ✅ Verify by fetching from database
+    const savedAdoption = await Adoption.findById(adoption._id)
+      .populate("pet", "name breed type images")
+      .populate("user", "fullname email profilePicture");
+      
+    console.log("🔍 FETCHED FROM DB:", {
+      id: savedAdoption._id,
+      adoptionFormUrl: savedAdoption.adoptionFormUrl,
+      hasFormUrl: !!savedAdoption.adoptionFormUrl,
+      adoptionFormUrlLength: savedAdoption.adoptionFormUrl ? savedAdoption.adoptionFormUrl.length : 0,
+    });
 
     res.status(201).json({
       success: true,
       message: "Adoption request submitted successfully.",
-      adoption,
+      adoption: savedAdoption,
     });
   } catch (error) {
     console.error("❌ Adoption request error:", error);
