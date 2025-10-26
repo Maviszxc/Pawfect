@@ -175,14 +175,36 @@ const verifyOtp = async (req, res) => {
         .json({ success: false, message: "OTP has expired" });
     }
 
+    // Update user verification status
     await User.updateOne({ email }, { verified: true });
 
-    otpRecord.expiresAt = Date.now() + 300000; // 5 minutes
-    await otpRecord.save();
+    // Get the verified user
+    const user = await User.findOne({ email });
 
-    console.log("OTP verified successfully and extended for 5 minutes");
+    // Generate access token for automatic login
+    const accessToken = jwt.sign(
+      { id: user._id, isAdmin: user.isAdmin },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: "7d" }
+    );
 
-    return res.json({ success: true, message: "OTP verified successfully" });
+    // Delete OTP record after successful verification
+    await OtpVerification.deleteOne({ userEmail: email });
+
+    console.log("OTP verified successfully, user auto-logged in");
+
+    return res.json({
+      success: true,
+      message: "OTP verified successfully",
+      accessToken,
+      user: {
+        _id: user._id,
+        fullname: user.fullname,
+        email: user.email,
+        isAdmin: user.isAdmin,
+        profilePicture: user.profilePicture,
+      },
+    });
   } catch (error) {
     console.error("Error verifying OTP:", error);
     return res.status(500).json({ success: false, message: "Server error" });

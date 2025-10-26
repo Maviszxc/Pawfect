@@ -51,6 +51,8 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
+  RefreshCw,
+  X,
 } from "lucide-react";
 import axios from "axios";
 import { BASE_URL } from "@/utils/constants";
@@ -93,6 +95,7 @@ interface AdoptionStatus {
   isApproved: boolean;
   isPetUnavailable?: boolean;
   application?: {
+    _id: string;
     status: string;
     submittedAt: string;
     petName?: string;
@@ -169,6 +172,8 @@ function PetDetailsContent() {
     email: string;
     profilePicture?: string;
   } | null>(null);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
   const togglePlayPause = () => {
     if (videoRef.current) {
@@ -587,6 +592,42 @@ function PetDetailsContent() {
     }
   };
 
+  // Handle withdrawal of adoption application
+  const handleWithdrawAdoption = async () => {
+    if (!adoptionStatus?.application?._id) return;
+
+    setIsWithdrawing(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        toast.error("Please log in to withdraw your application");
+        setIsWithdrawing(false);
+        return;
+      }
+
+      const response = await axios.delete(
+        `${BASE_URL}/api/adoptions/${adoptionStatus.application._id}/cancel`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (response.data.success) {
+        toast.success("Adoption application withdrawn successfully");
+        setShowWithdrawModal(false);
+        // Refresh adoption status
+        if (userDetails?.email) {
+          checkAdoptionStatus(userDetails.email);
+        }
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Failed to withdraw adoption application";
+      toast.error(errorMessage);
+    } finally {
+      setIsWithdrawing(false);
+    }
+  };
+
   // Helper to get video URL (handles both string and object)
   const getVideoUrl = (video: string | { url: string }) =>
     typeof video === "string" ? video : video?.url;
@@ -896,6 +937,17 @@ function PetDetailsContent() {
                                 </div>
                               )}
                             </div>
+                            {adoptionStatus.application.status === "Under Review" && (
+                              <Button
+                                onClick={() => setShowWithdrawModal(true)}
+                                disabled={isWithdrawing}
+                                variant="outline"
+                                className="w-full mt-3 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700"
+                              >
+                                <X className="h-4 w-4 mr-2" />
+                                Withdraw Application
+                              </Button>
+                            )}
                           </AlertDescription>
                         </Alert>
                       )}
@@ -1217,6 +1269,48 @@ function PetDetailsContent() {
           <User size={24} />
         </Link>
       </main>
+
+      {/* Withdraw Application Modal */}
+      <Dialog open={showWithdrawModal} onOpenChange={setShowWithdrawModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-gray-900">
+              Withdraw Application
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 mt-2">
+              Are you sure you want to withdraw your adoption application for{" "}
+              <span className="font-semibold text-gray-900">{pet?.name}</span>?
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowWithdrawModal(false)}
+              disabled={isWithdrawing}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleWithdrawAdoption}
+              disabled={isWithdrawing}
+              className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isWithdrawing ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Withdrawing...
+                </>
+              ) : (
+                "Yes, Withdraw"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

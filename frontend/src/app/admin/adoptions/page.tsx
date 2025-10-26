@@ -26,6 +26,11 @@ import {
   ChevronDown,
   FileText,
   ExternalLink,
+  CheckCircle2,
+  AlertCircle,
+  Ban,
+  PackageCheck,
+  RotateCcw,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -373,29 +378,41 @@ export default function AdminAdoptionsPage() {
   });
 
   const getStatusColor = (status: string) => {
-    const statusLower = status.toLowerCase();
-    if (statusLower.includes("approved") || statusLower.includes("progress")) {
-      return "bg-green-100 text-green-800 border-green-200";
-    } else if (statusLower.includes("pending") || statusLower.includes("review")) {
-      return "bg-yellow-100 text-yellow-800 border-yellow-200";
-    } else if (statusLower.includes("rejected") || statusLower.includes("denied")) {
-      return "bg-red-100 text-red-800 border-red-200";
-    } else if (statusLower.includes("completed")) {
-      return "bg-blue-100 text-blue-800 border-blue-200";
+    switch (status) {
+      case "Under Review":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "Approved":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "Completed":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "Rejected":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "Denied":
+        return "bg-orange-100 text-orange-800 border-orange-200";
+      case "Returned":
+        return "bg-purple-100 text-purple-800 border-purple-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
-    return "bg-gray-100 text-gray-800 border-gray-200";
   };
 
   const getStatusIcon = (status: string) => {
-    const statusLower = status.toLowerCase();
-    if (statusLower.includes("approved") || statusLower.includes("progress") || statusLower.includes("completed")) {
-      return <CheckCircle className="h-4 w-4" />;
-    } else if (statusLower.includes("pending") || statusLower.includes("review")) {
-      return <Clock className="h-4 w-4" />;
-    } else if (statusLower.includes("rejected") || statusLower.includes("denied")) {
-      return <XCircle className="h-4 w-4" />;
+    switch (status) {
+      case "Under Review":
+        return <Clock className="h-4 w-4" />;
+      case "Approved":
+        return <CheckCircle2 className="h-4 w-4" />;
+      case "Completed":
+        return <PackageCheck className="h-4 w-4" />;
+      case "Rejected":
+        return <XCircle className="h-4 w-4" />;
+      case "Denied":
+        return <Ban className="h-4 w-4" />;
+      case "Returned":
+        return <RotateCcw className="h-4 w-4" />;
+      default:
+        return <AlertCircle className="h-4 w-4" />;
     }
-    return null;
   };
 
   return (
@@ -715,16 +732,19 @@ export default function AdminAdoptionsPage() {
                                 {/* Status column */}
                                 <td className="py-3">
                                   <Badge
-                                    className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(
+                                    className={`px-3 py-1 rounded-full text-xs font-semibold border flex items-center gap-1.5 w-fit ${getStatusColor(
                                       adoption.status
                                     )}`}
                                   >
-                                    {adoption.status
-                                      ? adoption.status
-                                          .charAt(0)
-                                          .toUpperCase() +
-                                        adoption.status.slice(1).toLowerCase()
-                                      : "Unknown"}
+                                    {getStatusIcon(adoption.status)}
+                                    <span>
+                                      {adoption.status
+                                        ? adoption.status
+                                            .charAt(0)
+                                            .toUpperCase() +
+                                          adoption.status.slice(1).toLowerCase()
+                                        : "Unknown"}
+                                    </span>
                                   </Badge>
                                 </td>
                                 {/* Date column */}
@@ -1062,32 +1082,81 @@ export default function AdminAdoptionsPage() {
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white">
                         {/* Show only valid status transitions based on current status */}
                         {selectedAdoption?.status === "Under Review" && (
                           <>
-                            <SelectItem value="Under Review">Under Review</SelectItem>
-                            <SelectItem value="Approved">Approved</SelectItem>
-                            <SelectItem value="Rejected">Rejected</SelectItem>
+                            <SelectItem value="Under Review">
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4 text-yellow-600" />
+                                <span>Under Review</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="Approved">
+                              <div className="flex items-center gap-2">
+                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                <span>Application Approved</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="Rejected">
+                              <div className="flex items-center gap-2">
+                                <XCircle className="h-4 w-4 text-red-600" />
+                                <span>Application Rejected</span>
+                              </div>
+                            </SelectItem>
                           </>
                         )}
                         {selectedAdoption?.status === "Approved" && (
                           <>
-                            <SelectItem value="Approved">Approved</SelectItem>
-                            <SelectItem value="Completed">Completed</SelectItem>
-                            <SelectItem value="Denied">Denied</SelectItem>
+                            <SelectItem value="Approved">
+                              <div className="flex items-center gap-2">
+                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                <span>Application Approved</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="Completed">
+                              <div className="flex items-center gap-2">
+                                <PackageCheck className="h-4 w-4 text-blue-600" />
+                                <span>Adoption Completed</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="Denied">
+                              <div className="flex items-center gap-2">
+                                <Ban className="h-4 w-4 text-orange-600" />
+                                <span>Adoption Denied</span>
+                              </div>
+                            </SelectItem>
                           </>
                         )}
                         {selectedAdoption?.status === "Completed" && (
                           <>
-                            <SelectItem value="Completed">Completed</SelectItem>
-                            <SelectItem value="Returned">Returned</SelectItem>
+                            <SelectItem value="Completed">
+                              <div className="flex items-center gap-2">
+                                <PackageCheck className="h-4 w-4 text-blue-600" />
+                                <span>Adoption Completed</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="Returned">
+                              <div className="flex items-center gap-2">
+                                <RotateCcw className="h-4 w-4 text-purple-600" />
+                                <span>Returned</span>
+                              </div>
+                            </SelectItem>
                           </>
                         )}
                         {(selectedAdoption?.status === "Rejected" || 
                           selectedAdoption?.status === "Denied" ||
                           selectedAdoption?.status === "Returned") && (
-                          <SelectItem value={selectedAdoption.status}>{selectedAdoption.status}</SelectItem>
+                          <SelectItem value={selectedAdoption.status}>
+                            <div className="flex items-center gap-2">
+                              {getStatusIcon(selectedAdoption.status)}
+                              <span>
+                                {selectedAdoption.status === "Rejected" ? "Application Rejected" : 
+                                 selectedAdoption.status === "Denied" ? "Adoption Denied" : 
+                                 selectedAdoption.status}
+                              </span>
+                            </div>
+                          </SelectItem>
                         )}
                       </SelectContent>
                     </Select>

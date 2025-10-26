@@ -35,6 +35,14 @@ import {
   Save,
   X,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface Adoption {
   _id: string;
@@ -115,6 +123,8 @@ export default function Profile() {
   const [adoptionStatusFilter, setAdoptionStatusFilter] =
     useState<AdoptionStatus>("All");
   const [cancellingAdoptionId, setCancellingAdoptionId] = useState<string | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [selectedAdoptionToCancel, setSelectedAdoptionToCancel] = useState<{ id: string; petName: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -647,10 +657,8 @@ export default function Profile() {
     }
   };
 
-  const handleCancelAdoption = async (adoptionId: string, petName: string) => {
-    if (!confirm(`Are you sure you want to cancel your adoption application for ${petName}? This action cannot be undone.`)) {
-      return;
-    }
+  const handleCancelAdoption = async () => {
+    if (!selectedAdoptionToCancel) return;
 
     const token = localStorage.getItem("accessToken");
     if (!token) {
@@ -659,10 +667,10 @@ export default function Profile() {
     }
 
     try {
-      setCancellingAdoptionId(adoptionId);
+      setCancellingAdoptionId(selectedAdoptionToCancel.id);
       
       const response = await axios.delete(
-        `${BASE_URL}/api/adoptions/${adoptionId}/cancel`,
+        `${BASE_URL}/api/adoptions/${selectedAdoptionToCancel.id}/cancel`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -672,17 +680,23 @@ export default function Profile() {
       );
 
       if (response.data.success) {
-        toast.success("Adoption application cancelled successfully");
+        toast.success("Adoption application withdrawn successfully");
         // Remove the cancelled adoption from the list
-        setAdoptions(adoptions.filter(a => a._id !== adoptionId));
+        setAdoptions(adoptions.filter(a => a._id !== selectedAdoptionToCancel.id));
+        setShowCancelModal(false);
+        setSelectedAdoptionToCancel(null);
       }
     } catch (error: any) {
-      console.error("Error cancelling adoption:", error);
-      const errorMessage = error.response?.data?.message || "Failed to cancel adoption application";
+      const errorMessage = error.response?.data?.message || "Failed to withdraw adoption application";
       toast.error(errorMessage);
     } finally {
       setCancellingAdoptionId(null);
     }
+  };
+
+  const openCancelModal = (adoptionId: string, petName: string) => {
+    setSelectedAdoptionToCancel({ id: adoptionId, petName });
+    setShowCancelModal(true);
   };
 
   const handlePetClick = (petId: string) => {
@@ -1594,23 +1608,14 @@ export default function Profile() {
                                       <Button
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          handleCancelAdoption(adoption._id, adoption.pet?.name);
+                                          openCancelModal(adoption._id, adoption.pet?.name);
                                         }}
                                         disabled={cancellingAdoptionId === adoption._id}
                                         variant="ghost"
                                         className="w-full text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200 font-medium disabled:opacity-50"
                                       >
-                                        {cancellingAdoptionId === adoption._id ? (
-                                          <>
-                                            <RefreshCw size={16} className="mr-2 animate-spin" />
-                                            Withdrawing...
-                                          </>
-                                        ) : (
-                                          <>
-                                            <XCircle size={16} className="mr-2" />
-                                            Withdraw Application
-                                          </>
-                                        )}
+                                        <XCircle size={16} className="mr-2" />
+                                        Withdraw Application
                                       </Button>
                                     </div>
                                   )}
@@ -1695,6 +1700,51 @@ export default function Profile() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Withdraw Application Modal */}
+      <Dialog open={showCancelModal} onOpenChange={setShowCancelModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-gray-900">
+              Withdraw Application
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 mt-2">
+              Are you sure you want to withdraw your adoption application for{" "}
+              <span className="font-semibold text-gray-900">{selectedAdoptionToCancel?.petName}</span>?
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowCancelModal(false);
+                setSelectedAdoptionToCancel(null);
+              }}
+              disabled={cancellingAdoptionId !== null}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleCancelAdoption}
+              disabled={cancellingAdoptionId !== null}
+              className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white"
+            >
+              {cancellingAdoptionId !== null ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Withdrawing...
+                </>
+              ) : (
+                "Yes, Withdraw"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

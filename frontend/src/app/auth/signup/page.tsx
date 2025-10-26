@@ -103,6 +103,10 @@ export default function SignUp() {
 
       const data = await res.json();
       if (res.ok) {
+        // Store the access token temporarily for auto-login after verification
+        if (data.accessToken) {
+          localStorage.setItem("signupToken", data.accessToken);
+        }
         toast.success("OTP sent to your email. Please verify your account.");
         router.push(`/auth/verify-otp?email=${formData.email}`);
       } else {

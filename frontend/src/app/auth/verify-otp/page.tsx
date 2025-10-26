@@ -56,19 +56,12 @@ function OtpVerificationContent() {
 
           if (signupToken) {
             localStorage.setItem("accessToken", signupToken);
+            localStorage.removeItem("signupToken");
             setTimeout(() => router.push("/dashboard"), 1500);
           } else {
-            const autoLogin = await axiosInstance.post(
-              "/api/users/auto-login",
-              { email }
-            );
-            if (autoLogin.data.accessToken) {
-              localStorage.setItem("accessToken", autoLogin.data.accessToken);
-              setTimeout(() => router.push("/dashboard"), 1500);
-            } else {
-              toast.info("Please log in manually.");
-              setTimeout(() => router.push("/auth/login"), 1500);
-            }
+            // If no signup token, redirect to login
+            toast.info("Please log in manually.");
+            setTimeout(() => router.push("/auth/login"), 1500);
           }
         } else {
           setCheckingStatus(false);
@@ -116,8 +109,19 @@ function OtpVerificationContent() {
       });
 
       if (res.data.success) {
-        toast.success("Account verified successfully!");
-        setTimeout(() => router.push("/auth/login"), 1500);
+        toast.success("Account verified successfully! Redirecting to dashboard...");
+        
+        // Store the access token for automatic login
+        if (res.data.accessToken) {
+          localStorage.setItem("accessToken", res.data.accessToken);
+          // Remove the temporary signup token
+          localStorage.removeItem("signupToken");
+          // Redirect to dashboard instead of login
+          setTimeout(() => router.push("/dashboard"), 1500);
+        } else {
+          // Fallback to login page if no token
+          setTimeout(() => router.push("/auth/login"), 1500);
+        }
       } else {
         toast.error(res.data.message || "Failed to verify OTP");
       }

@@ -1060,7 +1060,7 @@ export default function AdminPetsPage() {
                           <SelectTrigger>
                             <SelectValue placeholder="Select type" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="bg-white">
                             <SelectItem value="dog">Dog</SelectItem>
                             <SelectItem value="cat">Cat</SelectItem>
                           </SelectContent>
@@ -1090,7 +1090,7 @@ export default function AdminPetsPage() {
                           <SelectTrigger>
                             <SelectValue placeholder="Select age category" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="bg-white">
                             <SelectItem value="kitten">
                               Kitten (&lt; 1 year)
                             </SelectItem>
@@ -1118,7 +1118,7 @@ export default function AdminPetsPage() {
                           <SelectTrigger>
                             <SelectValue placeholder="Select gender" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="bg-white">
                             <SelectItem value="male">Male</SelectItem>
                             <SelectItem value="female">Female</SelectItem>
                           </SelectContent>
@@ -1148,7 +1148,7 @@ export default function AdminPetsPage() {
                           <SelectTrigger>
                             <SelectValue placeholder="Select status" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="bg-white">
                             <SelectItem value="Available">Available</SelectItem>
                             <SelectItem value="Pending">Pending</SelectItem>
                             <SelectItem value="Adopted">Adopted</SelectItem>
