@@ -149,7 +149,7 @@ export default function Adopt() {
       if (response.data.success) {
         // First filter by adoption status from the database
         const availablePets = response.data.pets.filter(
-          (pet: Pet) => pet.adoptionStatus === "available"
+          (pet: Pet) => pet.adoptionStatus === "Available"
         );
 
         // Then filter out pets that have approved adoptions
@@ -208,7 +208,7 @@ export default function Adopt() {
         if (response.data.success) {
           // Filter to only show available pets from database
           const availablePets = response.data.pets.filter(
-            (pet: Pet) => pet.adoptionStatus === "available"
+            (pet: Pet) => pet.adoptionStatus === "Available"
           );
 
           // Then filter out pets that have approved adoptions

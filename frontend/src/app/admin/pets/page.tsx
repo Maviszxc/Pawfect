@@ -17,17 +17,12 @@ import {
   Trash2,
   Plus,
   RefreshCw,
-  Archive,
-  RotateCcw,
   Upload,
   X,
-  Grid,
-  List,
   Eye,
   Video,
   ChevronLeft,
   ChevronRight,
-  Maximize2,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -69,6 +64,8 @@ interface Pet {
   videos: { url: string }[];
   description: string;
   adoptionStatus: string;
+  currentAdopterName?: string;
+  currentAdoptionId?: string;
   isArchived: boolean;
   owner?: string;
   createdAt?: string;
@@ -79,8 +76,7 @@ export default function AdminPetsPage() {
   const [pets, setPets] = useState<Pet[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [activeTab, setActiveTab] = useState("active");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [activeTab, setActiveTab] = useState("all");
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -218,53 +214,6 @@ export default function AdminPetsPage() {
     }
   };
 
-  const handleArchivePet = async (petId: string) => {
-    setIsProcessing(true);
-    try {
-      const response = await axiosInstance.patch(
-        `${BASE_URL}/api/pets/${petId}/archive`
-      );
-      if (response.data.success) {
-        setPets(
-          pets.map((pet) =>
-            pet._id === petId
-              ? { ...pet, isArchived: true, adoptionStatus: "archived" }
-              : pet
-          )
-        );
-        toast.success("Pet archived successfully.");
-      }
-    } catch (error) {
-      toast.error("Error archiving pet. Please try again.");
-      console.error("Error archiving pet:", error);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleRestorePet = async (petId: string) => {
-    setIsProcessing(true);
-    try {
-      const response = await axiosInstance.patch(
-        `${BASE_URL}/api/pets/${petId}/restore`
-      );
-      if (response.data.success) {
-        setPets(
-          pets.map((pet) =>
-            pet._id === petId
-              ? { ...pet, isArchived: false, adoptionStatus: "available" }
-              : pet
-          )
-        );
-        toast.success("Pet restored successfully.");
-      }
-    } catch (error) {
-      toast.error("Error restoring pet. Please try again.");
-      console.error("Error restoring pet:", error);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
   const handleEdit = (pet: Pet) => {
     setEditPet(pet);
@@ -298,7 +247,7 @@ export default function AdminPetsPage() {
       age: "",
       gender: "",
       description: "",
-      adoptionStatus: "available",
+      adoptionStatus: "Available",
       images: [],
       imagePreviews: [],
       videos: [],
@@ -383,7 +332,8 @@ export default function AdminPetsPage() {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    const statusLower = status.toLowerCase();
+    switch (statusLower) {
       case "available":
         return "bg-green-100 text-green-800 border-green-200";
       case "pending":
@@ -410,8 +360,17 @@ export default function AdminPetsPage() {
 
   // Filter pets based on active tab and search query
   const filteredPets = pets.filter((pet) => {
+    // Exclude archived pets completely
+    if (pet.isArchived || pet.adoptionStatus?.toLowerCase() === "archived") {
+      return false;
+    }
+
+    // Filter by status tab
     const matchesTab =
-      activeTab === "active" ? !pet.isArchived : pet.isArchived;
+      activeTab === "all"
+        ? true
+        : pet.adoptionStatus.toLowerCase() === activeTab.toLowerCase();
+    
     const matchesSearch = searchQuery
       ? pet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         pet.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -470,19 +429,31 @@ export default function AdminPetsPage() {
                         onValueChange={setActiveTab}
                         className="w-full"
                       >
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                          <TabsList className="inline-flex p-1 bg-gray-100 rounded-lg w-full sm:w-auto">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                          <TabsList className="inline-flex h-auto items-center gap-6 bg-transparent border-b border-gray-200 w-full sm:w-auto">
                             <TabsTrigger
-                              value="active"
-                              className="data-[state=active]:bg-orange-500 data-[state=active]:text-white rounded-md px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none"
+                              value="all"
+                              className="relative bg-transparent px-1 pb-3 pt-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none"
                             >
-                              Active
+                              All
                             </TabsTrigger>
                             <TabsTrigger
-                              value="archived"
-                              className="data-[state=active]:bg-orange-500 data-[state=active]:text-white rounded-md px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none"
+                              value="available"
+                              className="relative bg-transparent px-1 pb-3 pt-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none"
                             >
-                              Archive
+                              Available
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="pending"
+                              className="relative bg-transparent px-1 pb-3 pt-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none"
+                            >
+                              Pending
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="adopted"
+                              className="relative bg-transparent px-1 pb-3 pt-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none"
+                            >
+                              Adopted
                             </TabsTrigger>
                           </TabsList>
 
@@ -498,29 +469,6 @@ export default function AdminPetsPage() {
                               <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                 <Search className="w-4 h-4 text-gray-500" />
                               </div>
-                            </div>
-
-                            <div className="flex border rounded-md overflow-hidden">
-                              <Button
-                                variant={
-                                  viewMode === "grid" ? "default" : "ghost"
-                                }
-                                size="icon"
-                                onClick={() => setViewMode("grid")}
-                                className="h-9 w-9 rounded-none"
-                              >
-                                <Grid className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant={
-                                  viewMode === "list" ? "default" : "ghost"
-                                }
-                                size="icon"
-                                onClick={() => setViewMode("list")}
-                                className="h-9 w-9 rounded-none"
-                              >
-                                <List className="h-4 w-4" />
-                              </Button>
                             </div>
                           </div>
                         </div>
@@ -546,390 +494,131 @@ export default function AdminPetsPage() {
                       </Tabs>
                     </div>
 
-                    {/* Pet Cards/List */}
+                    {/* Pet Cards */}
                     {isLoading ? (
                       <div className="flex justify-center items-center py-20">
                         <Loader />
                       </div>
+                    ) : filteredPets.length === 0 ? (
+                      <div className="text-center py-16 border border-dashed rounded-lg">
+                        <div className="text-gray-400 mb-2">
+                          <p>No pets found</p>
+                        </div>
+                        <Button onClick={handleAdd} className="mt-4">
+                          <Plus className="h-4 w-4 mr-2" /> Add Pet
+                        </Button>
+                      </div>
                     ) : (
-                      <>
-                        {filteredPets.length === 0 ? (
-                          <div className="text-center py-16 border border-dashed rounded-lg">
-                            <div className="text-gray-400 mb-2">
-                              {activeTab === "active" ? (
-                                <p>No active pets found</p>
-                              ) : (
-                                <p>No archived pets found</p>
-                              )}
-                            </div>
-                            <Button onClick={handleAdd} className="mt-4">
-                              <Plus className="h-4 w-4 mr-2" /> Add Pet
-                            </Button>
-                          </div>
-                        ) : viewMode === "grid" ? (
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {filteredPets.map((pet) => (
-                              <Card
-                                key={pet._id}
-                                className={`overflow-hidden transition-all hover:shadow-md cursor-pointer ${
-                                  pet.isArchived ? "opacity-80" : ""
-                                }`}
-                                onClick={() => handleView(pet)}
-                              >
-                                <div className="relative">
-                                  <div className="h-72 overflow-hidden">
-                                    <img
-                                      src={
-                                        pet.images && pet.images.length > 0
-                                          ? pet.images[0].url
-                                          : "/placeholder-pet.jpg"
-                                      }
-                                      alt={pet.name}
-                                      className="w-full h-full object-cover transition-transform hover:scale-105"
-                                    />
-                                  </div>
-                                  <div className="absolute top-3 right-3">
-                                    <Badge
-                                      className={`${getStatusColor(
-                                        pet.adoptionStatus
-                                      )} border`}
-                                    >
-                                      {pet.adoptionStatus
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {filteredPets.map((pet) => (
+                          <Card
+                            key={pet._id}
+                            className="overflow-hidden transition-all hover:shadow-md cursor-pointer"
+                            onClick={() => handleView(pet)}
+                          >
+                            <div className="relative">
+                              <div className="h-72 overflow-hidden">
+                                <img
+                                  src={
+                                    pet.images && pet.images.length > 0
+                                      ? pet.images[0].url
+                                      : "/placeholder-pet.jpg"
+                                  }
+                                  alt={pet.name}
+                                  className="w-full h-full object-cover transition-transform hover:scale-105"
+                                />
+                              </div>
+                              <div className="absolute top-3 right-3">
+                                <Badge
+                                  className={`${getStatusColor(
+                                    pet.adoptionStatus
+                                  )} border`}
+                                >
+                                  {pet.adoptionStatus === "Pending" && pet.currentAdopterName
+                                    ? `In Progress (by ${pet.currentAdopterName})`
+                                    : pet.adoptionStatus
                                         .charAt(0)
                                         .toUpperCase() +
-                                        pet.adoptionStatus.slice(1)}
-                                    </Badge>
+                                      pet.adoptionStatus.slice(1)}
+                                </Badge>
+                              </div>
+                              {pet.videos && pet.videos.length > 0 && (
+                                <div className="absolute bottom-3 left-3">
+                                  <div className="bg-black bg-opacity-50 rounded-full p-1">
+                                    <Video className="h-4 w-4 text-white" />
                                   </div>
-                                  {pet.isArchived && (
-                                    <div className="absolute top-3 left-3">
-                                      <Badge
-                                        variant="secondary"
-                                        className="border"
-                                      >
-                                        Archived
-                                      </Badge>
-                                    </div>
-                                  )}
-                                  {pet.videos && pet.videos.length > 0 && (
-                                    <div className="absolute bottom-3 left-3">
-                                      <div className="bg-black bg-opacity-50 rounded-full p-1">
-                                        <Video className="h-4 w-4 text-white" />
-                                      </div>
-                                    </div>
-                                  )}
                                 </div>
-                                <CardContent className="p-4 ">
-                                  <div className="flex justify-between items-start mb-3">
-                                    <h3 className="font-semibold text-lg text-gray-900">
-                                      {pet.name}
-                                    </h3>
-                                    <Badge
-                                      variant="outline"
-                                      className={`capitalize ${getTypeColor(
-                                        pet.type
-                                      )} border`}
-                                    >
-                                      {pet.type}
-                                    </Badge>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-                                    <div>
-                                      <span className="text-gray-500 text-xs">
-                                        Breed:
-                                      </span>
-                                      <p className="font-medium truncate">
-                                        {pet.breed}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <span className="text-gray-500 text-xs">
-                                        Age:
-                                      </span>
-                                      <p className="font-medium">
-                                        {getAgeText(pet.age)}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <span className="text-gray-500 text-xs">
-                                        Gender:
-                                      </span>
-                                      <p className="font-medium capitalize">
-                                        {pet.gender}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                                    {pet.description}
+                              )}
+                            </div>
+                            <CardContent className="p-4">
+                              <div className="flex justify-between items-start mb-3">
+                                <h3 className="font-semibold text-lg text-gray-900">
+                                  {pet.name}
+                                </h3>
+                                <Badge
+                                  variant="outline"
+                                  className={`capitalize ${getTypeColor(
+                                    pet.type
+                                  )} border`}
+                                >
+                                  {pet.type}
+                                </Badge>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                                <div>
+                                  <span className="text-gray-500 text-xs">
+                                    Breed:
+                                  </span>
+                                  <p className="font-medium truncate">
+                                    {pet.breed}
                                   </p>
-                                  <div className="flex justify-between items-center">
-                                    <div className="text-xs text-gray-500">
-                                      Added:{" "}
-                                      {new Date(
-                                        pet.createdAt || ""
-                                      ).toLocaleDateString()}
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleEdit(pet);
-                                        }}
-                                        title="Edit pet"
-                                        className="h-8 w-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100"
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      {pet.isArchived ? (
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleRestorePet(pet._id);
-                                          }}
-                                          disabled={isProcessing}
-                                          title="Restore pet"
-                                          className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                        >
-                                          <RotateCcw className="h-4 w-4" />
-                                        </Button>
-                                      ) : (
-                                        <AlertDialog>
-                                          <AlertDialogTrigger asChild>
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                              disabled={isProcessing}
-                                              title="Archive pet"
-                                              onClick={(e) =>
-                                                e.stopPropagation()
-                                              }
-                                            >
-                                              <Archive className="h-4 w-4" />
-                                            </Button>
-                                          </AlertDialogTrigger>
-                                          <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                              <AlertDialogTitle>
-                                                Archive this pet?
-                                              </AlertDialogTitle>
-                                              <AlertDialogDescription>
-                                                This will remove the pet from
-                                                public view but keep it in the
-                                                system for records.
-                                              </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                              <AlertDialogCancel>
-                                                Cancel
-                                              </AlertDialogCancel>
-                                              <AlertDialogAction
-                                                className="bg-red-600 hover:bg-red-700"
-                                                onClick={() =>
-                                                  handleArchivePet(pet._id)
-                                                }
-                                              >
-                                                Archive
-                                              </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                          </AlertDialogContent>
-                                        </AlertDialog>
-                                      )}
-                                    </div>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            {filteredPets.map((pet) => (
-                              <Card
-                                key={pet._id}
-                                className={`cursor-pointer ${
-                                  pet.isArchived ? "opacity-80" : ""
-                                }`}
-                                onClick={() => handleView(pet)}
-                              >
-                                <CardContent className="p-4">
-                                  <div className="flex items-start gap-4">
-                                    <div className="flex-shrink-0">
-                                      <img
-                                        src={
-                                          pet.images && pet.images.length > 0
-                                            ? pet.images[0].url
-                                            : "/placeholder-pet.jpg"
-                                        }
-                                        alt={pet.name}
-                                        className="w-24 h-24 object-top rounded-md"
-                                      />
-                                    </div>
-                                    <div className="flex-grow">
-                                      <div className="flex justify-between items-start">
-                                        <div>
-                                          <h3 className="font-semibold text-lg text-gray-900">
-                                            {pet.name}
-                                          </h3>
-                                          <div className="flex items-center gap-2 mt-1">
-                                            <Badge
-                                              variant="outline"
-                                              className={`capitalize ${getTypeColor(
-                                                pet.type
-                                              )} border`}
-                                            >
-                                              {pet.type}
-                                            </Badge>
-                                            <Badge
-                                              className={`${getStatusColor(
-                                                pet.adoptionStatus
-                                              )} border`}
-                                            >
-                                              {pet.adoptionStatus
-                                                .charAt(0)
-                                                .toUpperCase() +
-                                                pet.adoptionStatus.slice(1)}
-                                            </Badge>
-                                            {pet.isArchived && (
-                                              <Badge
-                                                variant="secondary"
-                                                className="border"
-                                              >
-                                                Archived
-                                              </Badge>
-                                            )}
-                                            {pet.videos &&
-                                              pet.videos.length > 0 && (
-                                                <div className="flex items-center text-gray-500">
-                                                  <Video className="h-4 w-4 mr-1" />
-                                                  <span className="text-xs">
-                                                    {pet.videos.length}
-                                                  </span>
-                                                </div>
-                                              )}
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleEdit(pet);
-                                            }}
-                                            title="Edit pet"
-                                            className="h-8 w-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100"
-                                          >
-                                            <Edit className="h-4 w-4" />
-                                          </Button>
-                                          {pet.isArchived ? (
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleRestorePet(pet._id);
-                                              }}
-                                              disabled={isProcessing}
-                                              title="Restore pet"
-                                              className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                            >
-                                              <RotateCcw className="h-4 w-4" />
-                                            </Button>
-                                          ) : (
-                                            <AlertDialog>
-                                              <AlertDialogTrigger asChild>
-                                                <Button
-                                                  variant="ghost"
-                                                  size="icon"
-                                                  className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                  disabled={isProcessing}
-                                                  title="Archive pet"
-                                                  onClick={(e) =>
-                                                    e.stopPropagation()
-                                                  }
-                                                >
-                                                  <Archive className="h-4 w-4" />
-                                                </Button>
-                                              </AlertDialogTrigger>
-                                              <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                  <AlertDialogTitle>
-                                                    Archive this pet?
-                                                  </AlertDialogTitle>
-                                                  <AlertDialogDescription>
-                                                    This will remove the pet
-                                                    from public view but keep it
-                                                    in the system for records.
-                                                  </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                  <AlertDialogCancel>
-                                                    Cancel
-                                                  </AlertDialogCancel>
-                                                  <AlertDialogAction
-                                                    className="bg-red-600 hover:bg-red-700"
-                                                    onClick={() =>
-                                                      handleArchivePet(pet._id)
-                                                    }
-                                                  >
-                                                    Archive
-                                                  </AlertDialogAction>
-                                                </AlertDialogFooter>
-                                              </AlertDialogContent>
-                                            </AlertDialog>
-                                          )}
-                                        </div>
-                                      </div>
-                                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3 text-sm">
-                                        <div>
-                                          <span className="text-gray-500 text-xs">
-                                            Breed:
-                                          </span>
-                                          <p className="font-medium">
-                                            {pet.breed}
-                                          </p>
-                                        </div>
-                                        <div>
-                                          <span className="text-gray-500 text-xs">
-                                            Age:
-                                          </span>
-                                          <p className="font-medium">
-                                            {getAgeText(pet.age)}
-                                          </p>
-                                        </div>
-                                        <div>
-                                          <span className="text-gray-500 text-xs">
-                                            Gender:
-                                          </span>
-                                          <p className="font-medium capitalize">
-                                            {pet.gender}
-                                          </p>
-                                        </div>
-                                        <div>
-                                          <span className="text-gray-500 text-xs">
-                                            Added:
-                                          </span>
-                                          <p className="font-medium">
-                                            {new Date(
-                                              pet.createdAt || ""
-                                            ).toLocaleDateString()}
-                                          </p>
-                                        </div>
-                                      </div>
-                                      <p className="text-sm text-gray-600 mt-3 line-clamp-2">
-                                        {pet.description}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            ))}
-                          </div>
-                        )}
-                      </>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500 text-xs">
+                                    Age:
+                                  </span>
+                                  <p className="font-medium">
+                                    {getAgeText(pet.age)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500 text-xs">
+                                    Gender:
+                                  </span>
+                                  <p className="font-medium capitalize">
+                                    {pet.gender}
+                                  </p>
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                                {pet.description}
+                              </p>
+                              <div className="flex justify-between items-center">
+                                <div className="text-xs text-gray-500">
+                                  Added:{" "}
+                                  {new Date(
+                                    pet.createdAt || ""
+                                  ).toLocaleDateString()}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEdit(pet);
+                                    }}
+                                    title="Edit pet"
+                                    className="h-8 w-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </CardContent>
@@ -1019,10 +708,12 @@ export default function AdminPetsPage() {
                                 selectedPet.adoptionStatus
                               )} border text-sm`}
                             >
-                              {selectedPet.adoptionStatus
-                                .charAt(0)
-                                .toUpperCase() +
-                                selectedPet.adoptionStatus.slice(1)}
+                              {selectedPet.adoptionStatus === "Pending" && selectedPet.currentAdopterName
+                                ? `In Progress (by ${selectedPet.currentAdopterName})`
+                                : selectedPet.adoptionStatus
+                                    .charAt(0)
+                                    .toUpperCase() +
+                                  selectedPet.adoptionStatus.slice(1)}
                             </Badge>
                           </div>
                         </div>
@@ -1075,7 +766,7 @@ export default function AdminPetsPage() {
                                     }}
                                     title="Enlarge video"
                                   >
-                                    <Maximize2 size={20} />
+                                    <Eye size={20} />
                                   </button>
                                 </div>
                               </CardContent>
@@ -1095,12 +786,12 @@ export default function AdminPetsPage() {
                               </h1>
                               <span
                                 className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                  selectedPet.adoptionStatus === "available"
+                                  selectedPet.adoptionStatus === "Available"
                                     ? "bg-emerald-100 text-emerald-800"
                                     : "bg-red-100 text-red-800"
                                 }`}
                               >
-                                {selectedPet.adoptionStatus === "available"
+                                {selectedPet.adoptionStatus === "Available"
                                   ? "Available for Adoption"
                                   : "Not Available"}
                               </span>
@@ -1399,9 +1090,9 @@ export default function AdminPetsPage() {
                             <SelectValue placeholder="Select status" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="available">Available</SelectItem>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="adopted">Adopted</SelectItem>
+                            <SelectItem value="Available">Available</SelectItem>
+                            <SelectItem value="Pending">Pending</SelectItem>
+                            <SelectItem value="Adopted">Adopted</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

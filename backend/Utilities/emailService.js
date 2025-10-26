@@ -351,134 +351,292 @@ const sendAdoptionStatusEmail = async ({
 
   // Create proper email templates based on status
   switch (status.toLowerCase()) {
-    case "Approved":
-      subject = `🎉 Your Adoption Request for ${petName} Has Been Approved! - PawProject`;
+    case "approved":
+      subject = `🎉 Great News! Your Adoption Request for ${petName} Has Been Approved!`;
       html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #FF6B35; margin: 0;">PawProject</h1>
-            <h2 style="color: #333; margin-top: 10px;">Adoption Request Approved! 🎉</h2>
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f0fdf4; padding: 0;">
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 20px; text-align: center; border-radius: 0;">
+            <h1 style="color: white; margin: 0; font-size: 32px; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">🐾 PawProject</h1>
+            <p style="color: #d1fae5; margin: 10px 0 0 0; font-size: 16px;">Adoption Request Approved!</p>
           </div>
           
-          <div style="background-color: #f9f9f9; border-radius: 10px; padding: 30px;">
-            <div style="text-align: center; margin-bottom: 20px;">
-              <div style="background-color: #10b981; color: white; padding: 15px 25px; border-radius: 25px; display: inline-block;">
-                <h3 style="margin: 0; font-size: 24px;">Congratulations!</h3>
+          <!-- Main Content -->
+          <div style="background-color: white; padding: 40px 30px; margin: 0;">
+            <!-- Success Badge -->
+            <div style="text-align: center; margin-bottom: 30px;">
+              <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 20px 40px; border-radius: 50px; display: inline-block; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
+                <h2 style="margin: 0; font-size: 28px; font-weight: bold;">🎉 Congratulations!</h2>
               </div>
             </div>
             
-            <h3 style="color: #333; text-align: center;">Hello, ${userFullname}!</h3>
+            <h3 style="color: #1f2937; text-align: center; font-size: 24px; margin-bottom: 20px;">Hello, ${userFullname}!</h3>
             
-            <p style="color: #666; font-size: 16px; text-align: center;">
-              We're thrilled to inform you that your adoption request for <strong>${petName}</strong> has been <span style="color: #10b981; font-weight: bold;">APPROVED</span>!
+            <p style="color: #4b5563; font-size: 17px; line-height: 1.6; text-align: center; margin: 20px 0;">
+              We're absolutely <strong style="color: #10b981;">thrilled</strong> to inform you that your adoption request for <strong style="color: #1f2937;">${petName}</strong> has been <span style="color: #10b981; font-weight: bold; font-size: 18px;">APPROVED</span>! ✨
             </p>
             
-            <div style="background-color: white; border: 2px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
-              <h4 style="color: #333; margin-top: 0;">Next Steps:</h4>
-              <p style="color: #666; margin: 10px 0;">
-                ${
-                  adminMessage ||
-                  "Our team will contact you within 24-48 hours to arrange the pickup details and complete the adoption process."
-                }
+            <!-- Next Steps Box -->
+            <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-left: 5px solid #10b981; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);">
+              <h4 style="color: #065f46; margin: 0 0 15px 0; font-size: 18px; display: flex; align-items: center;">
+                <span style="font-size: 24px; margin-right: 10px;">📋</span> Next Steps
+              </h4>
+              <p style="color: #047857; margin: 0; line-height: 1.6; font-size: 15px;">
+                ${adminMessage || "Congratulations! You've passed the initial review. Our team will contact you within 24-48 hours to schedule an interview and provide additional forms to complete. Please keep your phone nearby and check your email regularly."}
               </p>
             </div>
             
-            <div style="text-align: center; margin-top: 20px;">
-              <p style="color: #666; font-size: 14px;">
-                <strong>Please keep an eye on your email</strong> for further instructions.
+            <!-- Important Notice -->
+            <div style="background-color: #fef3c7; border: 2px dashed #f59e0b; border-radius: 12px; padding: 20px; margin: 25px 0; text-align: center;">
+              <p style="color: #92400e; margin: 0; font-size: 15px; line-height: 1.5;">
+                <strong>⚠️ Important:</strong> Please keep an eye on your email and phone for further instructions from our team.
               </p>
+            </div>
+            
+            <!-- Paw Print Decoration -->
+            <div style="text-align: center; margin: 30px 0;">
+              <span style="font-size: 40px; opacity: 0.3;">🐾 🐾 🐾</span>
             </div>
           </div>
           
-          <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
-            <p>Thank you for choosing to adopt and give a loving home to ${petName}!</p>
-            <p>© ${new Date().getFullYear()} PawProject. All rights reserved.</p>
+          <!-- Footer -->
+          <div style="background-color: #f9fafb; padding: 30px 20px; text-align: center; border-top: 3px solid #10b981;">
+            <p style="color: #6b7280; font-size: 15px; margin: 0 0 10px 0; line-height: 1.5;">
+              Thank you for choosing to adopt and give a loving home to <strong>${petName}</strong>! 💚
+            </p>
+            <p style="color: #9ca3af; font-size: 13px; margin: 10px 0 0 0;">
+              © ${new Date().getFullYear()} PawProject. All rights reserved.
+            </p>
           </div>
         </div>
       `;
       break;
 
-    case "Rejected":
-      subject = `Update on Your Adoption Request for ${petName} - PawProject`;
+    case "rejected":
+      subject = `Update on Your Adoption Request for ${petName}`;
       html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #FF6B35; margin: 0;">PawProject</h1>
-            <h2 style="color: #333; margin-top: 10px;">Adoption Request Update</h2>
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #fef2f2; padding: 0;">
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 40px 20px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 32px; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">🐾 PawProject</h1>
+            <p style="color: #fecaca; margin: 10px 0 0 0; font-size: 16px;">Adoption Request Update</p>
           </div>
           
-          <div style="background-color: #f9f9f9; border-radius: 10px; padding: 30px;">
-            <h3 style="color: #333; text-align: center;">Hello, ${userFullname}</h3>
+          <!-- Main Content -->
+          <div style="background-color: white; padding: 40px 30px; margin: 0;">
+            <h3 style="color: #1f2937; text-align: center; font-size: 24px; margin-bottom: 20px;">Hello, ${userFullname}</h3>
             
-            <p style="color: #666; font-size: 16px; text-align: center;">
-              After careful consideration, we regret to inform you that your adoption request for <strong>${petName}</strong> has been <span style="color: #ef4444; font-weight: bold;">not approved</span> at this time.
+            <p style="color: #4b5563; font-size: 17px; line-height: 1.6; text-align: center; margin: 20px 0;">
+              After careful consideration, we regret to inform you that your adoption request for <strong style="color: #1f2937;">${petName}</strong> has <span style="color: #ef4444; font-weight: bold;">not been approved</span> at this time.
             </p>
             
-            <div style="background-color: white; border: 2px solid #fecaca; border-radius: 8px; padding: 20px; margin: 20px 0;">
-              <h4 style="color: #333; margin-top: 0;">Message from our team:</h4>
-              <p style="color: #666; margin: 10px 0;">
-                ${
-                  adminMessage ||
-                  "Thank you for your interest in adopting. We encourage you to consider other available pets that might be a better fit for your situation."
-                }
+            <!-- Message Box -->
+            <div style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border-left: 5px solid #ef4444; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.1);">
+              <h4 style="color: #991b1b; margin: 0 0 15px 0; font-size: 18px; display: flex; align-items: center;">
+                <span style="font-size: 24px; margin-right: 10px;">💬</span> Message from our team
+              </h4>
+              <p style="color: #b91c1c; margin: 0; line-height: 1.6; font-size: 15px;">
+                ${adminMessage || "After reviewing your application form, we regret to inform you that we are unable to proceed with your adoption request at this time. We encourage you to consider other available pets that might be a perfect match for you!"}
               </p>
             </div>
             
-            <div style="text-align: center; margin-top: 20px;">
-              <p style="color: #666; font-size: 14px;">
-                We appreciate your understanding and hope you'll consider adopting another pet in the future.
+            <!-- Encouragement Box -->
+            <div style="background-color: #fef3c7; border: 2px solid #fbbf24; border-radius: 12px; padding: 20px; margin: 25px 0; text-align: center;">
+              <p style="color: #92400e; margin: 0; font-size: 15px; line-height: 1.5;">
+                <strong>🌟 Don't give up!</strong> We have many other wonderful pets waiting for a loving home. Please visit our adoption page to find your perfect companion.
               </p>
+            </div>
+            
+            <!-- Paw Print Decoration -->
+            <div style="text-align: center; margin: 30px 0;">
+              <span style="font-size: 40px; opacity: 0.3;">🐾 🐾 🐾</span>
             </div>
           </div>
           
-          <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
-            <p>© ${new Date().getFullYear()} PawProject. All rights reserved.</p>
+          <!-- Footer -->
+          <div style="background-color: #f9fafb; padding: 30px 20px; text-align: center; border-top: 3px solid #ef4444;">
+            <p style="color: #6b7280; font-size: 15px; margin: 0 0 10px 0; line-height: 1.5;">
+              We appreciate your understanding and hope you'll find your perfect pet soon! ❤️
+            </p>
+            <p style="color: #9ca3af; font-size: 13px; margin: 10px 0 0 0;">
+              © ${new Date().getFullYear()} PawProject. All rights reserved.
+            </p>
           </div>
         </div>
       `;
       break;
 
-    case "Completed":
-      subject = `🎊 Adoption Completed for ${petName}! - PawProject`;
+    case "completed":
+      subject = `🎊 Adoption Completed! Welcome ${petName} to Your Family!`;
       html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #FF6B35; margin: 0;">PawProject</h1>
-            <h2 style="color: #333; margin-top: 10px;">Adoption Completed! 🎊</h2>
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #eff6ff; padding: 0;">
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 40px 20px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 32px; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">🐾 PawProject</h1>
+            <p style="color: #bfdbfe; margin: 10px 0 0 0; font-size: 16px;">Adoption Completed!</p>
           </div>
           
-          <div style="background-color: #f9f9f9; border-radius: 10px; padding: 30px;">
-            <div style="text-align: center; margin-bottom: 20px;">
-              <div style="background-color: #3b82f6; color: white; padding: 15px 25px; border-radius: 25px; display: inline-block;">
-                <h3 style="margin: 0; font-size: 24px;">Adoption Finalized!</h3>
+          <!-- Main Content -->
+          <div style="background-color: white; padding: 40px 30px; margin: 0;">
+            <!-- Success Badge -->
+            <div style="text-align: center; margin-bottom: 30px;">
+              <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 20px 40px; border-radius: 50px; display: inline-block; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);">
+                <h2 style="margin: 0; font-size: 28px; font-weight: bold;">🎊 Adoption Finalized!</h2>
               </div>
             </div>
             
-            <h3 style="color: #333; text-align: center;">Congratulations, ${userFullname}!</h3>
+            <h3 style="color: #1f2937; text-align: center; font-size: 24px; margin-bottom: 20px;">Congratulations, ${userFullname}!</h3>
             
-            <p style="color: #666; font-size: 16px; text-align: center;">
-              We're delighted to inform you that your adoption of <strong>${petName}</strong> is now <span style="color: #3b82f6; font-weight: bold;">COMPLETED</span>!
+            <p style="color: #4b5563; font-size: 17px; line-height: 1.6; text-align: center; margin: 20px 0;">
+              We're absolutely <strong style="color: #3b82f6;">delighted</strong> to inform you that your adoption of <strong style="color: #1f2937;">${petName}</strong> is now <span style="color: #3b82f6; font-weight: bold; font-size: 18px;">COMPLETED</span>! 🏠✨
             </p>
             
-            <div style="background-color: white; border: 2px solid #3b82f6; border-radius: 8px; padding: 20px; margin: 20px 0;">
-              <h4 style="color: #333; margin-top: 0;">Final Message:</h4>
-              <p style="color: #666; margin: 10px 0;">
-                ${
-                  adminMessage ||
-                  "Thank you for giving a loving home to ${petName}! We wish you both many happy years together."
-                }
+            <!-- Message Box -->
+            <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-left: 5px solid #3b82f6; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);">
+              <h4 style="color: #1e40af; margin: 0 0 15px 0; font-size: 18px; display: flex; align-items: center;">
+                <span style="font-size: 24px; margin-right: 10px;">💙</span> Final Message
+              </h4>
+              <p style="color: #1e3a8a; margin: 0; line-height: 1.6; font-size: 15px;">
+                ${adminMessage || `Congratulations! You've successfully passed the screening and interview process. ${petName} is now ready to be picked up! Please coordinate with our team for the pickup schedule. We wish you both many happy years together filled with joy, cuddles, and unforgettable memories.`}
               </p>
             </div>
             
-            <div style="text-align: center; margin-top: 20px;">
-              <p style="color: #666; font-size: 14px;">
-                Remember that we're always here to support you and ${petName}. Don't hesitate to reach out if you need any post-adoption advice.
+            <!-- Support Box -->
+            <div style="background-color: #fef3c7; border: 2px solid #fbbf24; border-radius: 12px; padding: 20px; margin: 25px 0; text-align: center;">
+              <p style="color: #92400e; margin: 0; font-size: 15px; line-height: 1.5;">
+                <strong>💡 Need Help?</strong> We're always here to support you and ${petName}. Don't hesitate to reach out if you need any post-adoption advice!
               </p>
+            </div>
+            
+            <!-- Celebration -->
+            <div style="text-align: center; margin: 30px 0; padding: 20px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px;">
+              <p style="color: #92400e; font-size: 18px; margin: 0; font-weight: bold;">
+                🎉 Welcome to the PawProject Family! 🎉
+              </p>
+            </div>
+            
+            <!-- Paw Print Decoration -->
+            <div style="text-align: center; margin: 30px 0;">
+              <span style="font-size: 40px; opacity: 0.3;">🐾 🐾 🐾</span>
             </div>
           </div>
           
-          <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
-            <p>© ${new Date().getFullYear()} PawProject. All rights reserved.</p>
+          <!-- Footer -->
+          <div style="background-color: #f9fafb; padding: 30px 20px; text-align: center; border-top: 3px solid #3b82f6;">
+            <p style="color: #6b7280; font-size: 15px; margin: 0 0 10px 0; line-height: 1.5;">
+              Wishing you and <strong>${petName}</strong> a lifetime of happiness together! 💙
+            </p>
+            <p style="color: #9ca3af; font-size: 13px; margin: 10px 0 0 0;">
+              © ${new Date().getFullYear()} PawProject. All rights reserved.
+            </p>
+          </div>
+        </div>
+      `;
+      break;
+
+    case "denied":
+      subject = `Important Update on Your Adoption Request for ${petName}`;
+      html = `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #fff7ed; padding: 0;">
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); padding: 40px 20px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 32px; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">🐾 PawProject</h1>
+            <p style="color: #fed7aa; margin: 10px 0 0 0; font-size: 16px;">Adoption Request Update</p>
+          </div>
+          
+          <!-- Main Content -->
+          <div style="background-color: white; padding: 40px 30px; margin: 0;">
+            <h3 style="color: #1f2937; text-align: center; font-size: 24px; margin-bottom: 20px;">Hello, ${userFullname}</h3>
+            
+            <p style="color: #4b5563; font-size: 17px; line-height: 1.6; text-align: center; margin: 20px 0;">
+              We regret to inform you that your previously approved adoption request for <strong style="color: #1f2937;">${petName}</strong> has been <span style="color: #f97316; font-weight: bold;">denied</span>.
+            </p>
+            
+            <!-- Message Box -->
+            <div style="background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%); border-left: 5px solid #f97316; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 2px 8px rgba(249, 115, 22, 0.1);">
+              <h4 style="color: #9a3412; margin: 0 0 15px 0; font-size: 18px; display: flex; align-items: center;">
+                <span style="font-size: 24px; margin-right: 10px;">📢</span> Important Information
+              </h4>
+              <p style="color: #c2410c; margin: 0; line-height: 1.6; font-size: 15px;">
+                ${adminMessage || "After careful evaluation during the interview process, we regret to inform you that we are unable to proceed with this adoption. We appreciate your time and understanding. Please contact us if you have any questions or concerns about this decision."}
+              </p>
+            </div>
+            
+            <!-- Contact Box -->
+            <div style="background-color: #dbeafe; border: 2px solid #3b82f6; border-radius: 12px; padding: 20px; margin: 25px 0; text-align: center;">
+              <p style="color: #1e40af; margin: 0; font-size: 15px; line-height: 1.5;">
+                <strong>📞 Need Clarification?</strong> Please don't hesitate to contact us. We're here to answer any questions you may have.
+              </p>
+            </div>
+            
+            <!-- Paw Print Decoration -->
+            <div style="text-align: center; margin: 30px 0;">
+              <span style="font-size: 40px; opacity: 0.3;">🐾 🐾 🐾</span>
+            </div>
+          </div>
+          
+          <!-- Footer -->
+          <div style="background-color: #f9fafb; padding: 30px 20px; text-align: center; border-top: 3px solid #f97316;">
+            <p style="color: #6b7280; font-size: 15px; margin: 0 0 10px 0; line-height: 1.5;">
+              We sincerely apologize for any inconvenience this may cause. 🧡
+            </p>
+            <p style="color: #9ca3af; font-size: 13px; margin: 10px 0 0 0;">
+              © ${new Date().getFullYear()} PawProject. All rights reserved.
+            </p>
+          </div>
+        </div>
+      `;
+      break;
+
+    case "returned":
+      subject = `Update: ${petName} Has Been Returned`;
+      html = `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #faf5ff; padding: 0;">
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); padding: 40px 20px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 32px; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">🐾 PawProject</h1>
+            <p style="color: #e9d5ff; margin: 10px 0 0 0; font-size: 16px;">Adoption Status Update</p>
+          </div>
+          
+          <!-- Main Content -->
+          <div style="background-color: white; padding: 40px 30px; margin: 0;">
+            <h3 style="color: #1f2937; text-align: center; font-size: 24px; margin-bottom: 20px;">Hello, ${userFullname}</h3>
+            
+            <p style="color: #4b5563; font-size: 17px; line-height: 1.6; text-align: center; margin: 20px 0;">
+              We wanted to inform you that <strong style="color: #1f2937;">${petName}</strong> has been <span style="color: #a855f7; font-weight: bold;">returned</span> and is now available for adoption again.
+            </p>
+            
+            <!-- Message Box -->
+            <div style="background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%); border-left: 5px solid #a855f7; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 2px 8px rgba(168, 85, 247, 0.1);">
+              <h4 style="color: #6b21a8; margin: 0 0 15px 0; font-size: 18px; display: flex; align-items: center;">
+                <span style="font-size: 24px; margin-right: 10px;">ℹ️</span> Additional Information
+              </h4>
+              <p style="color: #7e22ce; margin: 0; line-height: 1.6; font-size: 15px;">
+                ${adminMessage || "The pet has been returned to our care and is now available for adoption. Thank you for your understanding during this process."}
+              </p>
+            </div>
+            
+            <!-- Info Box -->
+            <div style="background-color: #dbeafe; border: 2px solid #3b82f6; border-radius: 12px; padding: 20px; margin: 25px 0; text-align: center;">
+              <p style="color: #1e40af; margin: 0; font-size: 15px; line-height: 1.5;">
+                <strong>🏠 Looking to Adopt?</strong> ${petName} is now available again. If you're interested, please visit our adoption page!
+              </p>
+            </div>
+            
+            <!-- Paw Print Decoration -->
+            <div style="text-align: center; margin: 30px 0;">
+              <span style="font-size: 40px; opacity: 0.3;">🐾 🐾 🐾</span>
+            </div>
+          </div>
+          
+          <!-- Footer -->
+          <div style="background-color: #f9fafb; padding: 30px 20px; text-align: center; border-top: 3px solid #a855f7;">
+            <p style="color: #6b7280; font-size: 15px; margin: 0 0 10px 0; line-height: 1.5;">
+              Thank you for your understanding and continued support! 💜
+            </p>
+            <p style="color: #9ca3af; font-size: 13px; margin: 10px 0 0 0;">
+              © ${new Date().getFullYear()} PawProject. All rights reserved.
+            </p>
           </div>
         </div>
       `;

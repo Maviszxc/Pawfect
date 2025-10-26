@@ -48,7 +48,7 @@ interface Adoption {
     images: { url: string }[];
     description: string;
   };
-  status: "Pending" | "Approved" | "Rejected" | "Completed";
+  status: "Under Review" | "Approved" | "Completed" | "Denied" | "Rejected" | "Returned";
   fullname: string;
   email: string;
   phone: string;
@@ -68,7 +68,7 @@ interface UserData {
   isAdmin: boolean;
 }
 
-type AdoptionStatus = "All" | "Pending" | "Approved" | "Rejected" | "Completed";
+type AdoptionStatus = "All" | "Under Review" | "Approved" | "Rejected" | "Denied" | "Completed" | "Returned";
 
 export default function Profile() {
   const router = useRouter();
@@ -114,6 +114,7 @@ export default function Profile() {
   const [refreshingAdoptions, setRefreshingAdoptions] = useState(false);
   const [adoptionStatusFilter, setAdoptionStatusFilter] =
     useState<AdoptionStatus>("All");
+  const [cancellingAdoptionId, setCancellingAdoptionId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -646,6 +647,44 @@ export default function Profile() {
     }
   };
 
+  const handleCancelAdoption = async (adoptionId: string, petName: string) => {
+    if (!confirm(`Are you sure you want to cancel your adoption application for ${petName}? This action cannot be undone.`)) {
+      return;
+    }
+
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      toast.error("Please log in to cancel adoption");
+      return;
+    }
+
+    try {
+      setCancellingAdoptionId(adoptionId);
+      
+      const response = await axios.delete(
+        `${BASE_URL}/api/adoptions/${adoptionId}/cancel`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data.success) {
+        toast.success("Adoption application cancelled successfully");
+        // Remove the cancelled adoption from the list
+        setAdoptions(adoptions.filter(a => a._id !== adoptionId));
+      }
+    } catch (error: any) {
+      console.error("Error cancelling adoption:", error);
+      const errorMessage = error.response?.data?.message || "Failed to cancel adoption application";
+      toast.error(errorMessage);
+    } finally {
+      setCancellingAdoptionId(null);
+    }
+  };
+
   const handlePetClick = (petId: string) => {
     router.push(`/pet?id=${petId}`);
   };
@@ -666,6 +705,13 @@ export default function Profile() {
           bgColor: "bg-red-50",
           borderColor: "border-red-200",
         };
+      case "Denied":
+        return {
+          icon: XCircle,
+          color: "text-orange-600",
+          bgColor: "bg-orange-50",
+          borderColor: "border-orange-200",
+        };
       case "Completed":
         return {
           icon: CheckCircle2,
@@ -673,7 +719,14 @@ export default function Profile() {
           bgColor: "bg-blue-50",
           borderColor: "border-blue-200",
         };
-      case "Pending":
+      case "Returned":
+        return {
+          icon: XCircle,
+          color: "text-purple-600",
+          bgColor: "bg-purple-50",
+          borderColor: "border-purple-200",
+        };
+      case "Under Review":
       default:
         return {
           icon: Clock,
@@ -1202,10 +1255,12 @@ export default function Profile() {
                         {(
                           [
                             "All",
-                            "Pending",
+                            "Under Review",
                             "Approved",
                             "Rejected",
+                            "Denied",
                             "Completed",
+                            "Returned",
                           ] as AdoptionStatus[]
                         ).map((status) => (
                           <button
@@ -1218,14 +1273,16 @@ export default function Profile() {
                             }`}
                           >
                             {status === "All" && <PawPrint size={16} />}
-                            {status === "Pending" && <Clock size={16} />}
+                            {status === "Under Review" && <Clock size={16} />}
                             {status === "Approved" && (
                               <CheckCircle2 size={16} />
                             )}
                             {status === "Rejected" && <XCircle size={16} />}
+                            {status === "Denied" && <XCircle size={16} />}
                             {status === "Completed" && (
                               <CheckCircle2 size={16} />
                             )}
+                            {status === "Returned" && <XCircle size={16} />}
                             <span>{status}</span>
                             <span
                               className={`px-2 py-1 rounded-full text-xs ${
@@ -1477,16 +1534,45 @@ export default function Profile() {
                                           className="text-red-600 mt-0.5 flex-shrink-0"
                                         />
                                         <p className="text-sm text-red-800">
-                                          We're sorry, your application wasn't
-                                          approved at this time. Feel free to
-                                          apply for other pets or contact us for
-                                          more information.
+                                          We're sorry, your application was rejected.
+                                          Another applicant was approved for this pet.
+                                          Feel free to apply for other pets!
                                         </p>
                                       </div>
                                     </div>
                                   )}
 
-                                  {adoption.status === "Pending" && (
+                                  {adoption.status === "Denied" && (
+                                    <div className="mt-3 bg-orange-50 border-l-4 border-orange-400 rounded p-3">
+                                      <div className="flex items-start gap-2">
+                                        <XCircle
+                                          size={16}
+                                          className="text-orange-600 mt-0.5 flex-shrink-0"
+                                        />
+                                        <p className="text-sm text-orange-800">
+                                          Your approved application was denied.
+                                          Please contact us for more information.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {adoption.status === "Returned" && (
+                                    <div className="mt-3 bg-purple-50 border-l-4 border-purple-400 rounded p-3">
+                                      <div className="flex items-start gap-2">
+                                        <XCircle
+                                          size={16}
+                                          className="text-purple-600 mt-0.5 flex-shrink-0"
+                                        />
+                                        <p className="text-sm text-purple-800">
+                                          The pet has been returned and is now available for adoption again.
+                                          Thank you for your understanding.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {adoption.status === "Under Review" && (
                                     <div className="mt-3 bg-yellow-50 border-l-4 border-yellow-400 rounded p-3">
                                       <div className="flex items-start gap-2">
                                         <Clock
@@ -1499,6 +1585,33 @@ export default function Profile() {
                                           via email once a decision is made.
                                         </p>
                                       </div>
+                                    </div>
+                                  )}
+
+                                  {/* Cancel Button for Under Review Applications */}
+                                  {adoption.status === "Under Review" && (
+                                    <div className="mt-4 pt-4 border-t border-gray-200">
+                                      <Button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleCancelAdoption(adoption._id, adoption.pet?.name);
+                                        }}
+                                        disabled={cancellingAdoptionId === adoption._id}
+                                        variant="outline"
+                                        className="w-full text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 hover:border-red-400"
+                                      >
+                                        {cancellingAdoptionId === adoption._id ? (
+                                          <>
+                                            <RefreshCw size={16} className="mr-2 animate-spin" />
+                                            Cancelling...
+                                          </>
+                                        ) : (
+                                          <>
+                                            <XCircle size={16} className="mr-2" />
+                                            Withdraw Application
+                                          </>
+                                        )}
+                                      </Button>
                                     </div>
                                   )}
                                 </div>

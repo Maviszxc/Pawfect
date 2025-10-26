@@ -47,14 +47,30 @@ exports.getAllPetsAdmin = async (req, res) => {
 
 exports.createPet = async (req, res) => {
   try {
+    console.log("📝 Creating new pet...");
+    console.log("Request body:", req.body);
+    console.log("Files received:", {
+      images: req.files?.images?.length || 0,
+      videos: req.files?.videos?.length || 0,
+    });
+
     const { name, type, breed, age, gender, description, adoptionStatus } =
       req.body;
 
     // Validate required fields
     if (!name || !type || !breed || !age || !gender || !description) {
+      console.log("❌ Validation failed - missing required fields");
       return res.status(400).json({
         success: false,
         message: "All required fields must be provided",
+        missing: {
+          name: !name,
+          type: !type,
+          breed: !breed,
+          age: !age,
+          gender: !gender,
+          description: !description,
+        },
       });
     }
 
@@ -121,16 +137,20 @@ exports.createPet = async (req, res) => {
       images: imageUrls,
       videos: videoUrls,
       description,
-      adoptionStatus: adoptionStatus || "available",
+      adoptionStatus: adoptionStatus || "Available",
     });
 
     const savedPet = await newPet.save();
+    console.log("✅ Pet created successfully:", savedPet._id);
     res.status(201).json({
       success: true,
       message: "Pet created successfully",
       pet: savedPet,
     });
   } catch (error) {
+    console.error("❌ Error creating pet:", error.message);
+    console.error("Stack trace:", error.stack);
+    
     // Clean up uploaded files if error occurs
     if (req.files) {
       for (const fileType in req.files) {
@@ -145,6 +165,7 @@ exports.createPet = async (req, res) => {
       success: false,
       message: "Error creating pet",
       error: error.message,
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 };
@@ -278,7 +299,7 @@ exports.archivePet = async (req, res) => {
   try {
     const pet = await Pet.findByIdAndUpdate(
       req.params.id,
-      { isArchived: true, adoptionStatus: "archived" },
+      { isArchived: true, adoptionStatus: "Archived" },
       { new: true }
     );
 
@@ -308,7 +329,7 @@ exports.restorePet = async (req, res) => {
   try {
     const pet = await Pet.findByIdAndUpdate(
       req.params.id,
-      { isArchived: false, adoptionStatus: "available" },
+      { isArchived: false, adoptionStatus: "Available" },
       { new: true }
     );
 
@@ -435,7 +456,7 @@ exports.matchPets = async (req, res) => {
   try {
     const { type, activityLevel, timeAvailable, temperament, otherPets } =
       req.query;
-    const filter = { isArchived: false, adoptionStatus: "available" };
+    const filter = { isArchived: false, adoptionStatus: "Available" };
     const conditions = [];
 
     // Apply filters based on user preferences

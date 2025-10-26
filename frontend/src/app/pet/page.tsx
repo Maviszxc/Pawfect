@@ -13,6 +13,8 @@ import Loader from "@/components/Loader";
 import { toast } from "react-toastify";
 import axiosInstance from "@/lib/axiosInstance";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/lib/supabase";
+import { Download, Upload, FileText, Mail, Phone } from "lucide-react";
 
 // Dynamically import Tabs components
 const Tabs = dynamic(
@@ -128,16 +130,39 @@ function PetDetailsContent() {
   );
   const [checkingStatus, setCheckingStatus] = useState(false);
 
+  // Debug: Check Supabase configuration on mount
+  useEffect(() => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    
+    console.log('🔍 Supabase Config Check:', {
+      url: supabaseUrl,
+      hasKey: !!supabaseKey,
+      keyPreview: supabaseKey?.substring(0, 20) + '...',
+    });
+
+    // Show alert if not configured
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('❌ SUPABASE NOT CONFIGURED!');
+      console.error('URL:', supabaseUrl);
+      console.error('Key exists:', !!supabaseKey);
+    } else {
+      console.log('✅ Supabase is configured correctly!');
+    }
+  }, []);
+
   const [showAdoptModal, setShowAdoptModal] = useState(false);
   const [adoptForm, setAdoptForm] = useState({
     fullname: "",
     email: "",
     phone: "",
     address: "",
-    message: "",
   });
   const [adoptSubmitting, setAdoptSubmitting] = useState(false);
   const [adoptSuccess, setAdoptSuccess] = useState(false);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
   const [userDetails, setUserDetails] = useState<{
     id: string;
     fullname: string;
@@ -404,6 +429,24 @@ function PetDetailsContent() {
     setAdoptForm({ ...adoptForm, [e.target.name]: e.target.value });
   };
 
+  // Handle PDF file selection
+  const handlePdfFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (file.type !== "application/pdf") {
+        toast.error("Please upload a PDF file only.");
+        return;
+      }
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("File size must be less than 10MB.");
+        return;
+      }
+      setPdfFile(file);
+    }
+  };
+
   // Handle adopt form submit
   const handleAdoptSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -418,26 +461,81 @@ function PetDetailsContent() {
         !userDetails.fullname ||
         !userDetails.email ||
         !adoptForm.phone.trim() ||
-        !adoptForm.address.trim() ||
-        !adoptForm.message.trim()
+        !adoptForm.address.trim()
       ) {
         toast.error("All fields are required.");
         setAdoptSubmitting(false);
         return;
       }
 
+      // Validate PDF file
+      if (!pdfFile) {
+        toast.error("Please upload the completed adoption form PDF.");
+        setAdoptSubmitting(false);
+        return;
+      }
+
+      // Upload PDF to Supabase
+      setIsUploading(true);
+      const fileName = `${pet?._id}_${userDetails.id}_${Date.now()}.pdf`;
+      const filePath = `adoption-forms/${fileName}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("adoption-forms")
+        .upload(filePath, pdfFile, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error("Upload error:", uploadError);
+        toast.error("Failed to upload PDF. Please try again.");
+        setAdoptSubmitting(false);
+        setIsUploading(false);
+        return;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("adoption-forms")
+        .getPublicUrl(filePath);
+
+      const adoptionFormUrl = urlData.publicUrl;
+      console.log("📄 PDF uploaded successfully:", {
+        filePath,
+        adoptionFormUrl,
+        urlLength: adoptionFormUrl?.length,
+        urlData: urlData,
+      });
+
+      // Validate URL before proceeding
+      if (!adoptionFormUrl || adoptionFormUrl.trim() === "") {
+        console.error("❌ Invalid Supabase URL:", urlData);
+        toast.error("Failed to generate PDF URL. Please check Supabase configuration.");
+        setAdoptSubmitting(false);
+        setIsUploading(false);
+        return;
+      }
+
+      setIsUploading(false);
+
+      const requestData = {
+        pet: pet?._id,
+        user: userDetails.id,
+        fullname: userDetails.fullname,
+        email: userDetails.email,
+        phone: adoptForm.phone,
+        address: adoptForm.address,
+        message: `Adoption form submitted for ${pet?.name}`,
+        profilePicture: userDetails.profilePicture || "",
+        adoptionFormUrl: adoptionFormUrl,
+      };
+      
+      console.log("📤 Sending adoption request:", requestData);
+
       await axios.post(
         `${BASE_URL}/api/adoptions`,
-        {
-          pet: pet?._id,
-          user: userDetails.id,
-          fullname: userDetails.fullname,
-          email: userDetails.email,
-          phone: adoptForm.phone,
-          address: adoptForm.address,
-          message: adoptForm.message,
-          profilePicture: userDetails.profilePicture || "",
-        },
+        requestData,
         token
           ? {
               headers: {
@@ -456,8 +554,9 @@ function PetDetailsContent() {
         email: "",
         phone: "",
         address: "",
-        message: "",
       });
+      setPdfFile(null);
+      setUploadProgress(0);
 
       // Refresh adoption status after submission
       if (userDetails?.email) {
@@ -676,12 +775,12 @@ function PetDetailsContent() {
                         </h1>
                         <span
                           className={`px-3 py-1 rounded-full text-sm font-medium ${
-                            pet?.adoptionStatus === "available"
+                            pet?.adoptionStatus === "Available"
                               ? "bg-emerald-100 text-emerald-800"
                               : "bg-red-100 text-red-800"
                           }`}
                         >
-                          {pet?.adoptionStatus === "available"
+                          {pet?.adoptionStatus === "Available"
                             ? "Available for Adoption"
                             : "Not Available"}
                         </span>
@@ -767,7 +866,7 @@ function PetDetailsContent() {
                         </div>
                       )}
 
-                      {pet?.adoptionStatus === "available" && (
+                      {pet?.adoptionStatus === "Available" && (
                         <Button
                           onClick={handleAdoptClick}
                           className="bg-orange-600 hover:bg-orange-700 text-white w-full py-3 text-lg mt-4 rounded-xl"
@@ -883,14 +982,15 @@ function PetDetailsContent() {
           </div>
         </div>
 
-        {/* Adopt Me Modal */}
+        {/* Adopt Me Modal - Landscape */}
         <Dialog open={showAdoptModal} onOpenChange={setShowAdoptModal}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Adoption Application</DialogTitle>
-              <DialogDescription>
-                Please fill out the form below to apply for adopting{" "}
-                <b>{pet?.name}</b>.
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="space-y-3">
+              <DialogTitle className="text-2xl font-bold text-gray-900">
+                Adoption Application for {pet?.name}
+              </DialogTitle>
+              <DialogDescription className="text-base text-gray-600">
+                Complete the form below to start your adoption journey. We'll review your application and get back to you soon.
               </DialogDescription>
             </DialogHeader>
             {adoptSuccess ? (
@@ -908,89 +1008,181 @@ function PetDetailsContent() {
                 </Button>
               </div>
             ) : (
-              <form onSubmit={handleAdoptSubmit} className="space-y-4">
-                {/* Show user info, not editable */}
-                <div className="flex items-center gap-3 mb-2">
-                  {userDetails?.profilePicture && (
-                    <img
-                      src={userDetails.profilePicture}
-                      alt="Profile"
-                      className="w-10 h-10 rounded-full object-cover border"
-                    />
-                  )}
-                  <div>
-                    <div className="font-semibold">{userDetails?.fullname}</div>
-                    <div className="text-gray-500 text-sm">
-                      {userDetails?.email}
+              <form onSubmit={handleAdoptSubmit} className="mt-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Left Column - User Info & Contact */}
+                  <div className="space-y-6">
+                    {/* User Profile Section */}
+                    <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-5 rounded-xl border border-orange-100 shadow-sm">
+                      <div className="flex items-center gap-4">
+                        {userDetails?.profilePicture && (
+                          <img
+                            src={userDetails.profilePicture}
+                            alt="Profile"
+                            className="w-16 h-16 rounded-full object-cover border-3 border-orange-200 shadow-md"
+                          />
+                        )}
+                        <div className="flex-1">
+                          <div className="font-bold text-gray-900 text-xl">{userDetails?.fullname}</div>
+                          <div className="text-gray-600 text-sm flex items-center gap-1 mt-1">
+                            <Mail className="w-4 h-4" />
+                            {userDetails?.email}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contact Information */}
+                    <div className="space-y-4 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                      <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2 pb-3 border-b border-gray-200">
+                        <User className="w-5 h-5 text-orange-500" />
+                        Contact Information
+                      </h3>
+                      
+                      <div className="space-y-4">
+                        <div>
+                          <label
+                            className="block text-sm font-semibold text-gray-700 mb-2"
+                            htmlFor="phone"
+                          >
+                            Phone Number *
+                          </label>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                            <input
+                              id="phone"
+                              name="phone"
+                              type="tel"
+                              required
+                              placeholder="+1 (555) 000-0000"
+                              className="w-full border-2 border-gray-300 rounded-lg pl-11 pr-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-base"
+                              value={adoptForm.phone}
+                              onChange={handleAdoptInputChange}
+                            />
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <label
+                            className="block text-sm font-semibold text-gray-700 mb-2"
+                            htmlFor="address"
+                          >
+                            Complete Address *
+                          </label>
+                          <div className="relative">
+                            <MapPin className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                            <textarea
+                              id="address"
+                              name="address"
+                              required
+                              placeholder="123 Main St, City, State, ZIP Code"
+                              rows={3}
+                              className="w-full border-2 border-gray-300 rounded-lg pl-11 pr-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-base resize-none"
+                              value={adoptForm.address}
+                              onChange={handleAdoptInputChange}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column - PDF Upload */}
+                  <div className="space-y-6">
+                    {/* PDF Download and Upload Section */}
+                    <div className="space-y-5 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                      <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2 pb-3 border-b border-gray-200">
+                        <FileText className="w-5 h-5 text-orange-500" />
+                        Adoption Form Document
+                      </h3>
+                  
+                  {/* Step 1: Download */}
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-xl border border-blue-100 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                        1
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900 mb-1">
+                          Download Official Form
+                        </h4>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Download our adoption form template, fill it out with your information, and save it as a PDF.
+                        </p>
+                        <a
+                          href="/AdoptionForm.pdf"
+                          download="AdoptionForm.pdf"
+                          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-all shadow-sm hover:shadow-md"
+                        >
+                          <Download className="w-4 h-4" />
+                          Download Form (PDF)
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 2: Upload */}
+                  <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-5 rounded-xl border border-orange-100 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                        2
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900 mb-1">
+                          Upload Completed Form
+                        </h4>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Upload your filled adoption form. Only PDF files up to 10MB are accepted.
+                        </p>
+                        <div className="space-y-3">
+                          <div className="relative">
+                            <input
+                              type="file"
+                              accept="application/pdf"
+                              onChange={handlePdfFileChange}
+                              className="w-full text-sm border-2 border-dashed border-orange-300 rounded-lg p-4 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-orange-500 file:text-white hover:file:bg-orange-600 cursor-pointer hover:border-orange-400 transition-all"
+                              required
+                            />
+                          </div>
+                          {pdfFile && (
+                            <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg p-3">
+                              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-green-900 truncate">{pdfFile.name}</p>
+                                <p className="text-xs text-green-700">
+                                  {(pdfFile.size / 1024 / 1024).toFixed(2)} MB
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          {isUploading && (
+                            <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+                              <span className="font-medium">Uploading your form...</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Remove Full Name and Email fields */}
-                <div>
-                  <label
-                    className="block text-sm font-medium mb-1"
-                    htmlFor="phone"
-                  >
-                    Phone Number
-                  </label>
-                  <input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    required
-                    className="w-full border rounded-lg px-3 py-2"
-                    value={adoptForm.phone}
-                    onChange={handleAdoptInputChange}
-                  />
-                </div>
-                <div>
-                  <label
-                    className="block text-sm font-medium mb-1"
-                    htmlFor="address"
-                  >
-                    Address
-                  </label>
-                  <input
-                    id="address"
-                    name="address"
-                    type="text"
-                    required
-                    className="w-full border rounded-lg px-3 py-2"
-                    value={adoptForm.address}
-                    onChange={handleAdoptInputChange}
-                  />
-                </div>
-                <div>
-                  <label
-                    className="block text-sm font-medium mb-1"
-                    htmlFor="message"
-                  >
-                    Why do you want to adopt {pet?.name}?
-                  </label>
-                  <textarea
-                    id="message"
-                    name="message"
-                    rows={3}
-                    className="w-full border rounded-lg px-3 py-2"
-                    value={adoptForm.message}
-                    onChange={handleAdoptInputChange}
-                    required
-                  />
-                </div>
-                <DialogFooter>
+                <DialogFooter className="gap-3 pt-6 border-t border-gray-200 mt-8">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => setShowAdoptModal(false)}
                     disabled={adoptSubmitting}
+                    className="px-6 py-2.5 border-gray-300 hover:bg-gray-50"
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
-                    className="bg-orange-500 hover:bg-orange-600 text-white"
-                    disabled={adoptSubmitting}
+                    className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-8 py-2.5 shadow-md hover:shadow-lg transition-all font-semibold"
+                    disabled={adoptSubmitting || isUploading}
                   >
                     {adoptSubmitting ? "Submitting..." : "Submit Application"}
                   </Button>

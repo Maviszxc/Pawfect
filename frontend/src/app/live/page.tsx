@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, RefreshCw, Play, Pause, CameraOff, Calendar, Clock, Video } from "lucide-react";
+import { Send, RefreshCw, Play, Pause, CameraOff, Calendar, Clock, Video, Heart, Eye, MessageCircle } from "lucide-react";
 import { useVideoStream } from "@/context/VideoStreamContext";
 import Navigation from "@/components/Navigation";
 import AuthNavigation from "@/components/authNavigation";
@@ -54,6 +54,8 @@ export default function LivePage() {
     viewerCount,
     totalParticipants,
     isPaused,
+    sendHeartReaction,
+    heartReactions,
   } = useVideoStream();
 
   const roomId = "pet-live-room";
@@ -232,6 +234,18 @@ export default function LivePage() {
     }
   };
 
+  const handleHeartClick = () => {
+    console.log("Heart button clicked!");
+    console.log("Is joined:", isJoined);
+    console.log("Connection status:", connectionStatus);
+    if (isJoined) {
+      console.log("Sending heart reaction...");
+      sendHeartReaction();
+    } else {
+      console.log("Cannot send heart - not joined to stream");
+    }
+  };
+
   const handleJoinStream = async () => {
     setIsRefreshing(true);
     setVideoError("");
@@ -309,25 +323,39 @@ export default function LivePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc]">
-      {isLoggedIn ? <AuthNavigation /> : <Navigation />}
+    <>
+      <style jsx>{`
+        @keyframes floatUp {
+          0% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-300px) scale(1.5);
+          }
+        }
+      `}</style>
+      <div className="min-h-screen bg-[#f8fafc]">
+        {isLoggedIn ? <AuthNavigation /> : <Navigation />}
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-20 py-6 pt-24 sm:pt-32 lg:pt-36 space-y-4 sm:space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
-          <div className="w-full sm:w-auto">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-              <h1 className="text-2xl sm:text-3xl font-bold text-[#0a1629]">
-                Live Stream
-              </h1>
-              {/* Viewer Count Badge */}
-              <div className="flex items-center gap-2 bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs sm:text-sm font-medium">
-                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                <span>
-                  {viewerCount} viewer{viewerCount !== 1 ? "s" : ""}
-                </span>
-                {isAdminStreaming && (
-                  <span className="text-xs opacity-75">• LIVE</span>
-                )}
+        <div className="container mx-auto px-4 sm:px-6 lg:px-20 py-6 pt-24 sm:pt-32 lg:pt-36 space-y-4 sm:space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
+            <div className="w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                <h1 className="text-2xl sm:text-3xl font-bold text-[#0a1629]">
+                  Live Stream
+                </h1>
+                {/* Viewer Count Badge */}
+                <div className="flex items-center gap-2 bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs sm:text-sm font-medium">
+                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                  <span>
+                    {viewerCount} viewer{viewerCount !== 1 ? "s" : ""}
+                  </span>
+                  {isAdminStreaming && (
+                    <span className="text-xs opacity-75">• LIVE</span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -404,9 +432,8 @@ export default function LivePage() {
               </>
             )}
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Video Stream Section */}
           <Card className="w-full rounded-xl sm:rounded-2xl shadow">
             <CardContent className="p-4 sm:p-6">
@@ -415,6 +442,20 @@ export default function LivePage() {
               </h2>
               <div className="space-y-4">
                 <div className="relative aspect-video bg-black rounded-xl overflow-hidden">
+                  {/* Floating Hearts Overlay */}
+                  {heartReactions.map((heart) => (
+                    <div
+                      key={heart.id}
+                      className="absolute bottom-4 left-1/2 transform -translate-x-1/2 pointer-events-none z-50 animate-float-up"
+                      style={{
+                        animation: 'floatUp 3s ease-out forwards',
+                        left: `${Math.random() * 80 + 10}%`,
+                      }}
+                    >
+                      <span className="text-4xl drop-shadow-lg">❤️</span>
+                    </div>
+                  ))}
+                  
                   {!isJoined ? (
                     <div className="absolute inset-0 flex items-center justify-center text-white">
                       <div className="text-center p-6">
@@ -568,7 +609,20 @@ export default function LivePage() {
                       <span className="text-yellow-600">⏸ Paused</span>
                     )}
                   </div>
+                  
                 </div>
+                {/* Heart Reaction Button */}
+                {isJoined && (
+                  <div className="flex justify-center">
+                    <Button
+                      onClick={handleHeartClick}
+                      className="flex items-center gap-2 px-6 py-3 rounded-full transition-all bg-white hover:bg-pink-50 text-gray-700 border-2 border-gray-200 hover:border-pink-300 shadow-md hover:shadow-lg"
+                    >
+                      <span className="text-2xl">❤️</span>
+                      <span className="text-gray-700 font-medium">React</span>
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -674,10 +728,10 @@ export default function LivePage() {
               </div>
             </CardContent>
           </Card>
-        </div>
+          </div>
 
-        {/* Upcoming Schedules Section */}
-        <Card className="w-full rounded-xl sm:rounded-2xl shadow mt-6">
+          {/* Upcoming Schedules Section */}
+          <Card className="w-full rounded-xl sm:rounded-2xl shadow mt-6">
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Calendar className="w-5 h-5 text-orange-500" />
@@ -747,8 +801,9 @@ export default function LivePage() {
             </div>
           </CardContent>
         </Card>
+        </div>
+        <Footer />
       </div>
-      <Footer />
-    </div>
+    </>
   );
 }

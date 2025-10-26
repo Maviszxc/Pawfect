@@ -46,8 +46,17 @@ const petSchema = new Schema(
     },
     adoptionStatus: {
       type: String,
-      enum: ["available", "pending", "adopted", "archived"],
-      default: "available",
+      enum: ["Available", "Pending", "Adopted", "Archived"],
+      default: "Available",
+    },
+    currentAdopterName: {
+      type: String,
+      default: "",
+    },
+    currentAdoptionId: {
+      type: Schema.Types.ObjectId,
+      ref: "Adoption",
+      default: null,
     },
     owner: {
       type: Schema.Types.ObjectId,

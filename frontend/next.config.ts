@@ -51,7 +51,7 @@ const nextConfig: NextConfig = {
   
   // Configure Turbopack to resolve workspace root warning
   turbopack: {
-    root: "c:\\Users\\gunda\\Documents\\App Dev\\Pet Adoption\\Paw Project"
+    root: "C:\\Users\\gunda\\Documents\\App Dev\\From-Github-(Latest)\\Pawfect\\frontend"
   },
 };
 

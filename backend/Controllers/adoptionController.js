@@ -1,10 +1,13 @@
 const Adoption = require("../Models/adoptionModels");
 const Pet = require("../Models/petModels");
 const User = require("../Models/userModels");
+const { sendAdoptionStatusEmail } = require("../Utilities/emailService");
+
+console.log('🔧 Adoption controller loaded - VERSION 2.0');
 
 exports.createAdoption = async (req, res) => {
   try {
-    const { pet, message, fullname, email, phone, address, profilePicture } =
+    const { pet, message, fullname, email, phone, address, profilePicture, adoptionFormUrl } =
       req.body;
 
     console.log("📝 Creating adoption request:", {
@@ -12,13 +15,21 @@ exports.createAdoption = async (req, res) => {
       fullname,
       email,
       hasUser: !!req.user,
+      hasAdoptionFormUrl: !!adoptionFormUrl,
+      adoptionFormUrlValue: adoptionFormUrl,
+      adoptionFormUrlLength: adoptionFormUrl?.length,
     });
 
-    if (!pet || !fullname || !email || !phone || !address || !message) {
+    if (!pet || !fullname || !email || !phone || !address) {
       return res.status(400).json({
         success: false,
-        message: "All fields are required.",
+        message: "All required fields must be provided.",
       });
+    }
+
+    // Warn if adoptionFormUrl is missing but don't block the request
+    if (!adoptionFormUrl) {
+      console.warn('⚠️ Warning: adoptionFormUrl is missing from request');
     }
 
     // Check if pet exists
@@ -33,7 +44,7 @@ exports.createAdoption = async (req, res) => {
     // ✅ Check for existing APPROVED adoption request for this pet by ANY user
     const approvedAdoption = await Adoption.findOne({
       pet: pet,
-      status: "Approved",
+      status: "Approved - In Progress",
     });
 
     if (approvedAdoption) {
@@ -49,21 +60,21 @@ exports.createAdoption = async (req, res) => {
     const existingAdoption = await Adoption.findOne({
       pet: pet,
       email: email,
-      status: { $in: ["Pending", "Approved"] },
+      status: { $in: ["Pending Review", "Approved - In Progress"] },
     });
 
     if (existingAdoption) {
       return res.status(400).json({
         success: false,
         message:
-          existingAdoption.status === "Approved"
+          existingAdoption.status === "Approved - In Progress"
             ? "Your adoption request has been approved! Please check your email for next steps."
             : "You have already submitted an adoption request for this pet. Please wait for the admin to review your application.",
         existingApplication: {
           status: existingAdoption.status,
           submittedAt: existingAdoption.createdAt,
         },
-        isApproved: existingAdoption.status === "Approved",
+        isApproved: existingAdoption.status === "Approved - In Progress",
       });
     }
 
@@ -76,7 +87,7 @@ exports.createAdoption = async (req, res) => {
       const existingUserAdoption = await Adoption.findOne({
         pet: pet,
         user: userId,
-        status: { $in: ["Pending", "Approved"] },
+        status: { $in: ["Under Review", "Approved"] },
       });
 
       if (existingUserAdoption) {
@@ -96,22 +107,53 @@ exports.createAdoption = async (req, res) => {
     }
 
     // Create new adoption request
-    const adoption = new Adoption({
+    const adoptionData = {
       pet,
       user: userId || undefined,
-      status: "Pending",
+      status: "Under Review",
       fullname,
       email,
       phone,
       address,
-      message,
+      message: message || `Adoption form submitted`,
       adminMessage: "",
       profilePicture: profilePicture || "",
+      adoptionFormUrl: adoptionFormUrl || '', // Ensure field always exists
+    };
+
+    console.log("📋 Adoption data before save:", adoptionData);
+    console.log("📋 adoptionFormUrl specifically:", {
+      value: adoptionFormUrl,
+      type: typeof adoptionFormUrl,
+      length: adoptionFormUrl?.length,
+    });
+
+    const adoption = new Adoption(adoptionData);
+
+    console.log("📋 Adoption object before save:", {
+      adoptionFormUrl: adoption.adoptionFormUrl,
+      hasField: adoption.hasOwnProperty('adoptionFormUrl'),
     });
 
     await adoption.save();
 
-    console.log("✅ Adoption request created:", adoption._id);
+    // Keep pet as Available when adoption is Under Review (default status)
+    // Pet status will only change when admin approves the application
+    console.log("🐾 Pet remains Available - adoption is Under Review");
+
+    console.log("✅ Adoption request created:", {
+      id: adoption._id,
+      adoptionFormUrl: adoption.adoptionFormUrl,
+      adoptionFormUrlLength: adoption.adoptionFormUrl?.length,
+    });
+
+    // Verify it was saved by fetching it back
+    const savedAdoption = await Adoption.findById(adoption._id);
+    console.log("🔍 Fetched back from DB:", {
+      id: savedAdoption._id,
+      adoptionFormUrl: savedAdoption.adoptionFormUrl,
+      hasField: savedAdoption.hasOwnProperty('adoptionFormUrl'),
+    });
 
     res.status(201).json({
       success: true,
@@ -160,7 +202,7 @@ exports.checkAdoptionStatus = async (req, res) => {
       const userAdoption = await Adoption.findOne({
         pet: petId,
         email: email,
-        status: { $in: ["Pending", "Approved"] },
+        status: { $in: ["Under Review", "Approved"] },
       })
         .populate("pet", "name")
         .sort({ createdAt: -1 });
@@ -212,7 +254,7 @@ exports.checkExistingApplication = async (req, res) => {
     const existingAdoption = await Adoption.findOne({
       pet: petId,
       email: email,
-      status: { $in: ["Pending", "Approved"] },
+      status: { $in: ["Pending Review", "Approved - In Progress"] },
     });
 
     if (existingAdoption) {
@@ -255,7 +297,7 @@ exports.checkPetAvailability = async (req, res) => {
     // Check if there's ANY approved adoption for this pet
     const approvedAdoption = await Adoption.findOne({
       pet: petId,
-      status: "Approved",
+      status: "Approved - In Progress",
     });
 
     // Pet is available if no approved adoption exists
@@ -309,6 +351,83 @@ exports.updateAdoptionStatus = async (req, res) => {
         message: "Adoption request not found.",
       });
     }
+
+    // Synchronize pet status based on adoption status
+    const adopterName = adoption.user?.fullname || adoption.fullname;
+    let petStatus = "Available";
+    let petUpdate = { adoptionStatus: petStatus, currentAdopterName: "", currentAdoptionId: null };
+
+    if (status === "Under Review") {
+      // Pet remains Available when application is Under Review
+      petStatus = "Available";
+      petUpdate = { adoptionStatus: petStatus, currentAdopterName: "", currentAdoptionId: null };
+    } else if (status === "Approved") {
+      // Pet status changes to Pending with adopter name when Approved
+      petStatus = "Pending";
+      petUpdate = { 
+        adoptionStatus: petStatus, 
+        currentAdopterName: adopterName,
+        currentAdoptionId: adoption._id
+      };
+      
+      // Reject all other Under Review applications for this pet
+      await Adoption.updateMany(
+        {
+          pet: adoption.pet._id,
+          _id: { $ne: id },
+          status: "Under Review",
+        },
+        { status: "Rejected" }
+      );
+      console.log("🔄 Other Under Review applications for this pet have been rejected");
+    } else if (status === "Completed") {
+      // Pet is adopted when application is Completed
+      petStatus = "Adopted";
+      petUpdate = { 
+        adoptionStatus: petStatus, 
+        currentAdopterName: adopterName,
+        currentAdoptionId: adoption._id
+      };
+    } else if (status === "Returned") {
+      // Pet reverts to Available when returned by adopter
+      petStatus = "Available";
+      petUpdate = { adoptionStatus: petStatus, currentAdopterName: "", currentAdoptionId: null };
+    } else if (status === "Denied" || status === "Rejected") {
+      // Pet reverts to Available when Denied or Rejected
+      // Check if there are other approved adoptions for this pet
+      const otherApprovedAdoption = await Adoption.findOne({
+        pet: adoption.pet._id,
+        _id: { $ne: id },
+        status: "Approved",
+      });
+      
+      if (otherApprovedAdoption) {
+        // Another adoption is approved, keep pet as Pending with that adopter's name
+        const otherAdopterName = otherApprovedAdoption.user?.fullname || otherApprovedAdoption.fullname;
+        petStatus = "Pending";
+        petUpdate = { 
+          adoptionStatus: petStatus, 
+          currentAdopterName: otherAdopterName,
+          currentAdoptionId: otherApprovedAdoption._id
+        };
+      } else {
+        // No other approved adoptions, pet becomes Available
+        petStatus = "Available";
+        petUpdate = { adoptionStatus: petStatus, currentAdopterName: "", currentAdoptionId: null };
+      }
+    }
+
+    // Update pet status and adopter information
+    console.log(`🔄 Attempting to update pet ${adoption.pet._id} with:`, petUpdate);
+    const updatedPet = await Pet.findByIdAndUpdate(adoption.pet._id, petUpdate, { new: true });
+    console.log(`🐾 Pet status updated to ${petStatus}${petUpdate.currentAdopterName ? ` (by ${petUpdate.currentAdopterName})` : ''}`);
+    console.log(`✅ Updated pet details:`, {
+      id: updatedPet._id,
+      name: updatedPet.name,
+      adoptionStatus: updatedPet.adoptionStatus,
+      currentAdopterName: updatedPet.currentAdopterName,
+      currentAdoptionId: updatedPet.currentAdoptionId
+    });
 
     console.log("📧 Adoption details:", {
       user: adoption.user,

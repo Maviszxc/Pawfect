@@ -21,6 +21,8 @@ import {
   MicOff,
   Pause,
   Play,
+  Heart,
+  MessageCircle,
 } from "lucide-react";
 import AdminAuthWrapper from "@/components/AdminAuthWrapper";
 import { useVideoStream } from "@/context/VideoStreamContext";
@@ -62,6 +64,7 @@ export default function AdminLivePage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [streamDuration, setStreamDuration] = useState(0);
+  const [totalViews, setTotalViews] = useState(0);
   const cameraVideoRef = useRef<HTMLVideoElement>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -92,6 +95,8 @@ export default function AdminLivePage() {
     isPaused,
     pauseStream,
     resumeStream,
+    heartReactions,
+    totalHearts,
   } = useVideoStream();
 
   const roomId = "pet-live-room";
@@ -106,6 +111,13 @@ export default function AdminLivePage() {
       setCameraError("Your browser does not support camera access");
     }
   }, []);
+
+  // Track total views based on totalParticipants changes
+  useEffect(() => {
+    if (isCameraActive && totalParticipants > totalViews) {
+      setTotalViews(totalParticipants);
+    }
+  }, [totalParticipants, isCameraActive, totalViews]);
 
   useEffect(() => {
     if (cameraVideoRef.current && cameraStream) {
@@ -246,8 +258,9 @@ export default function AdminLivePage() {
 
       await connectToRoom(roomId, true);
       
-      // Start duration timer
+      // Start duration timer and reset stats
       setStreamDuration(0);
+      setTotalViews(0);
       durationIntervalRef.current = setInterval(() => {
         setStreamDuration((prev) => prev + 1);
       }, 1000);
@@ -427,6 +440,18 @@ export default function AdminLivePage() {
 
   return (
     <AdminAuthWrapper>
+      <style jsx>{`
+        @keyframes floatUp {
+          0% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-300px) scale(1.5);
+          }
+        }
+      `}</style>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
           {/* Header Section */}
@@ -475,7 +500,7 @@ export default function AdminLivePage() {
           </div>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
             <Card className="rounded-xl border-0 shadow-sm bg-white">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -483,8 +508,8 @@ export default function AdminLivePage() {
                     <Eye className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-gray-900">{viewerCount}</div>
-                    <div className="text-xs text-gray-500">Viewers</div>
+                    <div className="text-2xl font-bold text-gray-900">{totalViews}</div>
+                    <div className="text-xs text-gray-500">Total Viewers</div>
                   </div>
                 </div>
               </CardContent>
@@ -492,25 +517,12 @@ export default function AdminLivePage() {
             <Card className="rounded-xl border-0 shadow-sm bg-white">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <Users className="w-5 h-5 text-green-600" />
+                  <div className="p-2 bg-pink-100 rounded-lg">
+                    <Heart className="w-5 h-5 text-pink-600" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-gray-900">{totalParticipants}</div>
-                    <div className="text-xs text-gray-500">Total</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="rounded-xl border-0 shadow-sm bg-white">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-orange-100 rounded-lg">
-                    <RefreshCw className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-gray-900">{connectedUsers.size}</div>
-                    <div className="text-xs text-gray-500">Connected</div>
+                    <div className="text-2xl font-bold text-gray-900">{totalHearts}</div>
+                    <div className="text-xs text-gray-500">Hearts</div>
                   </div>
                 </div>
               </CardContent>
@@ -519,11 +531,11 @@ export default function AdminLivePage() {
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-purple-100 rounded-lg">
-                    <Send className="w-5 h-5 text-purple-600" />
+                    <MessageCircle className="w-5 h-5 text-purple-600" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-gray-900">{chatMessages.length}</div>
-                    <div className="text-xs text-gray-500">Messages</div>
+                    <div className="text-2xl font-bold text-gray-900">{chatMessages.filter(m => !m.isSystem).length}</div>
+                    <div className="text-xs text-gray-500">Comments</div>
                   </div>
                 </div>
               </CardContent>
@@ -540,6 +552,20 @@ export default function AdminLivePage() {
                 {hasCamera ? (
                   <div className="space-y-4">
                     <div className="relative aspect-video bg-black rounded-xl overflow-hidden">
+                      {/* Floating Hearts Overlay */}
+                      {heartReactions.map((heart) => (
+                        <div
+                          key={heart.id}
+                          className="absolute bottom-4 pointer-events-none z-50"
+                          style={{
+                            animation: 'floatUp 3s ease-out forwards',
+                            left: `${Math.random() * 80 + 10}%`,
+                          }}
+                        >
+                          <span className="text-4xl drop-shadow-lg">❤️</span>
+                        </div>
+                      ))}
+                      
                       {cameraStream ? (
                         <>
                           <video

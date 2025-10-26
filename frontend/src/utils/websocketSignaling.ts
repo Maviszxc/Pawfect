@@ -105,6 +105,11 @@ class Signaling {
       console.log("Room info:", data);
       this.callbacks.onRoomInfo?.(data);
     });
+
+    this.socket.on("heart-reaction", (data: any) => {
+      console.log("Heart reaction received:", data);
+      this.callbacks.onHeartReaction?.(data, data.roomId);
+    });
   }
 
   joinRoom(roomId: string, isAdmin: boolean, userData: any) {
@@ -222,6 +227,31 @@ class Signaling {
       action,
       roomId,
     });
+  }
+
+  sendHeartReaction(roomId: string) {
+    console.log("sendHeartReaction called with roomId:", roomId);
+    console.log("Socket exists:", !!this.socket);
+    console.log("Socket connected:", this.socket?.connected);
+    
+    if (!this.socket) {
+      console.error("Cannot send heart reaction: socket is null");
+      return;
+    }
+
+    if (!this.socket.connected) {
+      console.error("Cannot send heart reaction: socket not connected");
+      return;
+    }
+
+    console.log(`✅ Sending heart reaction for room ${roomId}`);
+
+    this.socket.emit("heart-reaction", {
+      roomId,
+      timestamp: Date.now(),
+    });
+    
+    console.log("Heart reaction emitted successfully");
   }
 
   setCallbacks(callbacks: any) {

@@ -17,8 +17,8 @@ const adoptionSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["Pending", "Approved", "Rejected", "Completed"],
-      default: "Pending",
+      enum: ["Under Review", "Approved", "Completed", "Denied", "Rejected", "Returned"],
+      default: "Under Review",
       index: true, // Added index for better performance
     },
     fullname: {
@@ -50,6 +50,11 @@ const adoptionSchema = new Schema(
       type: String,
       default: "",
     },
+    adoptionFormUrl: {
+      type: String,
+      required: false,
+      default: '',
+    },
     isArchived: {
       type: Boolean,
       default: false,
@@ -58,12 +63,26 @@ const adoptionSchema = new Schema(
   },
   {
     timestamps: true,
+    strict: true,
+    strictQuery: false,
   }
 );
+
+// Pre-save hook to ensure adoptionFormUrl field always exists
+adoptionSchema.pre('save', function(next) {
+  // If adoptionFormUrl is undefined or null, set it to empty string
+  if (this.adoptionFormUrl === undefined || this.adoptionFormUrl === null) {
+    this.adoptionFormUrl = '';
+  }
+  next();
+});
 
 // Compound index for better query performance
 adoptionSchema.index({ user: 1, email: 1 });
 adoptionSchema.index({ pet: 1, status: 1 });
 adoptionSchema.index({ email: 1, status: 1 });
+
+// Clear any cached model to ensure schema changes are applied
+delete mongoose.connection.models['Adoption'];
 
 module.exports = mongoose.model("Adoption", adoptionSchema);

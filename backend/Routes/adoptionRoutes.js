@@ -176,6 +176,95 @@ router.get("/all", verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
+// ✅ Cancel/Withdraw adoption (user can cancel their own pending application)
+// IMPORTANT: This route must be BEFORE the generic /:id route
+router.delete("/:id/cancel", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const userEmail = req.user.email;
+
+    console.log(`🔄 User ${userId} attempting to cancel adoption ${id}`);
+
+    // Find the adoption
+    const adoption = await Adoption.findById(id).populate("pet", "name adoptionStatus");
+
+    if (!adoption) {
+      return res.status(404).json({
+        success: false,
+        message: "Adoption request not found",
+      });
+    }
+
+    // Verify the user owns this adoption (either by user ID or email for guest adoptions)
+    const isOwner = 
+      (adoption.user && adoption.user.toString() === userId) || 
+      (adoption.email && adoption.email === userEmail);
+
+    if (!isOwner) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to cancel this adoption request",
+      });
+    }
+
+    // Only allow cancellation of Under Review applications
+    if (adoption.status !== "Under Review") {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot cancel adoption with status: ${adoption.status}. Only Under Review applications can be cancelled.`,
+      });
+    }
+
+    // Delete the adoption
+    await Adoption.findByIdAndDelete(id);
+
+    // Check if there are other approved adoptions for this pet
+    if (adoption.pet) {
+      const Pet = require("../Models/petModels");
+      const Adoption = require("../Models/adoptionModels");
+      
+      const approvedAdoption = await Adoption.findOne({
+        pet: adoption.pet._id,
+        status: "Approved",
+      });
+
+      if (approvedAdoption) {
+        // Keep pet as Pending with the approved adopter's name
+        const adopterName = approvedAdoption.user?.fullname || approvedAdoption.fullname;
+        await Pet.findByIdAndUpdate(adoption.pet._id, {
+          adoptionStatus: "Pending",
+          currentAdopterName: adopterName,
+          currentAdoptionId: approvedAdoption._id,
+        });
+        console.log(`✅ Pet ${adoption.pet.name} remains Pending (by ${adopterName})`);
+      } else {
+        // No approved adoptions, pet becomes Available
+        await Pet.findByIdAndUpdate(adoption.pet._id, {
+          adoptionStatus: "Available",
+          currentAdopterName: "",
+          currentAdoptionId: null,
+        });
+        console.log(`✅ Pet ${adoption.pet.name} reverted to Available status`);
+      }
+    }
+
+    console.log(`✅ Adoption ${id} cancelled successfully`);
+
+    res.status(200).json({
+      success: true,
+      message: "Adoption application cancelled successfully",
+    });
+  } catch (error) {
+    console.error("❌ Error cancelling adoption:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to cancel adoption request",
+      error: error.message,
+    });
+  }
+});
+
 // Get a specific adoption request
 router.get("/:id", verifyToken, async (req, res) => {
   try {
@@ -205,101 +294,7 @@ router.get("/:id", verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Update adoption status (admin only)
-router.patch("/:id/status", verifyToken, verifyAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status, adminMessage } = req.body;
-
-    console.log(`🔄 Updating adoption ${id} to status:`, status);
-
-    if (!status) {
-      return res.status(400).json({
-        success: false,
-        message: "Status is required.",
-      });
-    }
-
-    // Find and update adoption
-    const adoption = await Adoption.findByIdAndUpdate(
-      id,
-      { 
-        status, 
-        adminMessage: adminMessage || "" 
-      },
-      { new: true }
-    ).populate("user", "email fullname profilePicture")
-     .populate("pet", "name breed type age gender images");
-
-    if (!adoption) {
-      return res.status(404).json({
-        success: false,
-        message: "Adoption request not found.",
-      });
-    }
-
-    console.log("📧 Adoption details:", {
-      user: adoption.user,
-      userEmail: adoption.user?.email,
-      userFullname: adoption.user?.fullname,
-      pet: adoption.pet,
-      petName: adoption.pet?.name,
-      directEmail: adoption.email,
-      directFullname: adoption.fullname
-    });
-
-    // ✅ FIXED: Handle both registered users and guest adoptions
-    const userEmail = adoption.user?.email || adoption.email;
-    const userFullname = adoption.user?.fullname || adoption.fullname;
-    const petName = adoption.pet?.name;
-
-    console.log("🔍 Final email details:", {
-      userEmail,
-      userFullname,
-      petName,
-      status,
-      userType: adoption.user ? 'registered' : 'guest'
-    });
-
-    // Send email notification
-    if (userEmail && userFullname) {
-      try {
-        // Import the email service
-        const { sendAdoptionStatusEmail } = require("../Utilities/emailService");
-        
-        await sendAdoptionStatusEmail({
-          userEmail,
-          userFullname,
-          petName,
-          status,
-          adminMessage: adminMessage || ""
-        });
-        console.log(`✅ Email sent for ${adoption.user ? 'registered' : 'guest'} adoption ${id}`);
-      } catch (emailError) {
-        console.error("❌ Email sending failed:", emailError);
-        // Don't fail the request if email fails
-      }
-    } else {
-      console.warn("⚠️ Cannot send email: Missing user email or fullname", {
-        userEmail,
-        userFullname,
-        adoptionId: id
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: `Adoption status updated to ${status}.`,
-      adoption,
-    });
-  } catch (error) {
-    console.error("❌ Error updating adoption status:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error updating adoption status.",
-      error: error.message,
-    });
-  }
-});
+// ✅ Update adoption status (admin only) - Use controller function with pet synchronization
+router.patch("/:id/status", verifyToken, verifyAdmin, adoptionController.updateAdoptionStatus);
 
 module.exports = router;

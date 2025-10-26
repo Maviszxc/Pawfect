@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import Navigation from "@/components/Navigation";
 import AuthNavigation from "@/components/authNavigation";
@@ -51,6 +52,7 @@ interface Schedule {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [featuredPets, setFeaturedPets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -371,12 +373,20 @@ export default function Home() {
                       ? "Join us now to see our adorable pets looking for their forever homes!"
                       : "We're currently offline. Check back during scheduled times or view our upcoming schedule."}
                   </p>
-                  <Link href="/live">
-                    <Button className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-xl flex items-center justify-center gap-2">
-                      <Play className="w-4 h-4" />
-                      {isAdminStreaming ? "Join Live Stream" : "Go to Live Page"}
-                    </Button>
-                  </Link>
+                  <Button 
+                    onClick={() => {
+                      if (!isAuthenticated) {
+                        toast.info("Please login to join the live stream");
+                        router.push("/login");
+                      } else {
+                        router.push("/live");
+                      }
+                    }}
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-xl flex items-center justify-center gap-2"
+                  >
+                    <Play className="w-4 h-4" />
+                    {isAdminStreaming ? "Join Live Stream" : "Go to Live Page"}
+                  </Button>
                 </div>
               </motion.div>
 

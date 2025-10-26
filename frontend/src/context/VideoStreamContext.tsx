@@ -25,6 +25,11 @@ type ChatMessage = {
   isSystem?: boolean; // Add this flag for system messages
 };
 
+type HeartReaction = {
+  id: string;
+  timestamp: number;
+};
+
 type UserInfo = {
   _id: string;
   fullname: string;
@@ -57,6 +62,9 @@ type VideoStreamContextType = {
   isPaused: boolean;
   pauseStream: () => void;
   resumeStream: () => void;
+  sendHeartReaction: () => void;
+  heartReactions: HeartReaction[];
+  totalHearts: number;
 };
 
 const VideoStreamContext = createContext<VideoStreamContextType>({
@@ -78,6 +86,9 @@ const VideoStreamContext = createContext<VideoStreamContextType>({
   isPaused: false,
   pauseStream: () => {},
   resumeStream: () => {},
+  sendHeartReaction: () => {},
+  heartReactions: [],
+  totalHearts: 0,
 });
 
 export const VideoStreamProvider = ({
@@ -98,6 +109,8 @@ export const VideoStreamProvider = ({
   const [totalParticipants, setTotalParticipants] = useState<number>(0);
   const [iceServers, setIceServers] = useState<RTCIceServer[]>([]);
   const [isPaused, setIsPaused] = useState(false);
+  const [heartReactions, setHeartReactions] = useState<HeartReaction[]>([]);
+  const [totalHearts, setTotalHearts] = useState<number>(0);
 
   // Refs for stable references
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -748,6 +761,33 @@ export const VideoStreamProvider = ({
           setIsPaused(false);
         }
       },
+
+      onHeartReaction: (data: any, roomId: string) => {
+        console.log("❤️ Heart reaction received!", { data, roomId, currentRoom: roomIdRef.current });
+        if (roomId === roomIdRef.current) {
+          console.log("✅ Room matches! Adding heart to display");
+          const newHeart: HeartReaction = {
+            id: `heart-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            timestamp: Date.now(),
+          };
+          setHeartReactions((prev) => {
+            console.log("Adding heart, current count:", prev.length);
+            return [...prev, newHeart];
+          });
+          setTotalHearts((prev) => {
+            console.log("Incrementing total hearts from", prev, "to", prev + 1);
+            return prev + 1;
+          });
+          
+          // Remove heart after animation (3 seconds)
+          setTimeout(() => {
+            console.log("Removing heart after 3s:", newHeart.id);
+            setHeartReactions((prev) => prev.filter((h) => h.id !== newHeart.id));
+          }, 3000);
+        } else {
+          console.log("❌ Room mismatch, ignoring heart");
+        }
+      },
     };
 
     signaling.setCallbacks(callbacks);
@@ -819,16 +859,6 @@ export const VideoStreamProvider = ({
             error instanceof Error ? error.message : "Unknown error"
           }`
         );
-
-        // Auto-retry after 5 seconds
-        setTimeout(() => {
-          if (!isConnectingRef.current) {
-            console.log("Auto-retrying connection...");
-            connectToRoom(roomId, isAdmin);
-          }
-        }, 5000);
-
-        throw error;
       } finally {
         isConnectingRef.current = false;
         if (connectionTimeoutRef.current) {
@@ -904,6 +934,16 @@ export const VideoStreamProvider = ({
     }
   }, []);
 
+  const sendHeartReaction = useCallback(() => {
+    console.log("sendHeartReaction called, roomId:", roomIdRef.current);
+    if (roomIdRef.current) {
+      console.log("Calling signaling.sendHeartReaction with roomId:", roomIdRef.current);
+      signaling.sendHeartReaction(roomIdRef.current);
+    } else {
+      console.log("No roomId available, cannot send heart reaction");
+    }
+  }, []);
+
   const setAdminStreamHandler = useCallback((stream: MediaStream | null) => {
     streamRef.current = stream;
     setAdminStream(stream);
@@ -961,6 +1001,9 @@ export const VideoStreamProvider = ({
         isPaused,
         pauseStream,
         resumeStream,
+        sendHeartReaction,
+        heartReactions,
+        totalHearts,
       }}
     >
       {children}

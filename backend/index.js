@@ -4,6 +4,8 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const dotenv = require("dotenv");
+const fs = require("fs");
+const path = require("path");
 const dbConnect = require("./Utilities/databaseUtil");
 const userRoutes = require("./Routes/userRoutes");
 const petRoutes = require("./Routes/petRoutes");
@@ -16,8 +18,21 @@ const scheduleReminderService = require("./Utilities/scheduleReminderService");
 
 dotenv.config();
 
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log("✅ Created uploads directory");
+}
+
 // Connect to MongoDB
 dbConnect();
+
+// NOTE: Auto-migration disabled for testing
+// New adoptions should work without it due to:
+// 1. Model has default: '' for adoptionFormUrl
+// 2. Pre-save hook ensures field always exists
+// 3. Controller explicitly sets the field
 
 app.use(express.json());
 
@@ -433,6 +448,77 @@ io.on("connection", (socket) => {
       );
     } catch (error) {
       console.error("Error handling chat message:", error);
+    }
+  });
+
+  socket.on("heart-reaction", (data) => {
+    try {
+      const { roomId, timestamp } = data;
+      const room = rooms.get(roomId);
+
+      if (!room) {
+        console.error(`Room ${roomId} not found for heart reaction`);
+        return;
+      }
+
+      console.log(
+        `${
+          socket.userData.fullname || socket.userData.name
+        } sent heart reaction to room ${roomId}`
+      );
+
+      // Broadcast heart reaction to all participants in the room
+      io.to(roomId).emit("heart-reaction", {
+        roomId,
+        timestamp: timestamp || Date.now(),
+        senderId: socket.id,
+        sender: socket.userData.fullname || socket.userData.name,
+      });
+
+      console.log(
+        `Heart reaction broadcast to ${
+          room.users.size + (room.admin ? 1 : 0)
+        } participants`
+      );
+    } catch (error) {
+      console.error("Error handling heart reaction:", error);
+    }
+  });
+
+  socket.on("stream-control", (data) => {
+    try {
+      const { action, roomId } = data;
+      const room = rooms.get(roomId);
+
+      if (!room) {
+        console.error(`Room ${roomId} not found for stream control`);
+        return;
+      }
+
+      // Only admin can control the stream
+      if (!socket.userData.isAdmin) {
+        console.log(`Non-admin ${socket.id} attempted stream control`);
+        return;
+      }
+
+      console.log(
+        `Admin ${socket.userData.fullname} ${action} stream in room ${roomId}`
+      );
+
+      // Broadcast stream control to all participants
+      io.to(roomId).emit("stream-control", {
+        action,
+        roomId,
+        timestamp: Date.now(),
+      });
+
+      console.log(
+        `Stream control (${action}) broadcast to ${
+          room.users.size + (room.admin ? 1 : 0)
+        } participants`
+      );
+    } catch (error) {
+      console.error("Error handling stream control:", error);
     }
   });
 

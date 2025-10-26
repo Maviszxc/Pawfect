@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import {
   CheckCircle,
-  Circle,
   Calendar,
   MoreHorizontal,
   Users,
@@ -338,7 +337,7 @@ export default function AdminDashboardPage() {
       if (petsResponse.data.success) {
         setPets(petsResponse.data.pets);
         const availablePets = petsResponse.data.pets.filter(
-          (pet: Pet) => pet.adoptionStatus === "available"
+          (pet: Pet) => pet.adoptionStatus === "Available"
         ).length;
         setStats((prev) => ({
           ...prev,
@@ -655,9 +654,9 @@ export default function AdminDashboardPage() {
                         </div>
                         <Badge
                           className={
-                            pet.adoptionStatus === "available"
+                            pet.adoptionStatus === "Available"
                               ? "bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full text-xs font-semibold"
-                              : pet.adoptionStatus === "pending"
+                              : pet.adoptionStatus === "Pending"
                               ? "bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded-full text-xs font-semibold"
                               : "bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full text-xs font-semibold"
                           }
