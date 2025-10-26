@@ -8,6 +8,8 @@ import { Button } from "./ui/button";
 const FloatingBot = dynamic(() => import("./FloatingBot"), { ssr: false });
 // Dynamically import ChatInterface with SSR disabled
 const ChatInterface = dynamic(() => import("./ChatInterface"), { ssr: false });
+// Dynamically import BotTutorial with SSR disabled
+const BotTutorial = dynamic(() => import("./BotTutorial"), { ssr: false });
 
 interface FloatingBotDemoProps {
   count?: number;
@@ -26,6 +28,9 @@ const FloatingBotDemo: React.FC<FloatingBotDemoProps> = ({
   const [showAnimation, setShowAnimation] = useState(autoLoad);
   const [isMounted, setIsMounted] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
+  const [botPosition, setBotPosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     setIsMounted(true);
@@ -41,8 +46,56 @@ const FloatingBotDemo: React.FC<FloatingBotDemoProps> = ({
       });
   }, []);
 
+  // Check for first-time user - runs on mount and when storage changes
+  useEffect(() => {
+    const checkFirstTimeUser = () => {
+      const tutorialCompleted = localStorage.getItem("biyaya_bot_tutorial_completed");
+      const accessToken = localStorage.getItem("accessToken");
+
+      console.log("🎓 Tutorial Check:", {
+        hasToken: !!accessToken,
+        tutorialCompleted: tutorialCompleted,
+        willShowTutorial: !!(accessToken && !tutorialCompleted)
+      });
+
+      // Show tutorial only if user is authenticated and hasn't seen it before
+      if (accessToken && !tutorialCompleted) {
+        console.log("✅ Showing tutorial in 1.5s...");
+        setIsFirstTimeUser(true);
+        // Show tutorial after a short delay for better UX
+        setTimeout(() => {
+          setShowTutorial(true);
+          setShowAnimation(true); // Keep bot visible during tutorial
+        }, 1500);
+      } else {
+        console.log("❌ Tutorial not shown:", {
+          reason: !accessToken ? "Not logged in" : "Tutorial already completed"
+        });
+      }
+    };
+
+    checkFirstTimeUser();
+
+    // Listen for storage changes (e.g., when user logs in)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "accessToken" && e.newValue) {
+        console.log("🔑 Access token detected, checking tutorial...");
+        checkFirstTimeUser();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
+
   // Handle bot click to open chat
   const handleBotClick = () => {
+    // Don't allow clicking during tutorial
+    if (showTutorial) return;
+    
     setShowChat(true);
     setShowAnimation(false);
   };
@@ -51,6 +104,23 @@ const FloatingBotDemo: React.FC<FloatingBotDemoProps> = ({
   const handleChatClose = () => {
     setShowChat(false);
     setShowAnimation(true);
+  };
+
+  // Handle tutorial completion
+  const handleTutorialComplete = () => {
+    setShowTutorial(false);
+    localStorage.setItem("biyaya_bot_tutorial_completed", "true");
+    // Auto-open chat after tutorial
+    setTimeout(() => {
+      setShowChat(true);
+      setShowAnimation(false);
+    }, 500);
+  };
+
+  // Handle tutorial skip
+  const handleTutorialSkip = () => {
+    setShowTutorial(false);
+    localStorage.setItem("biyaya_bot_tutorial_completed", "true");
   };
 
   // Create a single floating bot with custom movement
@@ -65,9 +135,12 @@ const FloatingBotDemo: React.FC<FloatingBotDemoProps> = ({
         height={height}
         style={{
           opacity: 100,
-          cursor: 'pointer'
+          cursor: showTutorial ? 'default' : 'pointer',
+          position: 'relative',
+          zIndex: showTutorial ? 9998 : 'auto', // Higher z-index during tutorial
         }}
         onClick={handleBotClick}
+        onPositionChange={setBotPosition}
       />
     );
   };
@@ -78,11 +151,24 @@ const FloatingBotDemo: React.FC<FloatingBotDemoProps> = ({
   return (
     <div className="floating-bot-container">
       {renderBot()}
-      {showChat && (
+      
+      {/* Tutorial Overlay - Shows for first-time authenticated users */}
+      {showTutorial && (
+        <BotTutorial
+          onComplete={handleTutorialComplete}
+          onSkip={handleTutorialSkip}
+          botPosition={botPosition}
+          botSize={{ width, height }}
+        />
+      )}
+      
+      {/* Chat Interface */}
+      {showChat && !showTutorial && (
         <div className="fixed inset-0 z-[9999]" style={{ pointerEvents: 'auto' }}>
-          <ChatInterface onClose={handleChatClose} />
+          <ChatInterface onClose={handleChatClose} isFirstTime={isFirstTimeUser} />
         </div>
       )}
+      
       {!autoLoad && (
         <Button
           onClick={() => setShowAnimation(!showAnimation)}

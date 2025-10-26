@@ -16,6 +16,7 @@ interface FloatingBotProps {
   className?: string;
   style?: React.CSSProperties;
   onClick?: () => void;
+  onPositionChange?: (position: { x: number; y: number }) => void;
 }
 
 const FloatingBot: React.FC<FloatingBotProps> = ({
@@ -27,6 +28,7 @@ const FloatingBot: React.FC<FloatingBotProps> = ({
   className = "",
   style = {},
   onClick,
+  onPositionChange,
 }) => {
   const controls = useAnimation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -88,6 +90,11 @@ const FloatingBot: React.FC<FloatingBotProps> = ({
       x: startX,
       y: startY,
     });
+    
+    // Report initial position
+    if (onPositionChange) {
+      onPositionChange({ x: startX, y: startY });
+    }
 
     // Start floating animation
     const floatAnimation = async () => {
@@ -128,6 +135,11 @@ const FloatingBot: React.FC<FloatingBotProps> = ({
                 duration: 5 + Math.random() * 3, // Longer duration (5-8 seconds)
               },
             });
+            
+            // Report new position
+            if (onPositionChange) {
+              onPositionChange({ x: destX, y: destY });
+            }
           } catch (error) {
             // Handle any animation errors silently
             console.error("Animation error:", error);
@@ -208,9 +220,15 @@ const FloatingBot: React.FC<FloatingBotProps> = ({
       drag
       dragMomentum={false}
       whileDrag={{ scale: 1.1 }}
-      className={`fixed z-50 ${className} cursor-grab active:cursor-grabbing pointer-events-auto`}
-      style={style}
+      className={`fixed ${className} cursor-grab active:cursor-grabbing pointer-events-auto`}
+      style={{ zIndex: 50, ...style }}
       onClick={handleBotClick}
+      onUpdate={(latest) => {
+        // Report position in real-time during animations
+        if (onPositionChange && typeof latest.x === 'number' && typeof latest.y === 'number') {
+          onPositionChange({ x: latest.x, y: latest.y });
+        }
+      }}
     >
       {message && (
         <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-white p-2 rounded-lg shadow-md text-sm whitespace-nowrap z-50 pointer-events-auto">

@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Send, X, MessageSquare, User } from "lucide-react";
+import { Send, X, MessageSquare, User, Trash2 } from "lucide-react";
 import axios from "axios";
 import axiosInstance from "@/lib/axiosInstance";
 import { BASE_URL } from "@/utils/constants";
@@ -41,6 +41,7 @@ interface PetMatch {
 
 interface ChatInterfaceProps {
   onClose: () => void;
+  isFirstTime?: boolean;
 }
 
 // FAQ questions for quick access - Biyaya specific
@@ -66,23 +67,64 @@ const defaultUserProfile = {
   avatar: "/placeholder-user.png",
 };
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isFirstTime = false }) => {
   const router = useRouter();
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
+  
+  // Different welcome messages for first-time vs returning users
+  const getWelcomeMessage = () => {
+    if (isFirstTime) {
+      return {
+        id: "welcome",
+        role: "assistant" as const,
+        content:
+          "🎉 **Welcome to Biyaya!** \n\nI'm so excited to help you find your perfect furry companion! I just showed you around - now let's find your ideal Aspin or Puspin! \n\nReady to start your pet matching journey?",
+        options: ["Yes, let's find my pet!", "Tell me about Biyaya first"],
+      };
+    }
+    return {
       id: "welcome",
-      role: "assistant",
+      role: "assistant" as const,
       content:
-        "🐾 **Kumusta! Welcome to Biyaya!** \n\nI'm your Biyaya Pet Assistant. I can help you learn about Biyaya Animal Care, our services, and find your perfect Aspin or Puspin companion! \n\nWould you like to start the pet matching quiz?",
+        "🐾 **Kumusta! Welcome back to Biyaya!** \n\nI'm your Biyaya Pet Assistant. I can help you learn about Biyaya Animal Care, our services, and find your perfect Aspin or Puspin companion! \n\nWould you like to start the pet matching quiz?",
       options: ["Yes, let's start", "Tell me more first"],
-    },
-  ]);
+    };
+  };
+  
+  // Load saved chat data from localStorage or use defaults
+  const loadChatData = () => {
+    if (typeof window === 'undefined') return null;
+    
+    try {
+      const savedChat = localStorage.getItem('biyaya_chat_data');
+      if (savedChat) {
+        const parsed = JSON.parse(savedChat);
+        // Check if data is recent (within last 24 hours)
+        const savedTime = parsed.timestamp || 0;
+        const hoursSinceLastSave = (Date.now() - savedTime) / (1000 * 60 * 60);
+        
+        if (hoursSinceLastSave < 24) {
+          return parsed;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading chat data:', error);
+    }
+    return null;
+  };
+
+  const savedData = loadChatData();
+
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    savedData?.messages || [getWelcomeMessage()]
+  );
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [currentQuizStep, setCurrentQuizStep] = useState(0);
-  const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({});
-  const [matchedPet, setMatchedPet] = useState<PetMatch | null>(null);
-  const [matchedPets, setMatchedPets] = useState<PetMatch[]>([]);
+  const [currentQuizStep, setCurrentQuizStep] = useState(savedData?.currentQuizStep || 0);
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>(
+    savedData?.quizAnswers || {}
+  );
+  const [matchedPet, setMatchedPet] = useState<PetMatch | null>(savedData?.matchedPet || null);
+  const [matchedPets, setMatchedPets] = useState<PetMatch[]>(savedData?.matchedPets || []);
   const [userProfile, setUserProfile] = useState(defaultUserProfile);
   const [showFaqButtons, setShowFaqButtons] = useState(false);
   const [sparkles, setSparkles] = useState<
@@ -90,7 +132,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
   >([]);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // Quiz questions with multiple-choice options
+  // Simplified quiz questions for better matching with limited pet database
   const quizQuestions = [
     {
       question: "🐕🐈 What type of pet are you looking for?",
@@ -100,39 +142,58 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
       ],
     },
     {
-      question: "🏃‍♂️ What's your activity level?",
+      question: "🏃‍♂️ What's your lifestyle like?",
       options: [
-        { text: "Very active", value: "high" },
-        { text: "Moderately active", value: "medium" },
-        { text: "Not very active", value: "low" },
+        { text: "Active - I love outdoor activities", value: "active" },
+        { text: "Moderate - Regular walks and playtime", value: "moderate" },
+        { text: "Relaxed - Prefer calm indoor time", value: "relaxed" },
       ],
     },
     {
-      question: "⏰ How much time can you spend with your pet daily?",
+      question: "🏠 What's your living space?",
       options: [
-        { text: "A lot (4+ hours)", value: "high" },
-        { text: "Moderate (2-4 hours)", value: "medium" },
-        { text: "Limited (less than 2 hours)", value: "low" },
+        { text: "House with yard", value: "house" },
+        { text: "Apartment or small space", value: "apartment" },
+        { text: "Any space works for me", value: "flexible" },
       ],
     },
     {
-      question: "😊 Do you prefer a pet that is:",
+      question: "😊 What personality do you prefer?",
       options: [
-        { text: "Playful and energetic", value: "energetic" },
-        { text: "Calm and relaxed", value: "calm" },
-        { text: "Balanced temperament", value: "balanced" },
+        { text: "Playful and energetic", value: "playful" },
+        { text: "Calm and gentle", value: "calm" },
+        { text: "Friendly and social", value: "friendly" },
+        { text: "Any personality is fine!", value: "any_personality" },
       ],
     },
     {
-      question: "🐶🐱 Do you have other pets at home?",
+      question: "👶 Do you have a preference for age?",
       options: [
-        { text: "Yes, dogs", value: "dogs" },
-        { text: "Yes, cats", value: "cats" },
-        { text: "Yes, both dogs and cats", value: "both" },
-        { text: "No other pets", value: "none" },
+        { text: "Young and energetic", value: "young" },
+        { text: "Adult and settled", value: "adult" },
+        { text: "I'm open to any age!", value: "any_age" },
       ],
     },
   ];
+
+  // Save chat data to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    try {
+      const chatData = {
+        messages,
+        currentQuizStep,
+        quizAnswers,
+        matchedPet,
+        matchedPets,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem('biyaya_chat_data', JSON.stringify(chatData));
+    } catch (error) {
+      console.error('Error saving chat data:', error);
+    }
+  }, [messages, currentQuizStep, quizAnswers, matchedPet, matchedPets]);
 
   // Scroll to bottom of chat when messages change
   useEffect(() => {
@@ -397,21 +458,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
     };
     setMessages((prev) => [...prev, userMessage]);
 
-    // If user wants to start the quiz
-    if (option === "Yes, let's start" && currentQuizStep === 0) {
+    // If user wants to start the quiz (handle both first-time and returning user options)
+    if ((option === "Yes, let's start" || option === "Yes, let's find my pet!") && currentQuizStep === 0) {
       // Start the quiz
       startQuiz();
       return;
     }
 
-    // If user wants more info first
-    if (option === "Tell me more first") {
+    // If user wants more info first (handle both first-time and returning user options)
+    if (option === "Tell me more first" || option === "Tell me about Biyaya first") {
       const infoMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content:
-          "📋 **How It Works:**\n\nI'll ask you 5 simple questions about your:\n• Preferred pet type (Aspin or Puspin) 🐕🐈\n• Activity level 🏃‍♂️\n• Available time ⏰\n• Temperament preference 😊\n• Current pets 🐶🐱\n\nBased on your answers, I'll match you with rescued Aspins and Puspins from Biyaya Animal Sanctuary that would be perfect for your lifestyle!\n\nReady to give a rescued pet a second chance?",
-        options: ["Yes, let's start", "No thanks"],
+          "📋 **How It Works:**\n\nI'll ask you 5 simple questions about your:\n• Preferred pet type (Aspin or Puspin) 🐕🐈\n• Lifestyle and activity level 🏃‍♂️\n• Living space 🏠\n• Personality preference 😊\n• Age preference 👶\n\nBased on your answers, I'll match you with rescued Aspins and Puspins from Biyaya Animal Sanctuary that would be perfect for you!\n\nReady to give a rescued pet a second chance?",
+        options: [isFirstTime ? "Yes, let's find my pet!" : "Yes, let's start", "No thanks"],
       };
       setMessages((prev) => [...prev, infoMessage]);
       return;
@@ -473,7 +534,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
 
   // Show next quiz question
   const showNextQuizQuestion = () => {
-    setCurrentQuizStep((prev) => prev + 1);
+    setCurrentQuizStep((prev: number) => prev + 1);
 
     const nextQuestion = quizQuestions[currentQuizStep];
     const questionMessage: ChatMessage = {
@@ -734,19 +795,23 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
 
   // Handle "Start over" option
   const handleStartOver = () => {
-    setMessages([
-      {
-        id: "welcome",
-        role: "assistant",
-        content:
-          "🐾 **Kumusta! Welcome to Biyaya!** \n\nI'm your Biyaya Pet Assistant. I can help you learn about Biyaya Animal Care, our services, and find your perfect Aspin or Puspin companion! \n\nWould you like to start the pet matching quiz?",
-        options: ["Yes, let's start", "Tell me more first"],
-      },
-    ]);
+    setMessages([getWelcomeMessage()]);
     setCurrentQuizStep(0);
     setQuizAnswers({});
     setMatchedPet(null);
     setMatchedPets([]);
+  };
+
+  // Clear entire chat history
+  const handleClearChat = () => {
+    if (confirm("Are you sure you want to clear the entire chat history?")) {
+      setMessages([getWelcomeMessage()]);
+      setCurrentQuizStep(0);
+      setQuizAnswers({});
+      setMatchedPet(null);
+      setMatchedPets([]);
+      localStorage.removeItem('biyaya_chat_data');
+    }
   };
 
   // Handle option click
@@ -831,6 +896,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
             </div>
           </div>
           <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleClearChat}
+              className="text-gray-400 hover:bg-gray-800 hover:text-red-400 rounded-full"
+              aria-label="Clear chat"
+              title="Clear chat history"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
