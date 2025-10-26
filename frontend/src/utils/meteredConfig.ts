@@ -3,9 +3,9 @@
 // Your Metered.ca credentials
 const METERED_CONFIG = {
   domain: "global.relay.metered.ca",
-  username: "f5117d2eca2e9f266ec75058",
-  password: "aff8iTDJTM3NnUat",
-  apiKey: "491a731fe6ab14d8cc73b7ee973d833f43b4",
+  username: "ff91cd3466b0a54f7b5dea9a",
+  password: "ojnd8jLjCy5pBpSo",
+  apiKey: "07192b107470bb659cf6964159adb70dd1f9",
 };
 
 export const getIceServers = () => {
