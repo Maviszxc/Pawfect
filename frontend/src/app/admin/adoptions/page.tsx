@@ -324,6 +324,20 @@ export default function AdminAdoptionsPage() {
     return adoption.petImage || "/placeholder-pet.jpg";
   };
 
+  // Get count for each status
+  const getStatusCount = (status: string) => {
+    const nonArchivedAdoptions = adoptions.filter(
+      (adoption) => !adoption.isArchived
+    );
+    
+    if (status === "all") {
+      return nonArchivedAdoptions.length;
+    }
+    return nonArchivedAdoptions.filter(
+      (adoption) => adoption.status.toLowerCase().replace(/\s+/g, "-") === status.toLowerCase()
+    ).length;
+  };
+
   // Filter adoptions based on active tab and search query
   const filteredAdoptions = adoptions.filter((adoption) => {
     // Exclude archived adoptions completely
@@ -404,6 +418,20 @@ export default function AdminAdoptionsPage() {
                     </div>
                   </div>
                   <div className="flex flex-row gap-2 sm:gap-4">
+                       <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto mt-4 lg:mt-0">
+                        <div className="relative w-full lg:w-64">
+                          <Input
+                            type="text"
+                            placeholder="Search adoptions..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10 text-sm w-full"
+                          />
+                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <Search className="w-4 h-4 text-gray-500" />
+                          </div>
+                        </div>
+                      </div>
                     <Button
                       variant="outline"
                       onClick={fetchAdoptions}
@@ -426,66 +454,130 @@ export default function AdminAdoptionsPage() {
                     onValueChange={setActiveTab}
                     className="w-full"
                   >
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                      <TabsList className="inline-flex h-auto items-center gap-6 bg-transparent border-b border-gray-200 w-full sm:w-auto">
+                    <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+                      <TabsList className="inline-flex h-auto items-center gap-2 sm:gap-4 lg:gap-6 bg-transparent border-b border-gray-200 w-full overflow-x-auto pb-2 lg:w-auto lg:overflow-visible">
                         <TabsTrigger
                           value="all"
-                          className="relative bg-transparent px-1 pb-3 pt-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none"
+                          className="relative bg-transparent px-1 pb-3 pt-0 text-xs sm:text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none whitespace-nowrap"
                         >
-                          All
+                          <span className="flex items-center gap-1 sm:gap-2">
+                            All
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                activeTab === "all"
+                                  ? "bg-orange-500 text-white"
+                                  : "bg-gray-200 text-gray-600"
+                              }`}
+                            >
+                              {getStatusCount("all")}
+                            </span>
+                          </span>
                         </TabsTrigger>
                         <TabsTrigger
                           value="under-review"
-                          className="relative bg-transparent px-1 pb-3 pt-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none"
+                          className="relative bg-transparent px-1 pb-3 pt-0 text-xs sm:text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none whitespace-nowrap"
                         >
-                          Under Review
+                          <span className="flex items-center gap-1 sm:gap-2">
+                            Under Review
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                activeTab === "under-review"
+                                  ? "bg-orange-500 text-white"
+                                  : "bg-gray-200 text-gray-600"
+                              }`}
+                            >
+                              {getStatusCount("under-review")}
+                            </span>
+                          </span>
                         </TabsTrigger>
                         <TabsTrigger
                           value="approved"
-                          className="relative bg-transparent px-1 pb-3 pt-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none"
+                          className="relative bg-transparent px-1 pb-3 pt-0 text-xs sm:text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none whitespace-nowrap"
                         >
-                          Approved
+                          <span className="flex items-center gap-1 sm:gap-2">
+                            Approved
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                activeTab === "approved"
+                                  ? "bg-orange-500 text-white"
+                                  : "bg-gray-200 text-gray-600"
+                              }`}
+                            >
+                              {getStatusCount("approved")}
+                            </span>
+                          </span>
                         </TabsTrigger>
                         <TabsTrigger
                           value="rejected"
-                          className="relative bg-transparent px-1 pb-3 pt-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none"
+                          className="relative bg-transparent px-1 pb-3 pt-0 text-xs sm:text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none whitespace-nowrap"
                         >
-                          Rejected
+                          <span className="flex items-center gap-1 sm:gap-2">
+                            Rejected
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                activeTab === "rejected"
+                                  ? "bg-orange-500 text-white"
+                                  : "bg-gray-200 text-gray-600"
+                              }`}
+                            >
+                              {getStatusCount("rejected")}
+                            </span>
+                          </span>
                         </TabsTrigger>
                         <TabsTrigger
                           value="denied"
-                          className="relative bg-transparent px-1 pb-3 pt-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none"
+                          className="relative bg-transparent px-1 pb-3 pt-0 text-xs sm:text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none whitespace-nowrap"
                         >
-                          Denied
+                          <span className="flex items-center gap-1 sm:gap-2">
+                            Denied
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                activeTab === "denied"
+                                  ? "bg-orange-500 text-white"
+                                  : "bg-gray-200 text-gray-600"
+                              }`}
+                            >
+                              {getStatusCount("denied")}
+                            </span>
+                          </span>
                         </TabsTrigger>
                         <TabsTrigger
                           value="completed"
-                          className="relative bg-transparent px-1 pb-3 pt-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none"
+                          className="relative bg-transparent px-1 pb-3 pt-0 text-xs sm:text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none whitespace-nowrap"
                         >
-                          Completed
+                          <span className="flex items-center gap-1 sm:gap-2">
+                            Completed
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                activeTab === "completed"
+                                  ? "bg-orange-500 text-white"
+                                  : "bg-gray-200 text-gray-600"
+                              }`}
+                            >
+                              {getStatusCount("completed")}
+                            </span>
+                          </span>
                         </TabsTrigger>
                         <TabsTrigger
                           value="returned"
-                          className="relative bg-transparent px-1 pb-3 pt-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none"
+                          className="relative bg-transparent px-1 pb-3 pt-0 text-xs sm:text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none whitespace-nowrap"
                         >
-                          Returned
+                          <span className="flex items-center gap-1 sm:gap-2">
+                            Returned
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                activeTab === "returned"
+                                  ? "bg-orange-500 text-white"
+                                  : "bg-gray-200 text-gray-600"
+                              }`}
+                            >
+                              {getStatusCount("returned")}
+                            </span>
+                          </span>
                         </TabsTrigger>
                       </TabsList>
 
-                      <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                        <div className="relative w-full sm:w-64">
-                          <Input
-                            type="text"
-                            placeholder="Search adoptions..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10 text-sm"
-                          />
-                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                            <Search className="w-4 h-4 text-gray-500" />
-                          </div>
-                        </div>
-                      </div>
+                   
                     </div>
                   </Tabs>
                 </div>

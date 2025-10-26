@@ -358,6 +358,20 @@ export default function AdminPetsPage() {
     }
   };
 
+  // Get count for each status
+  const getStatusCount = (status: string) => {
+    const nonArchivedPets = pets.filter(
+      (pet) => !pet.isArchived && pet.adoptionStatus?.toLowerCase() !== "archived"
+    );
+    
+    if (status === "all") {
+      return nonArchivedPets.length;
+    }
+    return nonArchivedPets.filter(
+      (pet) => pet.adoptionStatus.toLowerCase() === status.toLowerCase()
+    ).length;
+  };
+
   // Filter pets based on active tab and search query
   const filteredPets = pets.filter((pet) => {
     // Exclude archived pets completely
@@ -397,6 +411,20 @@ export default function AdminPetsPage() {
                   </p>
                 </div>
                 <div className="flex flex-row gap-2 sm:gap-3">
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <div className="relative flex-1 sm:flex-initial sm:w-64">
+                              <Input
+                                type="text"
+                                placeholder="Search pets..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-9 text-sm"
+                              />
+                              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <Search className="w-4 h-4 text-gray-500" />
+                              </div>
+                            </div>
+                          </div>
                   <Button
                     variant="outline"
                     onClick={fetchPets}
@@ -435,42 +463,73 @@ export default function AdminPetsPage() {
                               value="all"
                               className="relative bg-transparent px-1 pb-3 pt-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none"
                             >
-                              All
+                              <span className="flex items-center gap-2">
+                                All
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                    activeTab === "all"
+                                      ? "bg-orange-500 text-white"
+                                      : "bg-gray-200 text-gray-600"
+                                  }`}
+                                >
+                                  {getStatusCount("all")}
+                                </span>
+                              </span>
                             </TabsTrigger>
                             <TabsTrigger
                               value="available"
                               className="relative bg-transparent px-1 pb-3 pt-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none"
                             >
-                              Available
+                              <span className="flex items-center gap-2">
+                                Available
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                    activeTab === "available"
+                                      ? "bg-orange-500 text-white"
+                                      : "bg-gray-200 text-gray-600"
+                                  }`}
+                                >
+                                  {getStatusCount("available")}
+                                </span>
+                              </span>
                             </TabsTrigger>
                             <TabsTrigger
                               value="pending"
                               className="relative bg-transparent px-1 pb-3 pt-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none"
                             >
-                              Pending
+                              <span className="flex items-center gap-2">
+                                Pending
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                    activeTab === "pending"
+                                      ? "bg-orange-500 text-white"
+                                      : "bg-gray-200 text-gray-600"
+                                  }`}
+                                >
+                                  {getStatusCount("pending")}
+                                </span>
+                              </span>
                             </TabsTrigger>
                             <TabsTrigger
                               value="adopted"
                               className="relative bg-transparent px-1 pb-3 pt-0 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none"
                             >
-                              Adopted
+                              <span className="flex items-center gap-2">
+                                Adopted
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                    activeTab === "adopted"
+                                      ? "bg-orange-500 text-white"
+                                      : "bg-gray-200 text-gray-600"
+                                  }`}
+                                >
+                                  {getStatusCount("adopted")}
+                                </span>
+                              </span>
                             </TabsTrigger>
                           </TabsList>
 
-                          <div className="flex items-center gap-3 w-full sm:w-auto">
-                            <div className="relative flex-1 sm:flex-initial sm:w-64">
-                              <Input
-                                type="text"
-                                placeholder="Search pets..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-9 text-sm"
-                              />
-                              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                <Search className="w-4 h-4 text-gray-500" />
-                              </div>
-                            </div>
-                          </div>
+                        
                         </div>
 
                         <TabsContent value="active" className="mt-0">

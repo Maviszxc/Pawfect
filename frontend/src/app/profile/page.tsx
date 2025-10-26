@@ -1590,20 +1590,20 @@ export default function Profile() {
 
                                   {/* Cancel Button for Under Review Applications */}
                                   {adoption.status === "Under Review" && (
-                                    <div className="mt-4 pt-4 border-t border-gray-200">
+                                    <div className="mt-4 pt-4 border-t border-gray-100">
                                       <Button
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           handleCancelAdoption(adoption._id, adoption.pet?.name);
                                         }}
                                         disabled={cancellingAdoptionId === adoption._id}
-                                        variant="outline"
-                                        className="w-full text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 hover:border-red-400"
+                                        variant="ghost"
+                                        className="w-full text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200 font-medium disabled:opacity-50"
                                       >
                                         {cancellingAdoptionId === adoption._id ? (
                                           <>
                                             <RefreshCw size={16} className="mr-2 animate-spin" />
-                                            Cancelling...
+                                            Withdrawing...
                                           </>
                                         ) : (
                                           <>

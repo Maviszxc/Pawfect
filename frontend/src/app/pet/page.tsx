@@ -866,7 +866,7 @@ function PetDetailsContent() {
                         </div>
                       )}
 
-                      {pet?.adoptionStatus === "Available" && (
+                      {pet?.adoptionStatus === "Available" && !adoptionStatus?.hasApplication && (
                         <Button
                           onClick={handleAdoptClick}
                           className="bg-orange-600 hover:bg-orange-700 text-white w-full py-3 text-lg mt-4 rounded-xl"
@@ -881,6 +881,23 @@ function PetDetailsContent() {
                             ? "Pet Unavailable"
                             : "Adopt Me"}
                         </Button>
+                      )}
+                      
+                      {adoptionStatus?.hasApplication && adoptionStatus?.application && (
+                        <Alert className="bg-yellow-50 border-yellow-200 mt-4">
+                          <AlertCircle className="h-4 w-4 text-yellow-600" />
+                          <AlertDescription className="text-yellow-800">
+                            <div className="font-semibold mb-1">Application Already Submitted</div>
+                            <div className="text-sm">
+                              Status: <span className="font-medium">{adoptionStatus.application.status}</span>
+                              {adoptionStatus.application.submittedAt && (
+                                <div className="text-xs mt-1">
+                                  Submitted: {new Date(adoptionStatus.application.submittedAt).toLocaleDateString()}
+                                </div>
+                              )}
+                            </div>
+                          </AlertDescription>
+                        </Alert>
                       )}
                     </div>
                   </CardContent>

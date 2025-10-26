@@ -628,6 +628,28 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
   // Handle "View pet details" option
   const handleViewPetDetails = () => {
     if (matchedPet) {
+      // Check if user is authenticated
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        // User is not logged in, redirect to login page
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: "assistant",
+            content:
+              "🔒 **Please Log In**\n\nYou need to be logged in to view pet details and start the adoption process. I'll redirect you to the login page now!",
+          },
+        ]);
+        
+        // Redirect to login after a short delay
+        setTimeout(() => {
+          router.push("/auth/login");
+        }, 1500);
+        return;
+      }
+      
+      // User is authenticated, proceed to pet details
       router.push(`/pet?id=${matchedPet._id}`);
     }
   };
