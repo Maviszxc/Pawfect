@@ -562,7 +562,12 @@ export default function AdminLivePage() {
                             left: `${Math.random() * 80 + 10}%`,
                           }}
                         >
-                          <span className="text-4xl drop-shadow-lg">❤️</span>
+                          <div className="flex flex-col items-center">
+                            <span className="text-4xl drop-shadow-lg">❤️</span>
+                            <span className="text-xs font-semibold text-white bg-black bg-opacity-60 px-2 py-1 rounded-full mt-1 whitespace-nowrap">
+                              {heart.sender}
+                            </span>
+                          </div>
                         </div>
                       ))}
                       

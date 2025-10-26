@@ -452,7 +452,12 @@ export default function LivePage() {
                         left: `${Math.random() * 80 + 10}%`,
                       }}
                     >
-                      <span className="text-4xl drop-shadow-lg">❤️</span>
+                      <div className="flex flex-col items-center">
+                        <span className="text-4xl drop-shadow-lg">❤️</span>
+                        <span className="text-xs font-semibold text-white bg-black bg-opacity-60 px-2 py-1 rounded-full mt-1 whitespace-nowrap">
+                          {heart.sender}
+                        </span>
+                      </div>
                     </div>
                   ))}
                   
@@ -616,7 +621,8 @@ export default function LivePage() {
                   <div className="flex justify-center">
                     <Button
                       onClick={handleHeartClick}
-                      className="flex items-center gap-2 px-6 py-3 rounded-full transition-all bg-white hover:bg-pink-50 text-gray-700 border-2 border-gray-200 hover:border-pink-300 shadow-md hover:shadow-lg"
+                      disabled={!isAdminStreaming}
+                      className="flex items-center gap-2 px-6 py-3 rounded-full transition-all bg-white hover:bg-pink-50 text-gray-700 border-2 border-gray-200 hover:border-pink-300 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-gray-200"
                     >
                       <span className="text-2xl">❤️</span>
                       <span className="text-gray-700 font-medium">React</span>

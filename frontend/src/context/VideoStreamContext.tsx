@@ -28,6 +28,7 @@ type ChatMessage = {
 type HeartReaction = {
   id: string;
   timestamp: number;
+  sender: string;
 };
 
 type UserInfo = {
@@ -769,6 +770,7 @@ export const VideoStreamProvider = ({
           const newHeart: HeartReaction = {
             id: `heart-${Date.now()}-${Math.random().toString(36).slice(2)}`,
             timestamp: Date.now(),
+            sender: data.sender || "Anonymous",
           };
           setHeartReactions((prev) => {
             console.log("Adding heart, current count:", prev.length);
