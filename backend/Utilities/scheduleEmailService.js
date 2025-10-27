@@ -207,7 +207,7 @@ const sendLiveStartedEmail = async (email, fullname, schedule) => {
             <div style="text-align: center; margin-top: 20px; background-color: #FF6B35; padding: 15px; border-radius: 8px;">
               <a href="${
                 process.env.FRONTEND_URL ||
-                "https://biyayaanimalcare.vercel.app/live"
+                "https://biyayaanimalcare.vercel.app"
               }/live" 
                  style="color: white; text-decoration: none; font-weight: bold; font-size: 16px;">
                  🎥 Watch Live Now
