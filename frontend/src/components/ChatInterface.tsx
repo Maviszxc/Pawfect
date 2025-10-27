@@ -896,25 +896,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isFirstTime = fa
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleClearChat}
-              className="text-gray-400 hover:bg-gray-800 hover:text-red-400 rounded-full"
-              aria-label="Clear chat"
-              title="Clear chat history"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className="text-gray-400 hover:bg-gray-800 rounded-full"
-              aria-label="Minimize dialog"
-            >
-              <span className="h-5 w-5">—</span>
-            </Button>
+         
+          
             <Button
               variant="ghost"
               size="icon"
