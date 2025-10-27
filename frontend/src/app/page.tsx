@@ -873,15 +873,6 @@ export default function Home() {
               viewport={{ once: true }}
               className="mt-16 flex justify-center"
             >
-              <Link
-                href="/adoption"
-                className="inline-flex items-center gap-2 text-orange-500 hover:text-orange-600 transition-colors duration-200"
-              >
-                <span className="font-medium">
-                  Learn more about our adoption process
-                </span>
-                <i className="bi bi-arrow-right"></i>
-              </Link>
             </motion.div>
           </div>
         </section>
