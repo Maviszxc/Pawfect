@@ -60,6 +60,7 @@ interface Pet {
   owner?: string;
   createdAt?: string;
   images?: { url: string }[];
+  isArchived?: boolean;
 }
 
 interface User {
@@ -81,6 +82,7 @@ interface Adoption {
   petImage?: string;
   status: string;
   createdAt: string;
+  isArchived?: boolean;
   user?: {
     _id: string;
     fullname: string;
@@ -326,7 +328,7 @@ export default function AdminDashboardPage() {
         throw new Error("No access token found");
       }
 
-      // Fetch pets (admin route)
+      // Fetch pets (admin route) - exclude archived
       const petsResponse = await axiosInstance.get(
         `${BASE_URL}/api/pets/admin/all`,
         {
@@ -335,13 +337,17 @@ export default function AdminDashboardPage() {
         }
       );
       if (petsResponse.data.success) {
-        setPets(petsResponse.data.pets);
-        const availablePets = petsResponse.data.pets.filter(
-          (pet: Pet) => pet.adoptionStatus === "Available"
+        // Filter out archived pets for accurate count
+        const activePets = petsResponse.data.pets.filter(
+          (pet: Pet) => !pet.isArchived && pet.adoptionStatus?.toLowerCase() !== "archived"
+        );
+        setPets(activePets);
+        const availablePets = activePets.filter(
+          (pet: Pet) => pet.adoptionStatus?.toLowerCase() === "available"
         ).length;
         setStats((prev) => ({
           ...prev,
-          totalPets: petsResponse.data.pets.length,
+          totalPets: activePets.length,
           availablePets,
         }));
       }
@@ -362,7 +368,7 @@ export default function AdminDashboardPage() {
         }));
       }
 
-      // Fetch adoptions with user and pet populated
+      // Fetch adoptions with user and pet populated - exclude archived
       const adoptionsResponse = await axiosInstance.get(
         `${BASE_URL}/api/admin/adoptions`,
         {
@@ -371,13 +377,19 @@ export default function AdminDashboardPage() {
         }
       );
       if (adoptionsResponse.data.success) {
-        setAdoptions(adoptionsResponse.data.adoptions);
-        const pendingAdoptions = adoptionsResponse.data.adoptions.filter(
-          (adoption: Adoption) => adoption.status === "Pending"
+        // Filter out archived adoptions
+        const activeAdoptions = adoptionsResponse.data.adoptions.filter(
+          (adoption: Adoption) => !adoption.isArchived
+        );
+        setAdoptions(activeAdoptions);
+        const pendingAdoptions = activeAdoptions.filter(
+          (adoption: Adoption) => 
+            adoption.status?.toLowerCase() === "pending" ||
+            adoption.status === "Under Review"
         ).length;
         setStats((prev) => ({
           ...prev,
-          totalAdoptions: adoptionsResponse.data.adoptions.length,
+          totalAdoptions: activeAdoptions.length,
           pendingAdoptions,
         }));
       }
@@ -435,12 +447,23 @@ export default function AdminDashboardPage() {
       ],
     };
 
-    // Application Status - Calculate from adoptions
+    // Application Status - Calculate from adoptions (exclude archived, normalize status values)
     const statusCounts = {
-      Approved: adoptions.filter((a) => a.status === "Approved").length,
-      Pending: adoptions.filter((a) => a.status === "Pending").length,
-      Rejected: adoptions.filter((a) => a.status === "Rejected").length,
-      Completed: adoptions.filter((a) => a.status === "Completed").length,
+      Approved: adoptions.filter((a) => 
+        !a.isArchived && a.status?.toLowerCase() === "approved"
+      ).length,
+      Pending: adoptions.filter((a) => 
+        !a.isArchived && (
+          a.status?.toLowerCase() === "pending" || 
+          a.status === "Under Review"
+        )
+      ).length,
+      Rejected: adoptions.filter((a) => 
+        !a.isArchived && a.status?.toLowerCase() === "rejected"
+      ).length,
+      Completed: adoptions.filter((a) => 
+        !a.isArchived && a.status?.toLowerCase() === "completed"
+      ).length,
     };
 
     console.log("Application status counts:", statusCounts);
@@ -597,7 +620,7 @@ export default function AdminDashboardPage() {
                       {dashboardStats.pendingAdoptions}
                     </div>
                     <div className="text-gray-500 text-xs sm:text-sm">
-                      Pending Adoptions
+                      Under Review
                     </div>
                   </div>
                   <div className="bg-orange-50 p-2.5 sm:p-3 rounded-lg">
@@ -605,7 +628,7 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
                 <div className="mt-2 text-xs sm:text-sm text-yellow-600">
-                  {stats.totalAdoptions} total requests
+                  {stats.totalAdoptions} total transactions
                 </div>
               </CardContent>
             </Card>

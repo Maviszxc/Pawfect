@@ -362,11 +362,24 @@ const sendAdoptionStatusEmail = async (adoption, status, adminMessage) => {
 // Get dashboard statistics
 exports.getDashboardStats = async (req, res) => {
   try {
-    const totalPets = await Pet.countDocuments();
+    // Count total pets (exclude archived)
+    const totalPets = await Pet.countDocuments({ 
+      adoptionStatus: { $ne: "Archived" },
+      isArchived: { $ne: true }
+    });
     const totalUsers = await User.countDocuments();
-    const adoptedPets = await Pet.countDocuments({ adoptionStatus: "adopted" });
+    
+    // Count adopted pets (with multiple possible statuses)
+    const adoptedPets = await Pet.countDocuments({ 
+      $or: [
+        { adoptionStatus: "Adopted" },
+        { adoptionStatus: "adopted" }
+      ]
+    });
+    
+    // Count pending adoptions (consistent status matching)
     const pendingAdoptions = await Adoption.countDocuments({
-      status: "Pending",
+      status: { $in: ["Pending", "pending", "Under Review"] }
     });
 
     // Get pet type distribution
@@ -382,7 +395,7 @@ exports.getDashboardStats = async (req, res) => {
     const monthlyAdoptions = await Adoption.aggregate([
       {
         $match: {
-          status: "Completed",
+          status: { $in: ["Completed", "completed"] },
           createdAt: { $gte: sixMonthsAgo },
         },
       },
