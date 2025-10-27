@@ -77,16 +77,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isFirstTime = fa
         id: "welcome",
         role: "assistant" as const,
         content:
-          "🎉 **Welcome to Biyaya!** \n\nI'm so excited to help you find your perfect furry companion! I just showed you around - now let's find your ideal Aspin or Puspin! \n\nReady to start your pet matching journey?",
-        options: ["Yes, let's find my pet!", "Tell me about Biyaya first"],
+          "🎉 **Welcome to Biyaya!** \n\nI'm so excited to help you find your perfect furry companion! I just showed you around - now let's find your ideal Aspin or Puspin! \n\n✨ **Take our Pet Matching Quiz** to discover your perfect companion!\n\nReady to find your match?",
+        options: ["🎯 Yes, start the quiz!", "Tell me about Biyaya first"],
       };
     }
     return {
       id: "welcome",
       role: "assistant" as const,
       content:
-        "🐾 **Kumusta! Welcome back to Biyaya!** \n\nI'm your Biyaya Pet Assistant. I can help you learn about Biyaya Animal Care, our services, and find your perfect Aspin or Puspin companion! \n\nWould you like to start the pet matching quiz?",
-      options: ["Yes, let's start", "Tell me more first"],
+        "🐾 **Kumusta! Welcome back to Biyaya!** \n\nI'm your Biyaya Pet Assistant. I can help you learn about Biyaya Animal Care, our services, and find your perfect Aspin or Puspin companion! \n\n✨ **Take our Pet Matching Quiz** to find your perfect pet match!\n\nWould you like to start the quiz?",
+      options: ["🎯 Yes, start the quiz!", "Tell me more first"],
     };
   };
   
@@ -459,7 +459,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isFirstTime = fa
     setMessages((prev) => [...prev, userMessage]);
 
     // If user wants to start the quiz (handle both first-time and returning user options)
-    if ((option === "Yes, let's start" || option === "Yes, let's find my pet!") && currentQuizStep === 0) {
+    if ((option === "Yes, let's start" || option === "Yes, let's find my pet!" || option === "🎯 Yes, start the quiz!") && currentQuizStep === 0) {
       // Start the quiz
       startQuiz();
       return;
@@ -1021,20 +1021,27 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isFirstTime = fa
                 {/* Options buttons - placed below the message */}
                 {message.options && (
                   <div
-                    className={`mt-2 flex flex-wrap pl-8 ${
+                    className={`mt-2 flex flex-wrap pl-8 gap-2 ${
                       message.role === "user" ? "justify-end" : "justify-start"
                     }`}
                   >
-                    {message.options.map((option) => (
-                      <Button
-                        key={option}
-                        variant="outline"
-                        className="mr-2 mb-2 border-gray-700 text-white bg-[#303846] hover:bg-[#3E4C5E] focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 hover:scale-105"
-                        onClick={() => handleOptionClick(option)}
-                      >
-                        {option}
-                      </Button>
-                    ))}
+                    {message.options.map((option) => {
+                      const isQuizButton = option.includes("quiz");
+                      return (
+                        <Button
+                          key={option}
+                          variant="outline"
+                          className={`mr-2 mb-2 transition-all duration-300 hover:scale-105 ${
+                            isQuizButton
+                              ? "border-2 border-yellow-400 text-yellow-300 bg-gradient-to-r from-orange-600 to-yellow-600 hover:from-orange-500 hover:to-yellow-500 shadow-lg shadow-yellow-500/50 font-bold text-base px-6 py-3 animate-pulse-slow"
+                              : "border-gray-700 text-white bg-[#303846] hover:bg-[#3E4C5E] focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                          }`}
+                          onClick={() => handleOptionClick(option)}
+                        >
+                          {option}
+                        </Button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1139,6 +1146,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isFirstTime = fa
             transform: scale(1.5);
             opacity: 0;
           }
+        }
+        @keyframes pulse-slow {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.8;
+          }
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
       `}</style>
     </div>

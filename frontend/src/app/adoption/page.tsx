@@ -126,6 +126,7 @@ export default function Adopt() {
   const [isLoading, setIsLoading] = useState(true);
   const [dogBreeds, setDogBreeds] = useState<string[]>([]);
   const [catBreeds, setCatBreeds] = useState<string[]>([]);
+  const [showChatOnAdoptionPage, setShowChatOnAdoptionPage] = useState(true);
   const [filters, setFilters] = useState<FilterState>({
     type: "all",
     gender: "all",
@@ -246,9 +247,9 @@ export default function Adopt() {
   return (
     <>
       <main className="min-h-screen bg-gradient-to-b from-white-50 to-white pb-20">
-        {/* Floating Bot Animation */}
+        {/* Floating Bot Animation - Auto-open chat on adoption page */}
         <div className="fixed top-0 left-0 w-full h-full z-10 pointer-events-none">
-          <FloatingBotDemo count={1} width={180} height={180} />
+          <FloatingBotDemo count={1} width={180} height={180} autoLoad={showChatOnAdoptionPage} />
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32">

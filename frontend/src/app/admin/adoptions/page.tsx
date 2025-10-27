@@ -415,6 +415,27 @@ export default function AdminAdoptionsPage() {
     }
   };
 
+  const getStatusDisplayName = (status: string) => {
+    switch (status) {
+      case "Under Review":
+        return "Under Review";
+      case "Approved":
+        return "Application Approved";
+      case "Completed":
+        return "Adoption Completed";
+      case "Rejected":
+        return "Application Rejected";
+      case "Denied":
+        return "Adoption Denied";
+      case "Returned":
+        return "Returned";
+      default:
+        return status
+          ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+          : "Unknown";
+    }
+  };
+
   return (
     <AdminAuthWrapper>
       <div className="min-h-screen bg-gray-50 pb-8">
@@ -738,12 +759,7 @@ export default function AdminAdoptionsPage() {
                                   >
                                     {getStatusIcon(adoption.status)}
                                     <span>
-                                      {adoption.status
-                                        ? adoption.status
-                                            .charAt(0)
-                                            .toUpperCase() +
-                                          adoption.status.slice(1).toLowerCase()
-                                        : "Unknown"}
+                                      {getStatusDisplayName(adoption.status)}
                                     </span>
                                   </Badge>
                                 </td>
