@@ -2,6 +2,11 @@
 // Common email configuration to prevent spam
 
 const getEmailConfig = (to, subject, html, text) => {
+  // Check if required environment variables are set
+  if (!process.env.SENDGRID_VERIFIED_SENDER) {
+    throw new Error("SENDGRID_VERIFIED_SENDER is not configured");
+  }
+
   return {
     to,
     from: {

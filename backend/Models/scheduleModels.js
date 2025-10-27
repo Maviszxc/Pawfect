@@ -15,10 +15,6 @@ const scheduleSchema = new Schema(
       type: Date,
       required: true,
     },
-    duration: {
-      type: Number,
-      default: 60,
-    },
     status: {
       type: String,
       enum: ["scheduled", "live", "completed", "cancelled"],

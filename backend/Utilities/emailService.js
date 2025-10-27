@@ -6,54 +6,102 @@ require("dotenv").config();
 // Validate configuration
 if (!process.env.SENDGRID_API_KEY) {
   console.error("❌ SENDGRID_API_KEY is not configured!");
-  throw new Error("SENDGRID_API_KEY is required");
+  console.error("Please set SENDGRID_API_KEY in your environment variables");
+  console.error("You can get your API key from: https://app.sendgrid.com/settings/api_keys");
 }
 
 if (!process.env.SENDGRID_VERIFIED_SENDER) {
   console.error("❌ SENDGRID_VERIFIED_SENDER is not configured!");
-  throw new Error("SENDGRID_VERIFIED_SENDER is required");
+  console.error("Please set SENDGRID_VERIFIED_SENDER in your environment variables");
+  console.error("This should be a verified sender email address in SendGrid");
 }
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+// Only set API key if it exists
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+} else {
+  console.warn("⚠️ SendGrid API key not found. Email sending will be disabled.");
+}
 
 // Send OTP email (existing function)
 const sendOtpEmail = async (email, otp) => {
   try {
+    // Check if SendGrid is configured
+    if (!process.env.SENDGRID_API_KEY || !process.env.SENDGRID_VERIFIED_SENDER) {
+      console.error("❌ SendGrid not configured. Cannot send OTP email.");
+      throw new Error("Email service not configured. Please contact administrator.");
+    }
+
     console.log("📧 Attempting to send OTP email via SendGrid to:", email);
 
     const htmlContent = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #FF6B35; margin: 0;">PawProject</h1>
-          </div>
-          <div style="background-color: #f9f9f9; border-radius: 10px; padding: 30px; text-align: center;">
-            <h2 style="color: #333; margin-top: 0;">Verification Code</h2>
-            <p style="color: #666; font-size: 16px;">Your verification code is:</p>
-            <div style="background-color: white; border: 2px dashed #FF6B35; border-radius: 8px; padding: 20px; margin: 20px 0;">
-              <h1 style="font-size: 36px; color: #FF6B35; letter-spacing: 8px; margin: 0;">${otp}</h1>
-            </div>
-            <p style="color: #666; font-size: 14px; margin-top: 20px;">This code is valid for 1 hour.</p>
-            <p style="color: #999; font-size: 12px; margin-top: 30px;">If you didn't request this code, please ignore this email.</p>
-          </div>
-          <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
-            <p>© ${new Date().getFullYear()} PawProject. All rights reserved.</p>
-          </div>
-        </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verification Code</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td align="center" style="padding: 40px 0;">
+        <table role="presentation" style="width: 600px; max-width: 100%; border-collapse: collapse; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 30px; text-align: center; background-color: #FF6B35; border-radius: 8px 8px 0 0;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">Biyaya Pet Adoption</h1>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px 30px;">
+              <h2 style="margin: 0 0 20px; color: #333333; font-size: 24px; font-weight: 600;">Account Verification</h2>
+              <p style="margin: 0 0 20px; color: #666666; font-size: 16px; line-height: 1.5;">Thank you for signing up! Please use the verification code below to complete your registration:</p>
+              <table role="presentation" style="width: 100%; margin: 30px 0;">
+                <tr>
+                  <td align="center">
+                    <div style="background-color: #f9f9f9; border: 2px solid #FF6B35; border-radius: 8px; padding: 20px; display: inline-block;">
+                      <span style="font-size: 32px; font-weight: bold; color: #FF6B35; letter-spacing: 8px;">${otp}</span>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin: 20px 0 0; color: #666666; font-size: 14px; line-height: 1.5;">This verification code will expire in <strong>1 hour</strong>.</p>
+              <p style="margin: 20px 0 0; color: #999999; font-size: 13px; line-height: 1.5;">If you didn't create an account with Biyaya, please disregard this email.</p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 30px; text-align: center; background-color: #f9f9f9; border-radius: 0 0 8px 8px;">
+              <p style="margin: 0; color: #999999; font-size: 12px;">© ${new Date().getFullYear()} Biyaya Pet Adoption. All rights reserved.</p>
+              <p style="margin: 10px 0 0; color: #999999; font-size: 12px;">This is an automated message, please do not reply.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
       `;
 
     const textContent = `
-PawProject - Verification Code
+Biyaya Pet Adoption - Account Verification
+
+Thank you for signing up!
 
 Your verification code is: ${otp}
 
-This code is valid for 1 hour.
+This code will expire in 1 hour.
 
-If you didn't request this code, please ignore this email.
+If you didn't create an account with Biyaya, please disregard this email.
 
-© ${new Date().getFullYear()} PawProject. All rights reserved.
+© ${new Date().getFullYear()} Biyaya Pet Adoption. All rights reserved.
+This is an automated message, please do not reply.
     `;
 
-    const msg = getEmailConfig(email, "Verification Code - PawProject", htmlContent, textContent);
+    const msg = getEmailConfig(email, "Your Biyaya Account Verification Code", htmlContent, textContent);
     const result = await sgMail.send(msg);
     console.log("✅ OTP Email sent successfully via SendGrid");
     return {
@@ -70,6 +118,12 @@ If you didn't request this code, please ignore this email.
 // ✅ Send adoption status email
 const sendAdoptionEmail = async (email, subject, html) => {
   try {
+    // Check if SendGrid is configured
+    if (!process.env.SENDGRID_API_KEY || !process.env.SENDGRID_VERIFIED_SENDER) {
+      console.error("❌ SendGrid not configured. Cannot send adoption email.");
+      throw new Error("Email service not configured. Please contact administrator.");
+    }
+
     console.log("📧 Attempting to send adoption email via SendGrid to:", email);
 
     const textContent = html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
@@ -91,7 +145,13 @@ const sendAdoptionEmail = async (email, subject, html) => {
 // ✅ NEW: Send contact form email to admin
 const sendContactEmail = async (contactData) => {
   try {
-    console.log("📧 Attempting to send contact form email to admin");
+    // Check if SendGrid is configured
+    if (!process.env.SENDGRID_API_KEY || !process.env.SENDGRID_VERIFIED_SENDER) {
+      console.error("❌ SendGrid not configured. Cannot send contact email.");
+      throw new Error("Email service not configured. Please contact administrator.");
+    }
+
+    console.log("📧 Attempting to send contact form email via SendGrid");
 
     const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -198,7 +258,13 @@ Submitted: ${new Date().toLocaleString()}
 // ✅ NEW: Send donation confirmation email
 const sendDonationEmail = async (donationData, isInternational = false) => {
   try {
-    console.log("📧 Attempting to send donation email to admin");
+    // Check if SendGrid is configured
+    if (!process.env.SENDGRID_API_KEY || !process.env.SENDGRID_VERIFIED_SENDER) {
+      console.error("❌ SendGrid not configured. Cannot send donation email.");
+      throw new Error("Email service not configured. Please contact administrator.");
+    }
+
+    console.log("📧 Attempting to send donation email via SendGrid");
 
     const amount = isInternational
       ? `$${donationData.amount} USD`
@@ -333,6 +399,12 @@ const sendAdoptionStatusEmail = async ({
       petName,
       status,
     });
+    return;
+  }
+
+  // Check if SendGrid is configured
+  if (!process.env.SENDGRID_API_KEY || !process.env.SENDGRID_VERIFIED_SENDER) {
+    console.error("❌ SendGrid not configured. Cannot send adoption status email.");
     return;
   }
 

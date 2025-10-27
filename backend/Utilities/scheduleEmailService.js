@@ -5,10 +5,22 @@ require("dotenv").config();
 
 if (!process.env.SENDGRID_API_KEY) {
   console.error("❌ SENDGRID_API_KEY is not configured!");
-  throw new Error("SENDGRID_API_KEY is required");
+  console.error("Please set SENDGRID_API_KEY in your environment variables");
+  console.error("You can get your API key from: https://app.sendgrid.com/settings/api_keys");
 }
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+if (!process.env.SENDGRID_VERIFIED_SENDER) {
+  console.error("❌ SENDGRID_VERIFIED_SENDER is not configured!");
+  console.error("Please set SENDGRID_VERIFIED_SENDER in your environment variables");
+  console.error("This should be a verified sender email address in SendGrid");
+}
+
+// Only set API key if it exists
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+} else {
+  console.warn("⚠️ SendGrid API key not found. Schedule email sending will be disabled.");
+}
 
 // Format date for display
 const formatDate = (date) => {
@@ -26,6 +38,12 @@ const formatDate = (date) => {
 // Send schedule creation email
 const sendScheduleCreationEmail = async (email, fullname, schedule) => {
   try {
+    // Check if SendGrid is configured
+    if (!process.env.SENDGRID_API_KEY || !process.env.SENDGRID_VERIFIED_SENDER) {
+      console.error("❌ SendGrid not configured. Cannot send schedule creation email.");
+      throw new Error("Email service not configured. Please contact administrator.");
+    }
+
     console.log(`📧 Sending creation email to: ${email}`);
 
     const htmlContent = `
@@ -50,9 +68,6 @@ const sendScheduleCreationEmail = async (email, fullname, schedule) => {
               <p style="color: #666; margin: 10px 0;"><strong>Date & Time:</strong> ${formatDate(
                 schedule.scheduledDate
               )}</p>
-              <p style="color: #666; margin: 10px 0;"><strong>Duration:</strong> ${
-                schedule.duration
-              } minutes</p>
             </div>
             
             <div style="text-align: center; margin-top: 20px;">
@@ -70,12 +85,11 @@ const sendScheduleCreationEmail = async (email, fullname, schedule) => {
         </div>
       `;
 
-    const msg = {
-      to: email,
-      from: process.env.SENDGRID_VERIFIED_SENDER,
-      subject: `🎉 New Live Stream: ${schedule.title}`,
-      html: htmlContent,
-    };
+    const msg = getEmailConfig(
+      email,
+      `🎉 New Live Stream: ${schedule.title}`,
+      htmlContent
+    );
 
     const result = await sgMail.send(msg);
     console.log(`✅ Creation email sent to ${email}`);
@@ -92,6 +106,12 @@ const sendScheduleCreationEmail = async (email, fullname, schedule) => {
 // Send schedule reminder email (1 hour before)
 const sendScheduleReminderEmail = async (email, fullname, schedule) => {
   try {
+    // Check if SendGrid is configured
+    if (!process.env.SENDGRID_API_KEY || !process.env.SENDGRID_VERIFIED_SENDER) {
+      console.error("❌ SendGrid not configured. Cannot send schedule reminder email.");
+      throw new Error("Email service not configured. Please contact administrator.");
+    }
+
     console.log(`⏰ Sending 1-hour reminder to: ${email}`);
 
     const htmlContent = `
@@ -131,12 +151,11 @@ const sendScheduleReminderEmail = async (email, fullname, schedule) => {
         </div>
       `;
 
-    const msg = {
-      to: email,
-      from: process.env.SENDGRID_VERIFIED_SENDER,
-      subject: `⏰ Reminder: ${schedule.title} starts in 1 hour!`,
-      html: htmlContent,
-    };
+    const msg = getEmailConfig(
+      email,
+      `⏰ Reminder: ${schedule.title} starts in 1 hour!`,
+      htmlContent
+    );
 
     const result = await sgMail.send(msg);
     console.log(`✅ Reminder email sent to ${email}`);
@@ -153,6 +172,12 @@ const sendScheduleReminderEmail = async (email, fullname, schedule) => {
 // Send live started email
 const sendLiveStartedEmail = async (email, fullname, schedule) => {
   try {
+    // Check if SendGrid is configured
+    if (!process.env.SENDGRID_API_KEY || !process.env.SENDGRID_VERIFIED_SENDER) {
+      console.error("❌ SendGrid not configured. Cannot send live started email.");
+      throw new Error("Email service not configured. Please contact administrator.");
+    }
+
     console.log(`🔴 Sending live started notification to: ${email}`);
 
     const htmlContent = `
@@ -202,12 +227,11 @@ const sendLiveStartedEmail = async (email, fullname, schedule) => {
         </div>
       `;
 
-    const msg = {
-      to: email,
-      from: process.env.SENDGRID_VERIFIED_SENDER,
-      subject: `🔴 LIVE NOW: ${schedule.title}`,
-      html: htmlContent,
-    };
+    const msg = getEmailConfig(
+      email,
+      `🔴 LIVE NOW: ${schedule.title}`,
+      htmlContent
+    );
 
     const result = await sgMail.send(msg);
     console.log(`✅ Live started email sent to ${email}`);

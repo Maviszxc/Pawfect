@@ -36,7 +36,6 @@ interface Schedule {
   title: string;
   description: string;
   scheduledDate: string;
-  duration: number;
   status: "scheduled" | "live" | "completed" | "cancelled";
   createdBy: {
     fullname: string;
@@ -76,7 +75,6 @@ export default function AdminLivePage() {
     title: "",
     description: "",
     scheduledDate: "",
-    duration: 60,
   });
   const [isCreatingSchedule, setIsCreatingSchedule] = useState(false);
 
@@ -171,7 +169,6 @@ export default function AdminLivePage() {
           title: "",
           description: "",
           scheduledDate: "",
-          duration: 60,
         });
         fetchUpcomingSchedules();
         toast.success(
@@ -892,19 +889,6 @@ export default function AdminLivePage() {
                           required
                           className="rounded-xl"
                         />
-                        <Input
-                          type="number"
-                          placeholder="Duration (minutes)"
-                          value={scheduleFormData.duration}
-                          onChange={(e) =>
-                            setScheduleFormData({
-                              ...scheduleFormData,
-                              duration: parseInt(e.target.value) || 60,
-                            })
-                          }
-                          min="1"
-                          className="rounded-xl"
-                        />
                       </div>
                       <div className="flex gap-2">
                         <Button
@@ -971,20 +955,13 @@ export default function AdminLivePage() {
                             <p className="text-gray-600 mb-3">
                               {schedule.description}
                             </p>
-                            <div className="flex items-center gap-4 text-sm text-gray-500">
-                              <div className="flex items-center gap-1">
-                                <Calendar className="w-4 h-4" />
-                                {new Date(
-                                  schedule.scheduledDate
-                                ).toLocaleDateString()}
-                              </div>
+                            <div className="flex items-center gap-4 text-sm text-gray-600">
                               <div className="flex items-center gap-1">
                                 <Clock className="w-4 h-4" />
                                 {new Date(
                                   schedule.scheduledDate
                                 ).toLocaleTimeString()}
                               </div>
-                              <span>Duration: {schedule.duration} minutes</span>
                             </div>
                             {schedule.reminderSent && (
                               <div className="mt-2 text-xs text-green-600">
@@ -1034,24 +1011,24 @@ export default function AdminLivePage() {
               {/* Information Panel */}
               <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
                 <h4 className="font-semibold text-blue-800 mb-2">
-                  How it works:
+                  📧 Smart Notification System:
                 </h4>
                 <ul className="text-sm text-blue-700 space-y-1">
                   <li>
-                    • Create a schedule to notify all users via email
-                    immediately
+                    • <strong>All schedules:</strong> Users get creation notification immediately
                   </li>
                   <li>
-                    • Users automatically get a reminder 1 hour before the
-                    stream
+                    • <strong>Schedule &gt; 1 hour away:</strong> Users also get a reminder 1 hour before
+                  </li>
+                  <li>
+                    • <strong>Schedule ≤ 1 hour away:</strong> Only creation email sent (no duplicate reminder)
                   </li>
                   <li>
                     • Select a schedule before starting camera to send live
                     notifications
                   </li>
                   <li>
-                    • Users receive 3 emails: creation, 1-hour reminder, and
-                    live start
+                    • All verified users receive email notifications automatically
                   </li>
                 </ul>
               </div>
