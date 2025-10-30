@@ -213,6 +213,7 @@ exports.checkAdoptionStatus = async (req, res) => {
           hasApplication: true,
           isApproved: userAdoption.status === "Approved",
           application: {
+            _id: userAdoption._id,
             status: userAdoption.status,
             submittedAt: userAdoption.createdAt,
             petName: userAdoption.pet?.name,

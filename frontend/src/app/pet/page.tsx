@@ -594,7 +594,13 @@ function PetDetailsContent() {
 
   // Handle withdrawal of adoption application
   const handleWithdrawAdoption = async () => {
-    if (!adoptionStatus?.application?._id) return;
+    console.log("🔍 Withdraw clicked - adoptionStatus:", adoptionStatus);
+    
+    if (!adoptionStatus?.application?._id) {
+      console.error("❌ No application ID found:", adoptionStatus);
+      toast.error("Unable to find application ID. Please refresh the page.");
+      return;
+    }
 
     setIsWithdrawing(true);
     try {
@@ -605,22 +611,32 @@ function PetDetailsContent() {
         return;
       }
 
+      console.log("📤 Sending delete request for adoption:", adoptionStatus.application._id);
+
       const response = await axios.delete(
         `${BASE_URL}/api/adoptions/${adoptionStatus.application._id}/cancel`,
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         }
       );
 
+      console.log("✅ Delete response:", response.data);
+
       if (response.data.success) {
         toast.success("Adoption application withdrawn successfully");
+        // Reset adoption status to show no application exists
+        setAdoptionStatus({
+          hasApplication: false,
+          isApproved: false,
+          isPetUnavailable: false,
+        });
         setShowWithdrawModal(false);
-        // Refresh adoption status
-        if (userDetails?.email) {
-          checkAdoptionStatus(userDetails.email);
-        }
       }
     } catch (error: any) {
+      console.error("❌ Withdraw error:", error);
       const errorMessage = error.response?.data?.message || "Failed to withdraw adoption application";
       toast.error(errorMessage);
     } finally {
@@ -1204,24 +1220,74 @@ function PetDetailsContent() {
                           Upload your filled adoption form. Only PDF files up to 10MB are accepted.
                         </p>
                         <div className="space-y-3">
-                          <div className="relative">
-                            <input
-                              type="file"
-                              accept="application/pdf"
-                              onChange={handlePdfFileChange}
-                              className="w-full text-sm border-2 border-dashed border-orange-300 rounded-lg p-4 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-orange-500 file:text-white hover:file:bg-orange-600 cursor-pointer hover:border-orange-400 transition-all"
-                              required
-                            />
-                          </div>
-                          {pdfFile && (
-                            <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg p-3">
-                              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-green-900 truncate">{pdfFile.name}</p>
-                                <p className="text-xs text-green-700">
-                                  {(pdfFile.size / 1024 / 1024).toFixed(2)} MB
-                                </p>
+                          {!pdfFile ? (
+                            <div>
+                              <input
+                                type="file"
+                                accept="application/pdf"
+                                onChange={handlePdfFileChange}
+                                className="hidden"
+                                required
+                                id="pdf-upload"
+                              />
+                              <label 
+                                htmlFor="pdf-upload"
+                                className="block w-full border-2 border-dashed border-orange-300 rounded-lg p-6 hover:border-orange-400 transition-all cursor-pointer bg-white hover:bg-orange-50/50"
+                              >
+                                <div className="flex flex-col items-center justify-center gap-3">
+                                  <Upload className="w-8 h-8 text-orange-500" />
+                                  <div className="text-center">
+                                    <p className="text-sm font-semibold text-gray-900">
+                                      Click to upload PDF
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      or drag and drop your file here
+                                    </p>
+                                  </div>
+                                  <span className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all">
+                                    <FileText className="w-4 h-4" />
+                                    Choose File
+                                  </span>
+                                </div>
+                              </label>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <div className="flex items-start gap-3 bg-green-50 border-2 border-green-200 rounded-lg p-4">
+                                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold text-green-900 break-all">
+                                    {pdfFile.name}
+                                  </p>
+                                  <p className="text-xs text-green-700 mt-1">
+                                    {(pdfFile.size / 1024 / 1024).toFixed(2)} MB
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setPdfFile(null)}
+                                  className="text-green-700 hover:text-green-900 transition-colors flex-shrink-0"
+                                  title="Remove file"
+                                >
+                                  <X className="w-5 h-5" />
+                                </button>
                               </div>
+                              <label htmlFor="pdf-upload">
+                                <input
+                                  type="file"
+                                  accept="application/pdf"
+                                  onChange={handlePdfFileChange}
+                                  className="hidden"
+                                  id="pdf-upload"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => document.getElementById('pdf-upload')?.click()}
+                                  className="w-full mt-5 text-sm text-orange-600 hover:text-orange-700 font-medium py-2 px-4 border border-orange-300 rounded-lg hover:bg-orange-50 transition-all"
+                                >
+                                  Choose Different File
+                                </button>
+                              </label>
                             </div>
                           )}
                           {isUploading && (

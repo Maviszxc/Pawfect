@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, RefreshCw, Play, Pause, CameraOff, Calendar, Clock, Video, Heart, Eye, MessageCircle } from "lucide-react";
+import { Send, RefreshCw, Play, Pause, CameraOff, Calendar, Clock, Video, Heart, Eye, MessageCircle, Maximize, Minimize } from "lucide-react";
 import { useVideoStream } from "@/context/VideoStreamContext";
 import Navigation from "@/components/Navigation";
 import AuthNavigation from "@/components/authNavigation";
@@ -39,6 +39,8 @@ export default function LivePage() {
   const [isJoined, setIsJoined] = useState(false);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [schedulesLoading, setSchedulesLoading] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
 
   const {
     adminStream,
@@ -170,7 +172,7 @@ export default function LivePage() {
       videoElement.srcObject = null;
       console.log("Viewer: Cleared video stream");
     }
-  }, [adminStream, hasUserInteracted]);
+  }, [adminStream, hasUserInteracted, isFullscreen]);
 
   const playVideo = async () => {
     if (!videoRef.current || !adminStream) {
@@ -320,6 +322,10 @@ export default function LivePage() {
       initials += words[i][0];
     }
     return initials.toUpperCase();
+  };
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
   };
 
   return (
@@ -575,6 +581,17 @@ export default function LivePage() {
                       </div>
                     </div>
                   )}
+                  
+                  {/* Fullscreen Button */}
+                  {isJoined && adminStream && (
+                    <button
+                      onClick={toggleFullscreen}
+                      className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white p-2.5 rounded-lg transition-all backdrop-blur-sm z-30"
+                      title="Toggle Fullscreen"
+                    >
+                      <Maximize className="w-5 h-5" />
+                    </button>
+                  )}
                 </div>
 
                 {/* Pause Status Message */}
@@ -657,43 +674,42 @@ export default function LivePage() {
                     }
 
                     // Regular chat message
+                    const isOwnMessage = currentUser && msg.sender === currentUser.fullname;
+                    
                     return (
-                      <div
-                        key={msg.id}
-                        className={`p-2 sm:p-3 rounded-lg sm:rounded-xl flex items-start gap-2 sm:gap-3 ${
-                          msg.isStaff
-                            ? "bg-blue-100 text-blue-800 mr-4 sm:mr-8 border border-blue-200"
-                            : msg.senderId === currentUser?._id
-                            ? "bg-orange-50 text-orange-800 mr-4 sm:mr-8 border border-orange-200"
-                            : "bg-white text-gray-800 ml-4 sm:ml-8 border border-gray-200"
-                        }`}
-                      >
-                        <Avatar className="h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0 mt-1">
-                          <AvatarImage
-                            src={getProfilePictureUrl(msg.profileUrl)}
-                            alt={msg.sender}
-                          />
-                          <AvatarFallback>
+                      <div key={msg.id} className={`flex items-start gap-2 sm:gap-3 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
+                        <Avatar className="h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0">
+                          {msg.profileUrl && (
+                            <AvatarImage
+                              src={getProfilePictureUrl(msg.profileUrl)}
+                              alt={msg.sender}
+                            />
+                          )}
+                          <AvatarFallback className={`text-white text-xs ${isOwnMessage ? 'bg-orange-500' : 'bg-blue-500'}`}>
                             {getInitials(msg.sender)}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start mb-1 gap-2">
-                            <span className="font-semibold text-xs sm:text-sm truncate">
-                              {msg.sender}
-                              {msg.senderId === currentUser?._id && " (You)"}
-                              {msg.isStaff && " (Admin)"}
+                        <div className={`flex-1 min-w-0 ${isOwnMessage ? 'items-end' : 'items-start'} flex flex-col`}>
+                          <div className={`flex items-baseline gap-2 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
+                            <span className="text-xs sm:text-sm font-medium text-gray-900 truncate">
+                              {isOwnMessage ? 'You' : msg.sender}
                             </span>
-                            <span className="text-xs opacity-70 flex-shrink-0">
-                              {msg.timestamp.toLocaleTimeString([], {
+                            <span className="text-xs text-gray-500">
+                              {new Date(msg.timestamp).toLocaleTimeString([], {
                                 hour: "2-digit",
                                 minute: "2-digit",
                               })}
                             </span>
                           </div>
-                          <p className="text-xs sm:text-sm break-words">
-                            {msg.message}
-                          </p>
+                          <div className={`mt-1 max-w-[85%] ${isOwnMessage ? 'ml-auto' : 'mr-auto'}`}>
+                            <p className={`text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg break-words ${
+                              isOwnMessage 
+                                ? 'bg-orange-500 text-white rounded-br-none' 
+                                : 'bg-gray-200 text-gray-900 rounded-bl-none'
+                            }`}>
+                              {msg.message}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     );
@@ -810,6 +826,262 @@ export default function LivePage() {
         </div>
         <Footer />
       </div>
+
+      {/* Fullscreen Modal */}
+      {isFullscreen && isJoined && adminStream && (
+        <div className="fixed inset-0 z-[9999] bg-black flex flex-col md:flex-row">
+          {/* Left Side - Video Feed */}
+          <div className="flex-1 relative order-1">
+            {/* Header Bar */}
+            <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent p-2 md:p-4 z-50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <h2 className="text-white font-semibold text-sm md:text-lg">Live Stream</h2>
+                  <div className="flex items-center gap-1 md:gap-2 bg-red-500/90 text-white px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium backdrop-blur-sm">
+                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-white rounded-full animate-pulse"></div>
+                    <span>LIVE</span>
+                  </div>
+                  <span className="text-white/80 text-xs md:text-sm">
+                    {viewerCount} <span className="hidden sm:inline">viewer{viewerCount !== 1 ? "s" : ""}</span>
+                  </span>
+                </div>
+                <button
+                  onClick={toggleFullscreen}
+                  className="bg-white/10 hover:bg-white/20 text-white p-1.5 md:p-2 rounded-lg transition-all backdrop-blur-sm"
+                  title="Exit Fullscreen"
+                >
+                  <Minimize className="w-4 h-4 md:w-5 md:h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Video Container */}
+            <div className="relative w-full h-full flex items-center justify-center">
+              {/* Floating Hearts */}
+              {heartReactions.map((heart) => (
+                <div
+                  key={heart.id}
+                  className="absolute bottom-20 pointer-events-none z-50"
+                  style={{
+                    animation: 'floatUp 3s ease-out forwards',
+                    left: `${Math.random() * 80 + 10}%`,
+                  }}
+                >
+                  <div className="flex flex-col items-center">
+                    <span className="text-5xl drop-shadow-2xl">❤️</span>
+                    <span className="text-sm font-semibold text-white bg-black/70 px-3 py-1 rounded-full mt-2 whitespace-nowrap backdrop-blur-sm">
+                      {heart.sender}
+                    </span>
+                  </div>
+                </div>
+              ))}
+
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                controls={false}
+                muted={false}
+                className={`w-full h-full object-contain ${isPaused ? "hidden" : ""}`}
+              />
+
+              {isPaused && (
+                <div className="absolute inset-0 bg-black flex flex-col items-center justify-center text-white">
+                  <Pause className="w-24 h-24 mb-6 text-white/80 animate-pulse" />
+                  <h3 className="text-4xl font-bold mb-3">Stream Paused</h3>
+                  <p className="text-xl text-gray-300">Please wait, it will resume shortly...</p>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Control Bar */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-2 md:p-4 z-50">
+              <div className="md:max-w-[calc(100%-24rem)] mx-auto">
+                <div className="flex items-center justify-between gap-2 md:gap-3">
+                  <div className="flex-shrink-0 hidden sm:block">
+                    {currentUser && (
+                      <div className="flex items-center gap-2 md:gap-3">
+                        <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-white/20">
+                          <AvatarImage
+                            src={getProfilePictureUrl(currentUser.profilePicture)}
+                            alt={currentUser.fullname}
+                          />
+                          <AvatarFallback className="bg-orange-500 text-white text-xs">
+                            {getInitials(currentUser.fullname)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="hidden md:block">
+                          <p className="text-white font-medium text-sm">{currentUser.fullname}</p>
+                          <p className="text-white/60 text-xs">Watching</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-1.5 md:gap-2 flex-1 justify-end">
+                    <Button
+                      onClick={() => sendHeartReaction()}
+                      className="bg-gradient-to-r from-pink-500 to-red-500 hover:from-pink-600 hover:to-red-600 text-white rounded-lg shadow-lg h-8 md:h-9 px-2 md:px-3"
+                      size="sm"
+                    >
+                      <Heart className="w-3.5 h-3.5 md:w-4 md:h-4 md:mr-2" fill="currentColor" />
+                      <span className="font-semibold hidden md:inline">React</span>
+                    </Button>
+                    
+                    <Button
+                      onClick={() => setShowLeaveModal(true)}
+                      variant="destructive"
+                      size="sm"
+                      className="rounded-lg shadow-lg text-white h-8 md:h-9 px-2 md:px-3"
+                    >
+                      <CameraOff className="w-3.5 h-3.5 md:w-4 md:h-4 md:mr-2" />
+                      <span className="font-semibold hidden md:inline">Leave</span>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Side - Chat Panel */}
+          <div className="w-full md:w-96 h-1/3 md:h-full bg-gray-900 border-t md:border-t-0 md:border-l border-gray-800 flex flex-col order-2">
+            {/* Chat Header */}
+            <div className="p-3 md:p-4 border-b border-gray-800">
+              <div className="flex items-center justify-between">
+                <h3 className="text-white font-semibold flex items-center gap-2">
+                  <MessageCircle className="w-5 h-5" />
+                  Live Chat
+                </h3>
+                <span className="text-gray-400 text-sm">
+                  {chatMessages.filter(m => !m.isSystem).length} messages
+                </span>
+              </div>
+            </div>
+
+            {/* Chat Messages */}
+            <div 
+              ref={chatContainerRef}
+              className="flex-1 overflow-y-auto p-2 md:p-4 space-y-2 md:space-y-3"
+            >
+              {chatMessages.map((msg) => {
+                if (msg.isSystem) {
+                  return (
+                    <div key={msg.id} className="text-center py-2">
+                      <span className="text-xs text-gray-500 bg-gray-800 px-3 py-1 rounded-full">
+                        {msg.message}
+                      </span>
+                    </div>
+                  );
+                }
+
+                const isOwnMessage = currentUser && msg.sender === currentUser.fullname;
+                
+                return (
+                  <div key={msg.id} className={`flex items-start gap-3 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
+                    <Avatar className="h-8 w-8 flex-shrink-0">
+                      {msg.profileUrl && (
+                        <AvatarImage
+                          src={getProfilePictureUrl(msg.profileUrl)}
+                          alt={msg.sender}
+                        />
+                      )}
+                      <AvatarFallback className={`text-white text-xs ${isOwnMessage ? 'bg-orange-500' : 'bg-blue-500'}`}>
+                        {getInitials(msg.sender)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className={`flex-1 min-w-0 ${isOwnMessage ? 'items-end' : 'items-start'} flex flex-col`}>
+                      <div className={`flex items-baseline gap-2 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
+                        <span className="text-sm font-medium text-white truncate">
+                          {isOwnMessage ? 'You' : msg.sender}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {new Date(msg.timestamp).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                      <div className={`mt-1 max-w-[85%] ${isOwnMessage ? 'ml-auto' : 'mr-auto'}`}>
+                        <p className={`text-sm px-3 py-2 rounded-lg break-words ${
+                          isOwnMessage 
+                            ? 'bg-orange-500 text-white rounded-br-none' 
+                            : 'bg-gray-800 text-gray-200 rounded-bl-none'
+                        }`}>
+                          {msg.message}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Chat Input */}
+            <div className="p-2 md:p-4 border-t border-gray-800">
+              <div className="flex gap-2">
+                <Input
+                  ref={chatInputRef}
+                  placeholder="Send a message..."
+                  className="flex-1 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 text-sm md:text-base h-9 md:h-10"
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter" && chatInputRef.current?.value.trim()) {
+                      handleSendMessage();
+                    }
+                  }}
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  className="bg-orange-500 hover:bg-orange-600 h-9 w-9 md:h-10 md:w-10 p-0"
+                >
+                  <Send className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Leave Stream Confirmation Modal */}
+          {showLeaveModal && (
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100]">
+              <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-md mx-4 shadow-2xl">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-3 bg-red-500/20 rounded-full">
+                    <CameraOff className="w-6 h-6 text-red-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Leave Live Stream?</h3>
+                    <p className="text-sm text-gray-400">You can rejoin anytime</p>
+                  </div>
+                </div>
+                
+                <p className="text-gray-300 mb-6">
+                  Are you sure you want to leave this live stream?
+                </p>
+                
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => setShowLeaveModal(false)}
+                    variant="outline"
+                    className="flex-1 bg-white/10 hover:bg-white/20 text-white border-white/20"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setShowLeaveModal(false);
+                      handleLeaveStream();
+                    }}
+                    variant="destructive"
+                    className="flex-1"
+                  >
+                    <CameraOff className="w-4 h-4 mr-2" />
+                    Leave Stream
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 }

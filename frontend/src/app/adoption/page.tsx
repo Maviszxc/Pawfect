@@ -190,6 +190,20 @@ export default function Adopt() {
     const fetchFilteredPets = async () => {
       setIsLoading(true);
       try {
+        // Check if all filters are set to "all" and no search query
+        const allFiltersDefault = 
+          filters.type === "all" &&
+          filters.gender === "all" &&
+          filters.breed === "all" &&
+          filters.age === "all" &&
+          !filters.searchQuery;
+
+        if (allFiltersDefault) {
+          // Fetch all pets when no filters are applied
+          await fetchPets();
+          return;
+        }
+
         // Build query parameters based on filters
         const params = new URLSearchParams();
 
@@ -225,16 +239,8 @@ export default function Adopt() {
       }
     };
 
-    // Only fetch if we have changed filters (skip the initial render)
-    if (
-      filters.type !== "all" ||
-      filters.gender !== "all" ||
-      filters.breed !== "all" ||
-      filters.age !== "all" ||
-      filters.searchQuery
-    ) {
-      fetchFilteredPets();
-    }
+    // Always fetch when filters change
+    fetchFilteredPets();
   }, [filters]);
 
   const handleFilterChange = (key: string, value: string | number) => {

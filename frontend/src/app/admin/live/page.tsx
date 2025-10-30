@@ -23,6 +23,8 @@ import {
   Play,
   Heart,
   MessageCircle,
+  Maximize,
+  Minimize,
 } from "lucide-react";
 import AdminAuthWrapper from "@/components/AdminAuthWrapper";
 import { useVideoStream } from "@/context/VideoStreamContext";
@@ -77,6 +79,8 @@ export default function AdminLivePage() {
     scheduledDate: "",
   });
   const [isCreatingSchedule, setIsCreatingSchedule] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showEndStreamModal, setShowEndStreamModal] = useState(false);
 
   const {
     setAdminStream,
@@ -120,8 +124,12 @@ export default function AdminLivePage() {
   useEffect(() => {
     if (cameraVideoRef.current && cameraStream) {
       cameraVideoRef.current.srcObject = cameraStream;
+      // Ensure video plays
+      cameraVideoRef.current.play().catch(err => {
+        console.log("Video autoplay prevented:", err);
+      });
     }
-  }, [cameraStream]);
+  }, [cameraStream, isFullscreen]);
 
   // Fetch user data and schedules on component mount
   useEffect(() => {
@@ -430,6 +438,10 @@ export default function AdminLivePage() {
     return initials.toUpperCase();
   };
 
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
   // Filter schedules to show only upcoming ones
   const upcomingSchedules = schedules.filter(
     (schedule) => schedule.status === "scheduled" || schedule.status === "live"
@@ -601,6 +613,17 @@ export default function AdminLivePage() {
                           <CameraOff className="w-12 h-12 opacity-50" />
                         </div>
                       )}
+                      
+                      {/* Fullscreen Button */}
+                      {isCameraActive && cameraStream && (
+                        <button
+                          onClick={toggleFullscreen}
+                          className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white p-2.5 rounded-lg transition-all backdrop-blur-sm z-30"
+                          title="Toggle Fullscreen"
+                        >
+                          <Maximize className="w-5 h-5" />
+                        </button>
+                      )}
                     </div>
 
                     <div className="flex gap-2">
@@ -756,36 +779,42 @@ export default function AdminLivePage() {
                       }
 
                       // Regular chat message
+                      const isOwnMessage = currentUser && msg.sender === currentUser.fullname;
+                      
                       return (
-                        <div
-                          key={msg.id}
-                          className={`p-3 rounded-xl flex items-start gap-3 ${
-                            msg.isStaff
-                              ? "bg-blue-100 text-blue-800 ml-8 border border-blue-200"
-                              : "bg-white text-gray-800 mr-8 border border-gray-200"
-                          }`}
-                        >
-                          <Avatar className="h-8 w-8 flex-shrink-0 mt-1">
-                            <AvatarImage
-                              src={getProfilePictureUrl(msg.profileUrl)}
-                              alt={msg.sender}
-                            />
-                            <AvatarFallback>
+                        <div key={msg.id} className={`flex items-start gap-3 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
+                          <Avatar className="h-8 w-8 flex-shrink-0">
+                            {msg.profileUrl && (
+                              <AvatarImage
+                                src={getProfilePictureUrl(msg.profileUrl)}
+                                alt={msg.sender}
+                              />
+                            )}
+                            <AvatarFallback className={`text-white text-xs ${isOwnMessage ? 'bg-orange-500' : 'bg-blue-500'}`}>
                               {getInitials(msg.sender)}
                             </AvatarFallback>
                           </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start mb-1">
-                              <span className="font-semibold text-sm">
-                                {msg.sender}
-                                {msg.isStaff && " (You)"}
-                                {!msg.isStaff && " (Viewer)"}
+                          <div className={`flex-1 min-w-0 ${isOwnMessage ? 'items-end' : 'items-start'} flex flex-col`}>
+                            <div className={`flex items-baseline gap-2 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
+                              <span className="text-sm font-medium text-gray-900 truncate">
+                                {isOwnMessage ? 'You' : msg.sender}
                               </span>
-                              <span className="text-xs opacity-70">
-                                {msg.timestamp.toLocaleTimeString()}
+                              <span className="text-xs text-gray-500">
+                                {new Date(msg.timestamp).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
                               </span>
                             </div>
-                            <p className="text-sm break-words">{msg.message}</p>
+                            <div className={`mt-1 max-w-[85%] ${isOwnMessage ? 'ml-auto' : 'mr-auto'}`}>
+                              <p className={`text-sm px-3 py-2 rounded-lg break-words ${
+                                isOwnMessage 
+                                  ? 'bg-orange-500 text-white rounded-br-none' 
+                                  : 'bg-gray-200 text-gray-900 rounded-bl-none'
+                              }`}>
+                                {msg.message}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       );
@@ -1036,6 +1065,287 @@ export default function AdminLivePage() {
           </Card>
         </div>
       </div>
+
+      {/* Fullscreen Modal */}
+      {isFullscreen && isCameraActive && cameraStream && (
+        <div className="fixed inset-0 z-[9999] bg-black flex flex-col md:flex-row">
+          {/* Left Side - Camera Feed */}
+          <div className="flex-1 relative order-1">
+            {/* Header Bar */}
+            <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent p-2 md:p-4 z-50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <h2 className="text-white font-semibold text-sm md:text-lg">Admin Live</h2>
+                  <div className="flex items-center gap-1 md:gap-2 bg-red-500/90 text-white px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium backdrop-blur-sm">
+                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-white rounded-full animate-pulse"></div>
+                    <span className="hidden sm:inline">BROADCASTING</span>
+                    <span className="sm:hidden">LIVE</span>
+                  </div>
+                  <span className="text-white/80 text-xs md:text-sm">
+                    {viewerCount} <span className="hidden sm:inline">viewer{viewerCount !== 1 ? "s" : ""}</span>
+                  </span>
+                </div>
+                <button
+                  onClick={toggleFullscreen}
+                  className="bg-white/10 hover:bg-white/20 text-white p-1.5 md:p-2 rounded-lg transition-all backdrop-blur-sm"
+                  title="Exit Fullscreen"
+                >
+                  <Minimize className="w-4 h-4 md:w-5 md:h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Video Container */}
+            <div className="relative w-full h-full flex items-center justify-center">
+              {/* Floating Hearts */}
+              {heartReactions.map((heart) => (
+                <div
+                  key={heart.id}
+                  className="absolute bottom-20 pointer-events-none z-50"
+                  style={{
+                    animation: 'floatUp 3s ease-out forwards',
+                    left: `${Math.random() * 80 + 10}%`,
+                  }}
+                >
+                  <div className="flex flex-col items-center">
+                    <span className="text-5xl drop-shadow-2xl">❤️</span>
+                    <span className="text-sm font-semibold text-white bg-black/70 px-3 py-1 rounded-full mt-2 whitespace-nowrap backdrop-blur-sm">
+                      {heart.sender}
+                    </span>
+                  </div>
+                </div>
+              ))}
+
+              <video
+                ref={cameraVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className={`w-full h-full object-contain ${isPaused ? "opacity-0" : ""}`}
+              />
+
+              {isPaused && (
+                <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-black flex flex-col items-center justify-center text-white">
+                  <Pause className="w-24 h-24 mb-6 text-yellow-400 animate-pulse" />
+                  <h3 className="text-4xl font-bold mb-3">Stream Paused</h3>
+                  <p className="text-xl text-gray-300 mb-4">Your viewers see a "Stream Paused" message</p>
+                  <p className="text-sm text-gray-400">Click Resume to continue broadcasting</p>
+                </div>
+              )}
+
+              {/* Stream Duration Overlay */}
+              <div className="absolute top-20 left-4 bg-black/70 text-white px-4 py-2 rounded-lg backdrop-blur-sm">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  <span className="font-mono font-semibold">{formatDuration(streamDuration)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Control Bar */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-2 md:p-4 z-50">
+              <div className="md:max-w-[calc(100%-24rem)] mx-auto">
+                <div className="flex items-center justify-between gap-2 md:gap-3">
+                  <div className="flex-shrink-0 hidden sm:block">
+                    {currentUser && (
+                      <div className="flex items-center gap-2 md:gap-3">
+                        <Avatar className="h-8 w-8 md:h-10 md:w-10 border-2 border-white/20">
+                          <AvatarImage
+                            src={getProfilePictureUrl(currentUser.profilePicture)}
+                            alt={currentUser.fullname}
+                          />
+                          <AvatarFallback className="bg-orange-500 text-white text-xs">
+                            {getInitials(currentUser.fullname)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="hidden md:block">
+                          <p className="text-white font-medium text-sm">{currentUser.fullname}</p>
+                          <p className="text-white/60 text-xs">Broadcasting</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-1.5 md:gap-2 flex-wrap justify-end flex-1">
+                    <div className="flex items-center gap-1.5 md:gap-2 bg-white/10 px-2 md:px-3 py-1.5 md:py-2 rounded-lg backdrop-blur-sm">
+                      <Heart className="w-3 h-3 md:w-4 md:h-4 text-pink-400" />
+                      <span className="text-white font-semibold text-xs md:text-sm">{totalHearts}</span>
+                    </div>
+                    
+                    <Button
+                      onClick={toggleMute}
+                      variant={isMuted ? "destructive" : "outline"}
+                      size="sm"
+                      className="rounded-lg shadow-lg bg-white/10 hover:bg-white/20 text-white border-white/20 h-8 w-8 md:h-9 md:w-9 p-0"
+                      title={isMuted ? "Unmute" : "Mute"}
+                    >
+                      {isMuted ? <MicOff className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Mic className="w-3.5 h-3.5 md:w-4 md:h-4" />}
+                    </Button>
+                    
+                    <Button
+                      onClick={isPaused ? handleResumeStream : handlePauseStream}
+                      variant={isPaused ? "default" : "outline"}
+                      size="sm"
+                      className="rounded-lg shadow-lg bg-white/10 hover:bg-white/20 text-white border-white/20 h-8 w-8 md:h-9 md:w-9 p-0"
+                      title={isPaused ? "Resume" : "Pause"}
+                    >
+                      {isPaused ? <Play className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Pause className="w-3.5 h-3.5 md:w-4 md:h-4" />}
+                    </Button>
+                    
+                    <Button
+                      onClick={() => setShowEndStreamModal(true)}
+                      variant="destructive"
+                      size="sm"
+                      className="rounded-lg shadow-lg bg-white/10 hover:bg-white/20 text-red-500 border-white/20 h-8 md:h-9 px-2 md:px-3"
+                    >
+                      <CameraOff className="w-3.5 h-3.5 md:w-4 md:h-4 md:mr-2" />
+                      <span className="font-semibold hidden md:inline">End</span>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Side - Chat Panel */}
+          <div className="w-full md:w-96 h-1/3 md:h-full bg-gray-900 border-t md:border-t-0 md:border-l border-gray-800 flex flex-col order-2">
+            {/* Chat Header */}
+            <div className="p-3 md:p-4 border-b border-gray-800">
+              <div className="flex items-center justify-between">
+                <h3 className="text-white font-semibold flex items-center gap-2">
+                  <MessageCircle className="w-5 h-5" />
+                  Live Chat
+                </h3>
+                <span className="text-gray-400 text-sm">
+                  {chatMessages.filter(m => !m.isSystem).length} messages
+                </span>
+              </div>
+            </div>
+
+            {/* Chat Messages */}
+            <div 
+              ref={chatContainerRef}
+              className="flex-1 overflow-y-auto p-2 md:p-4 space-y-2 md:space-y-3"
+            >
+              {chatMessages.map((msg) => {
+                if (msg.isSystem) {
+                  return (
+                    <div key={msg.id} className="text-center py-2">
+                      <span className="text-xs text-gray-500 bg-gray-800 px-3 py-1 rounded-full">
+                        {msg.message}
+                      </span>
+                    </div>
+                  );
+                }
+
+                const isOwnMessage = currentUser && msg.sender === currentUser.fullname;
+                
+                return (
+                  <div key={msg.id} className={`flex items-start gap-3 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
+                    <Avatar className="h-8 w-8 flex-shrink-0">
+                      {msg.profileUrl && (
+                        <AvatarImage
+                          src={getProfilePictureUrl(msg.profileUrl)}
+                          alt={msg.sender}
+                        />
+                      )}
+                      <AvatarFallback className={`text-white text-xs ${isOwnMessage ? 'bg-orange-500' : 'bg-blue-500'}`}>
+                        {getInitials(msg.sender)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className={`flex-1 min-w-0 ${isOwnMessage ? 'items-end' : 'items-start'} flex flex-col`}>
+                      <div className={`flex items-baseline gap-2 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
+                        <span className="text-sm font-medium text-white truncate">
+                          {isOwnMessage ? 'You' : msg.sender}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {new Date(msg.timestamp).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                      <div className={`mt-1 max-w-[85%] ${isOwnMessage ? 'ml-auto' : 'mr-auto'}`}>
+                        <p className={`text-sm px-3 py-2 rounded-lg break-words ${
+                          isOwnMessage 
+                            ? 'bg-orange-500 text-white rounded-br-none' 
+                            : 'bg-gray-800 text-gray-200 rounded-bl-none'
+                        }`}>
+                          {msg.message}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Chat Input */}
+            <div className="p-2 md:p-4 border-t border-gray-800">
+              <div className="flex gap-2">
+                <Input
+                  ref={chatInputRef}
+                  placeholder="Send a message..."
+                  className="flex-1 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 text-sm md:text-base h-9 md:h-10"
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter" && chatInputRef.current?.value.trim()) {
+                      handleSendMessage();
+                    }
+                  }}
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  className="bg-orange-500 hover:bg-orange-600 h-9 w-9 md:h-10 md:w-10 p-0"
+                >
+                  <Send className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* End Stream Confirmation Modal */}
+          {showEndStreamModal && (
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100]">
+              <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-md mx-4 shadow-2xl">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-3 bg-red-500/20 rounded-full">
+                    <CameraOff className="w-6 h-6 text-red-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">End Live Stream?</h3>
+                    <p className="text-sm text-gray-400">This action cannot be undone</p>
+                  </div>
+                </div>
+                
+                <p className="text-gray-300 mb-6">
+                  Are you sure you want to end this live stream? All viewers will be disconnected.
+                </p>
+                
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => setShowEndStreamModal(false)}
+                    variant="outline"
+                    className="flex-1 bg-white/10 hover:bg-white/20 text-white border-white/20"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setShowEndStreamModal(false);
+                      stopCamera();
+                    }}
+                    variant="destructive"
+                    className="flex-1 text-red-500"
+                  >
+                    <CameraOff className="w-4 h-4 mr-2 text-red-500" />
+                    End Stream
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </AdminAuthWrapper>
   );
 }
