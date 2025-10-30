@@ -641,9 +641,9 @@ export default function AdminLivePage() {
                           <Button
                             onClick={stopCamera}
                             variant="destructive"
-                            className="flex-1 rounded-xl"
+                            className="flex-1 rounded-xl text-red-500"
                           >
-                            <CameraOff className="w-4 h-4 mr-2" />
+                            <CameraOff className="w-4 h-4 mr-2 " />
                             End Live  
                           </Button>
                           <Button
@@ -1337,7 +1337,7 @@ export default function AdminLivePage() {
                     variant="destructive"
                     className="flex-1 text-red-500"
                   >
-                    <CameraOff className="w-4 h-4 mr-2 text-red-500" />
+                    <CameraOff className="w-4 h-4 mr-2" />
                     End Stream
                   </Button>
                 </div>
