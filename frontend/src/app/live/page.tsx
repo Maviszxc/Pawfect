@@ -415,7 +415,7 @@ export default function LivePage() {
                 <Button
                   onClick={handleLeaveStream}
                   variant="destructive"
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 text-red-500"
                 >
                   <CameraOff className="w-4 h-4" />
                   <span className="hidden sm:inline">Leave Stream</span>
@@ -1071,7 +1071,7 @@ export default function LivePage() {
                       handleLeaveStream();
                     }}
                     variant="destructive"
-                    className="flex-1"
+                    className="flex-1 text-red-500"
                   >
                     <CameraOff className="w-4 h-4 mr-2" />
                     Leave Stream
