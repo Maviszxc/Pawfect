@@ -472,6 +472,139 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Featured Companions */}
+        <section className="mb-32 py-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col items-center mb-16 text-center">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="inline-flex items-center gap-2 px-6 py-2 bg-orange-500/10 rounded-full text-orange-500 font-medium mb-4"
+              >
+                <i className="bi bi-heart-fill text-sm"></i>
+                <span>Meet Our Friends</span>
+              </motion.div>
+              <motion.h2
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="text-4xl font-bold text-foreground mb-4"
+              >
+                Featured Companions
+              </motion.h2>
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="text-muted-foreground max-w-2xl mb-12"
+              >
+                These adorable pets are looking for their forever homes. Each
+                one has a unique personality and lots of love to give.
+              </motion.p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {loading ? (
+                // Loading skeletons
+                [...Array(3)].map((_, index) => (
+                  <div
+                    key={index}
+                    className="bg-white p-6 rounded-xl shadow-lg border border-orange-500/10"
+                  >
+                    <Skeleton className="h-56 w-full rounded-xl mb-5" />
+                    <Skeleton className="h-6 w-3/4 mb-3" />
+                    <Skeleton className="h-4 w-1/2 mb-3" />
+                    <Skeleton className="h-4 w-2/3 mb-4" />
+                    <Skeleton className="h-10 w-full rounded-xl" />
+                  </div>
+                ))
+              ) : featuredPets.length > 0 ? (
+                featuredPets.slice(0, 3).map((pet, index) => (
+                  <motion.div
+                    key={String(index)}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.2 }}
+                    className="bg-white p-6 rounded-xl shadow-lg border border-orange-500/10 hover:border-orange-500/30 transition-all duration-300 group overflow-hidden"
+                  >
+                    <div className="h-56 rounded-xl mb-5 relative overflow-hidden group-hover:shadow-md transition-all duration-300">
+                      <img
+                        src={
+                          (pet as any).images &&
+                          Array.isArray((pet as any).images) &&
+                          (pet as any).images.length > 0 &&
+                          (pet as any).images[0]?.url
+                            ? (pet as any).images[0].url
+                            : "https://images.unsplash.com/photo-1543466835-00a7907e9de1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1074&q=80"
+                        }
+                        alt={(pet as any).name}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-4 right-4 h-10 w-10 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-orange-500">
+                        <i className="bi-emoji-smile text-xl"></i>
+                      </div>
+                      <div className="absolute bottom-4 left-4 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full text-sm font-medium">
+                        {(pet as any).type}
+                      </div>
+                    </div>
+                    <h3 className="text-xl font-semibold mb-1">
+                      {(pet as any).name}
+                    </h3>
+                    <div className="flex items-center text-gray-500 mb-3">
+                      <i className="bi bi-clock text-orange-500/70 mr-1.5"></i>
+                      <span>{(pet as any).age} years</span>
+                    </div>
+                    <div className="flex items-center text-gray-500 mb-4">
+                      <i className="bi bi-geo-alt text-orange-500/70 mr-1.5"></i>
+                      <span>{(pet as any).breed}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mb-5">
+                      <span className="px-3 py-1 bg-orange-500/5 text-orange-500/80 rounded-full text-sm font-medium">
+                        {(pet as any).gender}
+                      </span>
+                      <span className="px-3 py-1 bg-orange-500/5 text-orange-500/80 rounded-full text-sm font-medium">
+                        {(pet as any).adoptionStatus}
+                      </span>
+                    </div>
+                    <Link
+                      href={`/pet?id=${(pet as any)._id}`}
+                      className="block"
+                    >
+                      <button className="w-full py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors shadow-md shadow-orange-500/20 flex items-center justify-center gap-2">
+                        <span>View Details</span>
+                      </button>
+                    </Link>
+                  </motion.div>
+                ))
+              ) : (
+                <div className="col-span-3 text-center py-10">
+                  <p className="text-gray-500">
+                    No pets available at the moment. Check back soon!
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Show "View all available pets" button below the grid */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mt-12"
+            >
+              <Link
+                href="/adoption"
+                className="inline-flex items-center gap-2 text-orange-500 hover:text-orange-600 transition-colors duration-200 font-medium"
+              >
+                <span>View all available pets</span>
+                <i className="bi bi-arrow-right"></i>
+              </Link>
+            </motion.div>
+          </div>
+        </section>
+
       {/* Stats Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <style jsx global>{`
@@ -662,138 +795,7 @@ export default function Home() {
           ))}
         </motion.section>
 
-        {/* Featured Companions */}
-        <section className="mb-32 py-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col items-center mb-16 text-center">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="inline-flex items-center gap-2 px-6 py-2 bg-orange-500/10 rounded-full text-orange-500 font-medium mb-4"
-              >
-                <i className="bi bi-heart-fill text-sm"></i>
-                <span>Meet Our Friends</span>
-              </motion.div>
-              <motion.h2
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="text-4xl font-bold text-foreground mb-4"
-              >
-                Featured Companions
-              </motion.h2>
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="text-muted-foreground max-w-2xl mb-12"
-              >
-                These adorable pets are looking for their forever homes. Each
-                one has a unique personality and lots of love to give.
-              </motion.p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {loading ? (
-                // Loading skeletons
-                [...Array(3)].map((_, index) => (
-                  <div
-                    key={index}
-                    className="bg-white p-6 rounded-xl shadow-lg border border-orange-500/10"
-                  >
-                    <Skeleton className="h-56 w-full rounded-xl mb-5" />
-                    <Skeleton className="h-6 w-3/4 mb-3" />
-                    <Skeleton className="h-4 w-1/2 mb-3" />
-                    <Skeleton className="h-4 w-2/3 mb-4" />
-                    <Skeleton className="h-10 w-full rounded-xl" />
-                  </div>
-                ))
-              ) : featuredPets.length > 0 ? (
-                featuredPets.slice(0, 3).map((pet, index) => (
-                  <motion.div
-                    key={String(index)}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: index * 0.2 }}
-                    className="bg-white p-6 rounded-xl shadow-lg border border-orange-500/10 hover:border-orange-500/30 transition-all duration-300 group overflow-hidden"
-                  >
-                    <div className="h-56 rounded-xl mb-5 relative overflow-hidden group-hover:shadow-md transition-all duration-300">
-                      <img
-                        src={
-                          (pet as any).images &&
-                          Array.isArray((pet as any).images) &&
-                          (pet as any).images.length > 0 &&
-                          (pet as any).images[0]?.url
-                            ? (pet as any).images[0].url
-                            : "https://images.unsplash.com/photo-1543466835-00a7907e9de1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1074&q=80"
-                        }
-                        alt={(pet as any).name}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute top-4 right-4 h-10 w-10 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-orange-500">
-                        <i className="bi-emoji-smile text-xl"></i>
-                      </div>
-                      <div className="absolute bottom-4 left-4 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full text-sm font-medium">
-                        {(pet as any).type}
-                      </div>
-                    </div>
-                    <h3 className="text-xl font-semibold mb-1">
-                      {(pet as any).name}
-                    </h3>
-                    <div className="flex items-center text-gray-500 mb-3">
-                      <i className="bi bi-clock text-orange-500/70 mr-1.5"></i>
-                      <span>{(pet as any).age} years</span>
-                    </div>
-                    <div className="flex items-center text-gray-500 mb-4">
-                      <i className="bi bi-geo-alt text-orange-500/70 mr-1.5"></i>
-                      <span>{(pet as any).breed}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mb-5">
-                      <span className="px-3 py-1 bg-orange-500/5 text-orange-500/80 rounded-full text-sm font-medium">
-                        {(pet as any).gender}
-                      </span>
-                      <span className="px-3 py-1 bg-orange-500/5 text-orange-500/80 rounded-full text-sm font-medium">
-                        {(pet as any).adoptionStatus}
-                      </span>
-                    </div>
-                    <Link
-                      href={`/pet?id=${(pet as any)._id}`}
-                      className="block"
-                    >
-                      <button className="w-full py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors shadow-md shadow-orange-500/20 flex items-center justify-center gap-2">
-                        <span>View Details</span>
-                      </button>
-                    </Link>
-                  </motion.div>
-                ))
-              ) : (
-                <div className="col-span-3 text-center py-10">
-                  <p className="text-gray-500">
-                    No pets available at the moment. Check back soon!
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Show "View all available pets" button below the grid */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-center mt-12"
-            >
-              <Link
-                href="/adoption"
-                className="inline-flex items-center gap-2 text-orange-500 hover:text-orange-600 transition-colors duration-200 font-medium"
-              >
-                <span>View all available pets</span>
-                <i className="bi bi-arrow-right"></i>
-              </Link>
-            </motion.div>
-          </div>
-        </section>
+        
 
         {/* Why Choose Us */}
         <section className="mb-32 py-24 relative">
