@@ -130,6 +130,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isFirstTime = fa
   const [sparkles, setSparkles] = useState<
     { id: number; left: number; top: number }[]
   >([]);
+  const [showPetModal, setShowPetModal] = useState(false);
+  const [modalPet, setModalPet] = useState<PetMatch | null>(null);
+  const [modalPetImage, setModalPetImage] = useState<string | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Simplified quiz questions for better matching with limited pet database
@@ -620,6 +623,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isFirstTime = fa
 
         const petImage = getPetImage(pets[0]);
 
+        // Show the pet in a modal popup
+        setModalPet(pets[0]);
+        setModalPetImage(petImage);
+        setShowPetModal(true);
+
         // Create a message with the pet info
         const matchMessage = `🎉 **Perfect Match Found!** \n\nI found ${
           pets.length
@@ -754,6 +762,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isFirstTime = fa
       const nextImage = getPetImage(nextPet);
 
       setMatchedPet(nextPet);
+
+      // Show the pet in a modal popup
+      setModalPet(nextPet);
+      setModalPetImage(nextImage);
+      setShowPetModal(true);
 
       const matchMessage = `🐾 **Another Great Match!** \n\n**Meet ${
         nextPet.name
@@ -1105,6 +1118,144 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isFirstTime = fa
         </div>
       </div>
 
+      {/* Pet Match Modal */}
+      {showPetModal && modalPet && (
+        <div 
+          className="fixed inset-0 z-[10002] flex items-center justify-center p-2 sm:p-4 pt-24 sm:pt-28 md:pt-32 bg-black/80 backdrop-blur-sm overflow-y-auto"
+          onClick={() => setShowPetModal(false)}
+          style={{
+            animation: "fadeIn 0.3s ease-out"
+          }}
+        >
+          <div 
+            className="bg-gradient-to-br from-[#1a1b1e] to-[#2d2e32] rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-2xl md:max-w-3xl max-h-[80vh] overflow-hidden transform transition-all my-auto"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              animation: "scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)"
+            }}
+          >
+            {/* Header with close button */}
+            <div className="relative p-3 sm:p-4 pb-2 bg-gradient-to-br from-[#1a1b1e] to-[#2d2e32] border-b border-white/5">
+              <button
+                onClick={() => setShowPetModal(false)}
+                className="absolute top-2 right-2 text-gray-400 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-full z-20"
+                aria-label="Close modal"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <div className="flex items-center gap-2 mb-1 pr-10">
+                <div className="bg-gradient-to-r from-orange-500 to-yellow-500 p-1.5 rounded-lg flex-shrink-0">
+                  <span className="text-xl">🎉</span>
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-base sm:text-lg md:text-xl font-bold text-white truncate">Perfect Match!</h2>
+                  <p className="text-gray-400 text-xs sm:text-sm">Your ideal companion</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Landscape Layout: Image Left, Details Right */}
+            <div className="flex flex-col sm:flex-row max-h-[calc(80vh-90px)] overflow-y-auto">
+              {/* Pet Image - Left Side */}
+              <div className="relative sm:w-1/2 flex-shrink-0 p-3 sm:p-4 md:p-5">
+                <div className="relative w-full aspect-[4/3] sm:aspect-square rounded-xl overflow-hidden shadow-xl border-2 sm:border-3 border-orange-500/30">
+                  {modalPetImage ? (
+                    modalPetImage.startsWith("data:image") ? (
+                      <img
+                        src={modalPetImage}
+                        alt={modalPet.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Image
+                        src={modalPetImage}
+                        alt={modalPet.name}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 640px) 95vw, 50vw"
+                      />
+                    )
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
+                      <span className="text-4xl">🐾</span>
+                    </div>
+                  )}
+                  {/* Floating badge */}
+                  <div className="absolute top-2 left-2 bg-gradient-to-r from-orange-500 to-yellow-500 text-white px-2 py-1 rounded-full font-bold shadow-lg flex items-center gap-1 text-xs">
+                    <span className="text-sm">⭐</span>
+                    <span>Match</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pet Details - Right Side */}
+              <div className="sm:w-1/2 flex-shrink-0 p-3 sm:p-4 md:p-5 flex flex-col justify-between">
+                <div className="space-y-2 sm:space-y-3">
+                  <div>
+                    <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-1.5 flex items-center gap-2">
+                      <span className="truncate">{modalPet.name}</span>
+                      <span className="text-lg sm:text-xl md:text-2xl flex-shrink-0">
+                        {modalPet.type.toLowerCase() === 'dog' ? '🐕' : '🐈'}
+                      </span>
+                    </h3>
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-2">
+                      <span className="bg-orange-500/20 text-orange-300 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium border border-orange-500/30">
+                        {modalPet.breed}
+                      </span>
+                      <span className="bg-blue-500/20 text-blue-300 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium border border-blue-500/30">
+                        {modalPet.age}
+                      </span>
+                      <span className="bg-purple-500/20 text-purple-300 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium border border-purple-500/30">
+                        {modalPet.gender}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="bg-white/5 rounded-lg p-2.5 sm:p-3 border border-white/10 max-h-32 sm:max-h-40 overflow-y-auto">
+                    <p className="text-gray-300 leading-relaxed text-xs sm:text-sm">
+                      {modalPet.description}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="space-y-2 pt-3 mt-auto">
+                  <Button
+                    onClick={() => {
+                      setShowPetModal(false);
+                      handleViewPetDetails();
+                    }}
+                    className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-bold py-2.5 sm:py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                  >
+                    <span className="text-sm sm:text-base">View Full Details</span>
+                  </Button>
+                  
+                  {matchedPets.length > 1 && (
+                    <Button
+                      onClick={() => {
+                        setShowPetModal(false);
+                        handleSeeMoreMatches();
+                      }}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 sm:py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                    >
+                      <span className="text-sm sm:text-base">See More Matches ({matchedPets.length - 1} more)</span>
+                    </Button>
+                  )}
+                  
+                  <Button
+                    onClick={() => setShowPetModal(false)}
+                    variant="outline"
+                    className="w-full px-4 py-2.5 sm:py-3 border border-gray-600 hover:border-gray-500 text-gray-300 hover:text-white rounded-lg transition-all duration-300 hover:bg-white/5"
+                  >
+                    <span className="text-sm sm:text-base">Close</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add sparkle animation styles */}
       <style jsx>{`
         .sparkle {
@@ -1140,6 +1291,24 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isFirstTime = fa
         }
         .animate-pulse-slow {
           animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: scale(0.9) translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
         }
       `}</style>
     </div>
