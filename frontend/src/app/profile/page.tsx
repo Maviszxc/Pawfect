@@ -336,6 +336,7 @@ export default function Profile() {
   const handleSendOtpForEmail = async () => {
     setIsLoading(true);
     try {
+      console.log("📧 Sending OTP for email change to:", formData.email);
       const res = await axios.post(`${BASE_URL}/api/users/send-otp-for-email`, {
         email: formData.email,
       });
@@ -343,11 +344,14 @@ export default function Profile() {
         setIsOtpSent(true);
         setIsOtpVerified(false);
         setOtp("");
-        toast.info("OTP sent to your email. Please enter the OTP to proceed.");
+        toast.success("OTP sent to your email. Please check your inbox.");
         setView("verifyEmail");
+        console.log("✅ OTP sent successfully");
       }
-    } catch (err) {
-      toast.error("Something went wrong. Please try again.");
+    } catch (err: any) {
+      console.error("❌ Error sending OTP:", err);
+      const errorMessage = err.response?.data?.message || "Failed to send OTP. Please try again.";
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -356,6 +360,7 @@ export default function Profile() {
   const handleSendOtpForPassword = async () => {
     setIsLoading(true);
     try {
+      console.log("🔐 Sending OTP for password change to:", formData.email);
       const res = await axios.post(
         `${BASE_URL}/api/users/send-otp-for-password`,
         {
@@ -366,11 +371,14 @@ export default function Profile() {
         setIsOtpSent(true);
         setIsOtpVerified(false);
         setOtp("");
-        toast.info("OTP sent to your email. Please enter the OTP to proceed.");
+        toast.success("OTP sent to your email. Please check your inbox.");
         setView("verifyPassword");
+        console.log("✅ OTP sent successfully");
       }
-    } catch (err) {
-      toast.error("Something went wrong. Please try again.");
+    } catch (err: any) {
+      console.error("❌ Error sending OTP:", err);
+      const errorMessage = err.response?.data?.message || "Failed to send OTP. Please try again.";
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -386,25 +394,13 @@ export default function Profile() {
       return;
     }
 
-    try {
-      const res = await axios.post(`${BASE_URL}/api/users/verify-otp`, {
-        email: formData.email,
-        otp: otp,
-      });
-
-      if (res.data.success) {
-        setIsOtpVerified(true);
-        setVerifiedOtp(otp);
-        toast.success("OTP verified successfully");
-        setView("updateEmail");
-      } else {
-        toast.error(res.data.message || "Invalid OTP. Please try again.");
-      }
-    } catch (err) {
-      toast.error("Invalid OTP or verification failed. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
+    // Don't verify OTP separately - just store it and move to next step
+    // The backend will verify it when updating the email
+    setIsOtpVerified(true);
+    setVerifiedOtp(otp);
+    toast.success("OTP entered. Please enter your new email address.");
+    setView("updateEmail");
+    setIsLoading(false);
   };
 
   const handleVerifyOtpForPassword = async (e: React.FormEvent) => {
@@ -417,25 +413,13 @@ export default function Profile() {
       return;
     }
 
-    try {
-      const res = await axios.post(`${BASE_URL}/api/users/verify-otp`, {
-        email: formData.email,
-        otp: otp,
-      });
-
-      if (res.data.success) {
-        setIsOtpVerified(true);
-        setVerifiedOtp(otp);
-        toast.success("OTP verified successfully");
-        setView("updatePassword");
-      } else {
-        toast.error(res.data.message || "Invalid OTP. Please try again.");
-      }
-    } catch (err) {
-      toast.error("Invalid OTP or verification failed. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
+    // Don't verify OTP separately - just store it and move to next step
+    // The backend will verify it when updating the password
+    setIsOtpVerified(true);
+    setVerifiedOtp(otp);
+    toast.success("OTP entered. Please enter your new password.");
+    setView("updatePassword");
+    setIsLoading(false);
   };
 
   const handleUpdateEmail = async (e: React.FormEvent) => {
@@ -454,6 +438,12 @@ export default function Profile() {
 
     setIsLoading(true);
     try {
+      console.log("📧 Updating email with OTP:", {
+        newEmail: tempFormData.newEmail,
+        hasOtp: !!verifiedOtp,
+        otpLength: verifiedOtp?.length
+      });
+      
       // Use 'email' as the key for new email, not 'newEmail'
       const res = await axios.put(
         `${BASE_URL}/api/users/update-user`,
@@ -467,12 +457,15 @@ export default function Profile() {
           },
         }
       );
+      
+      console.log("✅ Email update response:", res.data);
 
       if (res.data.success) {
         toast.success("Email updated successfully.");
         setOtp("");
         setVerifiedOtp("");
         setIsOtpVerified(false);
+        setIsOtpSent(false);
         setView("main");
         setFormData((prev) => ({
           ...prev,
@@ -486,12 +479,18 @@ export default function Profile() {
         }));
       }
     } catch (err: any) {
+      console.error("❌ Email update error:", err.response?.data || err.message);
       if (err.response) {
-        toast.error(
-          err.response.data.message ||
-            err.response.data.error ||
-            "Something went wrong. Please try again."
-        );
+        const errorMsg = err.response.data.message || err.response.data.error || "Something went wrong. Please try again.";
+        toast.error(errorMsg);
+        
+        // If OTP error, go back to OTP entry
+        if (errorMsg.includes("OTP")) {
+          setIsOtpVerified(false);
+          setVerifiedOtp("");
+          setOtp("");
+          setView("verifyEmail");
+        }
       } else {
         toast.error("Something went wrong. Please try again.");
       }
@@ -526,6 +525,12 @@ export default function Profile() {
 
     setIsLoading(true);
     try {
+      console.log("🔐 Updating password with OTP:", {
+        hasPassword: !!tempFormData.password,
+        hasOtp: !!verifiedOtp,
+        otpLength: verifiedOtp?.length
+      });
+      
       const res = await axios.put(
         `${BASE_URL}/api/users/update-user`,
         {
@@ -538,22 +543,32 @@ export default function Profile() {
           },
         }
       );
+      
+      console.log("✅ Password update response:", res.data);
       if (res.data.success) {
         toast.success("Password updated successfully.");
         setOtp("");
         setVerifiedOtp("");
         setIsOtpVerified(false);
+        setIsOtpSent(false);
+        setConfirmPassword("");
         setFormData((prev) => ({ ...prev, password: "" }));
         setTempFormData((prev) => ({ ...prev, password: "" }));
         setView("main");
       }
     } catch (err: any) {
+      console.error("❌ Password update error:", err.response?.data || err.message);
       if (err.response) {
-        toast.error(
-          err.response.data.message ||
-            err.response.data.error ||
-            "Something went wrong. Please try again."
-        );
+        const errorMsg = err.response.data.message || err.response.data.error || "Something went wrong. Please try again.";
+        toast.error(errorMsg);
+        
+        // If OTP error, go back to OTP entry
+        if (errorMsg.includes("OTP")) {
+          setIsOtpVerified(false);
+          setVerifiedOtp("");
+          setOtp("");
+          setView("verifyPassword");
+        }
       } else {
         toast.error("Something went wrong. Please try again.");
       }

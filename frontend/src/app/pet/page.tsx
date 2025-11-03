@@ -441,14 +441,18 @@ function PetDetailsContent() {
       // Validate file type
       if (file.type !== "application/pdf") {
         toast.error("Please upload a PDF file only.");
+        e.target.value = ""; // Reset input
         return;
       }
-      // Validate file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("File size must be less than 10MB.");
+      // Validate file size (max 5MB for Supabase free tier)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        toast.error(`File size must be less than 5MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`);
+        e.target.value = ""; // Reset input
         return;
       }
       setPdfFile(file);
+      toast.success(`File selected: ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)}MB)`);
     }
   };
 
@@ -494,7 +498,18 @@ function PetDetailsContent() {
 
       if (uploadError) {
         console.error("Upload error:", uploadError);
-        toast.error("Failed to upload PDF. Please try again.");
+        let errorMessage = "Failed to upload PDF. ";
+        
+        // Check for specific error types
+        if (uploadError.message?.includes("exceeded")) {
+          errorMessage += "File size exceeds the maximum allowed (5MB). Please compress your PDF and try again.";
+        } else if (uploadError.message?.includes("storage")) {
+          errorMessage += "Storage error. Please contact support.";
+        } else {
+          errorMessage += uploadError.message || "Please try again.";
+        }
+        
+        toast.error(errorMessage);
         setAdoptSubmitting(false);
         setIsUploading(false);
         return;

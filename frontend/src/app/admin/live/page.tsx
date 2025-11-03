@@ -719,10 +719,7 @@ export default function AdminLivePage() {
                             Status: {connectionStatus}
                           </span>
                           <div className="flex items-center gap-3 text-sm">
-                            <span className="text-blue-600">
-                              Broadcasting to {viewerCount} viewer
-                              {viewerCount !== 1 ? "s" : ""}
-                            </span>
+                            
                             <span className="text-green-600">
                               • Streaming active
                             </span>
