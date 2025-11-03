@@ -82,6 +82,7 @@ export default function AdminPetsPage() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [archivingPetId, setArchivingPetId] = useState<string | null>(null);
 
   // Modal state for Add/Edit
   const [modalOpen, setModalOpen] = useState(false);
@@ -236,6 +237,30 @@ export default function AdminPetsPage() {
   const handleView = (pet: Pet) => {
     setSelectedPet(pet);
     setViewDialogOpen(true);
+  };
+
+  const handleArchive = async (petId: string, petName: string) => {
+    setArchivingPetId(petId);
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) throw new Error("No access token found");
+      
+      await axiosInstance.patch(
+        `${BASE_URL}/api/pets/${petId}/archive`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      
+      toast.success(`${petName} has been archived successfully`);
+      fetchPets();
+    } catch (error) {
+      toast.error("Failed to archive pet. Please try again.");
+      console.error("Error archiving pet:", error);
+    } finally {
+      setArchivingPetId(null);
+    }
   };
 
   const handleAdd = () => {
@@ -672,6 +697,40 @@ export default function AdminPetsPage() {
                                   >
                                     <Edit className="h-4 w-4" />
                                   </Button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => e.stopPropagation()}
+                                        title="Archive pet"
+                                        disabled={archivingPetId === pet._id}
+                                        className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Archive {pet.name}?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          This will archive <strong>{pet.name}</strong> and remove it from the active pet listings. The pet data will be preserved and can be restored later if needed.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleArchive(pet._id, pet.name);
+                                          }}
+                                          className="bg-red-600 hover:bg-red-700"
+                                        >
+                                          Archive
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
                                 </div>
                               </div>
                             </CardContent>
