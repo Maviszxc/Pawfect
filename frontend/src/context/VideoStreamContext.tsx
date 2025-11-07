@@ -66,6 +66,7 @@ type VideoStreamContextType = {
   sendHeartReaction: () => void;
   heartReactions: HeartReaction[];
   totalHearts: number;
+  checkLiveStatus: () => void;
 };
 
 const VideoStreamContext = createContext<VideoStreamContextType>({
@@ -90,6 +91,7 @@ const VideoStreamContext = createContext<VideoStreamContextType>({
   sendHeartReaction: () => {},
   heartReactions: [],
   totalHearts: 0,
+  checkLiveStatus: () => {},
 });
 
 export const VideoStreamProvider = ({
@@ -124,6 +126,8 @@ export const VideoStreamProvider = ({
   const streamRef = useRef<MediaStream | null>(null);
   const localSocketIdRef = useRef<string>("");
   const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Note: Socket connection is established in the main useEffect after callbacks are set
 
   // Initialize ICE servers
   useEffect(() => {
@@ -790,9 +794,26 @@ export const VideoStreamProvider = ({
           console.log("❌ Room mismatch, ignoring heart");
         }
       },
+
+      onAdminLiveStatus: (data: any) => {
+        console.log("📡 Admin live status received:", data);
+        setIsAdminStreaming(data.isLive);
+      },
     };
 
     signaling.setCallbacks(callbacks);
+
+    // Connect socket early to receive admin live status broadcasts
+    const connectSocket = async () => {
+      try {
+        await signaling.connect();
+        console.log("✅ Socket connected for live status updates");
+      } catch (error) {
+        console.log("Socket will connect when needed:", error);
+      }
+    };
+
+    connectSocket();
 
     return () => {
       signaling.disconnect();
@@ -937,13 +958,21 @@ export const VideoStreamProvider = ({
   }, []);
 
   const sendHeartReaction = useCallback(() => {
-    console.log("sendHeartReaction called, roomId:", roomIdRef.current);
+    console.log("sendHeartReaction called");
+    console.log("roomIdRef.current:", roomIdRef.current);
+    
     if (roomIdRef.current) {
       console.log("Calling signaling.sendHeartReaction with roomId:", roomIdRef.current);
       signaling.sendHeartReaction(roomIdRef.current);
     } else {
       console.log("No roomId available, cannot send heart reaction");
     }
+  }, []);
+
+  const checkLiveStatus = useCallback(() => {
+    const roomId = "pet-live-room"; // Use the same roomId as the live stream
+    console.log("Checking live status for room:", roomId);
+    signaling.checkLiveStatus(roomId);
   }, []);
 
   const setAdminStreamHandler = useCallback((stream: MediaStream | null) => {
@@ -1006,6 +1035,7 @@ export const VideoStreamProvider = ({
         sendHeartReaction,
         heartReactions,
         totalHearts,
+        checkLiveStatus,
       }}
     >
       {children}

@@ -9,6 +9,21 @@ class Signaling {
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
+        // If socket is already connected, resolve immediately
+        if (this.socket && this.socket.connected) {
+          console.log("Socket already connected");
+          resolve();
+          return;
+        }
+
+        // If socket exists but not connected, try to reconnect
+        if (this.socket && !this.socket.connected) {
+          console.log("Reconnecting existing socket...");
+          this.socket.connect();
+          resolve();
+          return;
+        }
+
         console.log(`Connecting to signaling server: ${NEXT_PUBLIC_WS_URL}`);
 
         this.socket = io(NEXT_PUBLIC_WS_URL, {
@@ -109,6 +124,11 @@ class Signaling {
     this.socket.on("heart-reaction", (data: any) => {
       console.log("Heart reaction received:", data);
       this.callbacks.onHeartReaction?.(data, data.roomId);
+    });
+
+    this.socket.on("admin-live-status", (data: any) => {
+      console.log("Admin live status received:", data);
+      this.callbacks.onAdminLiveStatus?.(data);
     });
   }
 
@@ -252,6 +272,16 @@ class Signaling {
     });
     
     console.log("Heart reaction emitted successfully");
+  }
+
+  checkLiveStatus(roomId: string) {
+    if (!this.socket || !this.socket.connected) {
+      console.log("Socket not connected yet, skipping live status check");
+      return;
+    }
+
+    console.log(`Checking live status for room ${roomId}`);
+    this.socket.emit("check-live-status", { roomId });
   }
 
   setCallbacks(callbacks: any) {

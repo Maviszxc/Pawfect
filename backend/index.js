@@ -214,6 +214,7 @@ io.on("connection", (socket) => {
           admin: null,
           users: new Map(),
           createdAt: new Date(),
+          isStreaming: false, // Track if admin is actively streaming
         });
       }
 
@@ -221,9 +222,17 @@ io.on("connection", (socket) => {
 
       if (isAdmin) {
         room.admin = socket.id;
+        room.isStreaming = true; // Admin is now streaming
         console.log(
-          `Admin ${socket.id} (${socket.userData.fullname}) joined room ${roomId}`
+          `Admin ${socket.id} (${socket.userData.fullname}) joined room ${roomId} and started streaming`
         );
+        
+        // Notify ALL connected clients (not just in the room) that admin is live
+        io.emit("admin-live-status", {
+          isLive: true,
+          roomId: roomId,
+          adminName: socket.userData.fullname,
+        });
       } else {
         room.users.set(socket.id, {
           id: socket.id,
@@ -526,6 +535,17 @@ io.on("connection", (socket) => {
     socket.emit("pong", { timestamp: new Date().toISOString() });
   });
 
+  // Handle request to check if admin is live
+  socket.on("check-live-status", ({ roomId }) => {
+    const room = rooms.get(roomId);
+    const isLive = room && room.admin && room.isStreaming;
+    
+    socket.emit("admin-live-status", {
+      isLive: isLive,
+      roomId: roomId,
+    });
+  });
+
   socket.on("disconnecting", (reason) => {
     console.log(
       `User ${socket.id} (${
@@ -583,10 +603,18 @@ function removeUserFromRoom(roomId, userId) {
   if (!rooms.has(roomId)) return;
 
   const room = rooms.get(roomId);
+  const wasAdmin = room.admin === userId;
 
   if (room.admin === userId) {
     room.admin = null;
-    console.log(`👑 Admin ${userId} removed from room ${roomId}`);
+    room.isStreaming = false; // Admin stopped streaming
+    console.log(`👑 Admin ${userId} removed from room ${roomId} - Stream ended`);
+    
+    // Notify ALL connected clients that admin is no longer live
+    io.emit("admin-live-status", {
+      isLive: false,
+      roomId: roomId,
+    });
   } else {
     room.users.delete(userId);
     console.log(`👤 User ${userId} removed from room ${roomId}`);

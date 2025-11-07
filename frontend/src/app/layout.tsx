@@ -6,6 +6,7 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { VideoStreamProvider } from "@/context/VideoStreamContext";
 import WebSocketErrorBoundary from "@/components/WebSocketErrorBoundary";
+import LiveStatusNotifier from "@/components/LiveStatusNotifier";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -42,6 +43,7 @@ export default function RootLayout({
         <VideoStreamProvider>
           <WebSocketErrorBoundary>
             <ClientLoadingIndicator />
+            <LiveStatusNotifier />
             <ToastContainer
               position="bottom-right"
               autoClose={5000}

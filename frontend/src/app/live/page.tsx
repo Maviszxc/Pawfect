@@ -41,6 +41,7 @@ export default function LivePage() {
   const [schedulesLoading, setSchedulesLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   const {
     adminStream,
@@ -58,11 +59,19 @@ export default function LivePage() {
     isPaused,
     sendHeartReaction,
     heartReactions,
+    checkLiveStatus,
   } = useVideoStream();
 
   const roomId = "pet-live-room";
 
+  // Set mounted state to prevent hydration issues
   useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted) return;
+
     const token = localStorage?.getItem("accessToken");
     setIsLoggedIn(!!token);
 
@@ -90,7 +99,19 @@ export default function LivePage() {
       document.removeEventListener("touchstart", handleUserInteraction);
       document.removeEventListener("keydown", handleUserInteraction);
     };
-  }, [fetchCurrentUser]);
+  }, [fetchCurrentUser, isMounted]);
+
+  // Check live status after component is mounted and socket might be ready
+  useEffect(() => {
+    if (!isMounted) return;
+    
+    // Delay the check slightly to allow socket to connect
+    const timer = setTimeout(() => {
+      checkLiveStatus();
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [isMounted, checkLiveStatus]);
 
   const fetchUpcomingSchedules = async () => {
     try {
@@ -106,6 +127,7 @@ export default function LivePage() {
   };
 
   // Auto-connect removed - users now manually join/leave
+  // Note: Live status notifications are now handled globally by LiveStatusNotifier component
 
   // Update video element when stream changes with better error handling
   useEffect(() => {
@@ -400,17 +422,29 @@ export default function LivePage() {
               </span>
             )}
           </div>
-          <div className="flex gap-2 w-full sm:w-auto">
-            {!isJoined ? (
-              <Button
-                onClick={handleJoinStream}
-                className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white flex-1 sm:flex-initial"
-                disabled={isRefreshing}
-              >
-                <Play className="w-4 h-4" />
-                <span>Join Stream</span>
-              </Button>
-            ) : (
+          <div className="flex gap-2 w-full sm:w-auto" suppressHydrationWarning>
+            {isMounted && !isJoined ? (
+              isAdminStreaming ? (
+                <Button
+                  onClick={handleJoinStream}
+                  className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white flex-1 sm:flex-initial"
+                  disabled={isRefreshing}
+                >
+                  <Play className="w-4 h-4" />
+                  <span>Join Stream</span>
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2 bg-gray-100 text-gray-600 px-4 py-2 rounded-lg flex-1 sm:flex-initial">
+                  <CameraOff className="w-4 h-4" />
+                  <span className="text-sm">No Live Stream</span>
+                </div>
+              )
+            ) : !isMounted && !isJoined ? (
+              <div className="flex items-center gap-2 bg-gray-100 text-gray-600 px-4 py-2 rounded-lg flex-1 sm:flex-initial">
+                <CameraOff className="w-4 h-4" />
+                <span className="text-sm">Loading...</span>
+              </div>
+            ) : isJoined ? (
               <>
                 <Button
                   onClick={handleLeaveStream}
@@ -436,7 +470,7 @@ export default function LivePage() {
                   </span>
                 </Button>
               </>
-            )}
+            ) : null}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
