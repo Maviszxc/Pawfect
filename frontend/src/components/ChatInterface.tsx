@@ -726,14 +726,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isFirstTime = fa
   // Handle "See more matches" option
   const handleSeeMoreMatches = () => {
     if (matchedPets.length > 1) {
-      const currentIndex = matchedPets.findIndex(
-        (pet) => pet._id === matchedPet?._id
-      );
-      const nextIndex = (currentIndex + 1) % matchedPets.length;
-      const nextPet = matchedPets[nextIndex];
+      // Close modal first for smoother transition
+      setShowPetModal(false);
+      
+      // Use requestAnimationFrame for smoother state updates
+      requestAnimationFrame(() => {
+        const currentIndex = matchedPets.findIndex(
+          (pet) => pet._id === matchedPet?._id
+        );
+        const nextIndex = (currentIndex + 1) % matchedPets.length;
+        const nextPet = matchedPets[nextIndex];
 
-      // Get the first valid image URL
-      const getPetImage = (pet: PetMatch) => {
+        // Get the first valid image URL
+        const getPetImage = (pet: PetMatch) => {
         if (pet.images && pet.images.length > 0 && pet.images[0]) {
           // Check if it's an object with url property (from Cloudinary)
           if (typeof pet.images[0] === "object" && "url" in pet.images[0]) {
@@ -784,20 +789,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isFirstTime = fa
         },
       ]);
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 2).toString(),
-          role: "assistant",
-          content: "**What would you like to do next?**",
-          options: [
-            "View pet details",
-            "See more matches",
-            "Start over",
-            "End chat",
-          ],
-        },
-      ]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 2).toString(),
+            role: "assistant",
+            content: "**What would you like to do next?**",
+            options: [
+              "View pet details",
+              "See more matches",
+              "Start over",
+              "End chat",
+            ],
+          },
+        ]);
+      });
     }
   };
 
@@ -1121,17 +1127,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isFirstTime = fa
       {/* Pet Match Modal */}
       {showPetModal && modalPet && (
         <div 
-          className="fixed inset-0 z-[10002] flex items-center justify-center p-2 sm:p-4 pt-24 sm:pt-28 md:pt-32 bg-black/80 backdrop-blur-sm overflow-y-auto"
+          className="fixed inset-0 z-[10002] flex items-center justify-center p-2 sm:p-4 pt-24 sm:pt-28 md:pt-32 bg-black/80 overflow-y-auto"
           onClick={() => setShowPetModal(false)}
           style={{
-            animation: "fadeIn 0.3s ease-out"
+            animation: "fadeIn 0.2s ease-out",
+            willChange: "opacity"
           }}
         >
           <div 
-            className="bg-gradient-to-br from-[#1a1b1e] to-[#2d2e32] rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-2xl md:max-w-3xl max-h-[80vh] overflow-hidden transform transition-all my-auto"
+            className="bg-gradient-to-br from-[#1a1b1e] to-[#2d2e32] rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-2xl md:max-w-3xl max-h-[80vh] overflow-hidden transform my-auto"
             onClick={(e) => e.stopPropagation()}
             style={{
-              animation: "scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)"
+              animation: "scaleIn 0.3s ease-out",
+              willChange: "transform"
             }}
           >
             {/* Header with close button */}
@@ -1165,6 +1173,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isFirstTime = fa
                         src={modalPetImage}
                         alt={modalPet.name}
                         className="w-full h-full object-cover"
+                        loading="lazy"
                       />
                     ) : (
                       <Image
@@ -1173,6 +1182,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isFirstTime = fa
                         fill
                         className="object-cover"
                         sizes="(max-width: 640px) 95vw, 50vw"
+                        loading="lazy"
+                        priority={false}
                       />
                     )
                   ) : (
@@ -1232,11 +1243,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isFirstTime = fa
                   
                   {matchedPets.length > 1 && (
                     <Button
-                      onClick={() => {
-                        setShowPetModal(false);
-                        handleSeeMoreMatches();
-                      }}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 sm:py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                      onClick={handleSeeMoreMatches}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 sm:py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
                     >
                       <span className="text-sm sm:text-base">See More Matches ({matchedPets.length - 1} more)</span>
                     </Button>
