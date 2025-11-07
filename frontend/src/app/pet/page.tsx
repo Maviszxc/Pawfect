@@ -42,8 +42,6 @@ import {
   Pause,
   Camera,
   CameraOff,
-  Heart,
-  Share2,
   MapPin,
   User,
   Clock,
@@ -119,7 +117,6 @@ function PetDetailsContent() {
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isFavorite, setIsFavorite] = useState(false);
 
   // Camera state
   const [hasCamera, setHasCamera] = useState(false);
@@ -768,24 +765,6 @@ function PetDetailsContent() {
                       </>
                     )}
 
-                    <div className="absolute top-4 right-4 flex space-x-2">
-                      <button
-                        onClick={() => setIsFavorite(!isFavorite)}
-                        className={`p-2 rounded-full ${
-                          isFavorite
-                            ? "bg-red-500 text-white"
-                            : "bg-white/80 text-gray-700 hover:bg-white"
-                        }`}
-                      >
-                        <Heart
-                          size={20}
-                          fill={isFavorite ? "currentColor" : "none"}
-                        />
-                      </button>
-                      <button className="p-2 rounded-full bg-white/80 text-gray-700 hover:bg-white">
-                        <Share2 size={20} />
-                      </button>
-                    </div>
                   </div>
 
                   {/* Image Thumbnails */}
@@ -812,16 +791,17 @@ function PetDetailsContent() {
                   )}
                 </Card>
 
-                {/* Pet Video Section */}
+                {/* Pet Video Gallery */}
                 {pet?.videos && pet.videos.length > 0 && (
-                  <div className="space-y-4 mt-6">
-                    {pet.videos.map((video, idx) => (
-                      <Card
-                        key={idx}
-                        className="border-none shadow-lg rounded-xl overflow-hidden"
-                      >
-                        <CardContent className="p-0">
-                          <div className="relative aspect-video rounded-lg overflow-hidden">
+                  <Card className="rounded-xl shadow-lg overflow-hidden border-none mt-6">
+                    <CardContent className="p-6">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4">Videos</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        {pet.videos.map((video, idx) => (
+                          <div
+                            key={idx}
+                            className="relative aspect-video rounded-lg overflow-hidden bg-gray-100 hover:opacity-90 transition-opacity cursor-pointer"
+                          >
                             <video
                               src={getVideoUrl(video)}
                               controls
@@ -829,10 +809,10 @@ function PetDetailsContent() {
                               poster={pet?.image}
                             />
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
                 )}
               </div>
 
