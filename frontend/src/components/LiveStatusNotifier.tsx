@@ -14,30 +14,42 @@ export default function LiveStatusNotifier() {
   useEffect(() => {
     // Show toast when admin goes live (transition from false to true)
     if (isAdminStreaming && !previousStatusRef.current) {
-      // Don't show notification if already on live page or admin live page
-      const isOnLivePage = pathname === "/live" || pathname === "/admin/live";
+      // Don't show notification if on admin live page
+      const isOnAdminLivePage = pathname === "/admin/live";
       
-      if (!isOnLivePage) {
-        toast.success(
-          <div className="flex flex-col gap-2">
-            <div className="font-semibold">🔴 Admin is now LIVE!</div>
-            <button
-              onClick={() => {
-                router.push("/live");
-                toast.dismiss();
-              }}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              Watch Now
-            </button>
-          </div>,
-          {
+      if (!isOnAdminLivePage) {
+        // Different notification based on current page
+        const isOnUserLivePage = pathname === "/live";
+        
+        if (isOnUserLivePage) {
+          // Simple notification for users already on live page
+          toast.success("🔴 Admin is now LIVE! Click 'Join Stream' to watch.", {
             position: "top-center",
-            autoClose: 10000,
-            closeOnClick: false,
-            draggable: false,
-          }
-        );
+            autoClose: 5000,
+          });
+        } else {
+          // Full notification with button for users on other pages
+          toast.success(
+            <div className="flex flex-col gap-2">
+              <div className="font-semibold">🔴 Admin is now LIVE!</div>
+              <button
+                onClick={() => {
+                  router.push("/live");
+                  toast.dismiss();
+                }}
+                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                Watch Now
+              </button>
+            </div>,
+            {
+              position: "top-center",
+              autoClose: 10000,
+              closeOnClick: false,
+              draggable: false,
+            }
+          );
+        }
       }
     }
 
