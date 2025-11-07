@@ -19,6 +19,7 @@ import {
   Plus,
   X,
 } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -59,6 +60,7 @@ export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
+  const [activeTab, setActiveTab] = useState("all");
 
   // Modal state for Add/Edit
   const [modalOpen, setModalOpen] = useState(false);
@@ -281,15 +283,32 @@ export default function AdminUsersPage() {
     setViewUserAdoptions([]); // Clear adoptions when closing
   };
 
-  // Filter users by archive status
-  const filteredUsers = searchQuery
-    ? users.filter(
-        (user) =>
-          (user.fullname.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            user.email.toLowerCase().includes(searchQuery.toLowerCase())) &&
-          !user.isArchived // Only show active by default
-      )
-    : users.filter((user) => !user.isArchived);
+  // Filter users by archive status and active tab
+  const filteredUsers = users.filter((user) => {
+    // Filter out archived users
+    if (user.isArchived) return false;
+
+    // Apply search filter
+    const matchesSearch = searchQuery
+      ? user.fullname.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchQuery.toLowerCase())
+      : true;
+
+    if (!matchesSearch) return false;
+
+    // Apply tab filter
+    switch (activeTab) {
+      case "verified":
+        return user.verified && !user.isAdmin;
+      case "unverified":
+        return !user.verified && !user.isAdmin;
+      case "admin":
+        return user.isAdmin;
+      case "all":
+      default:
+        return true;
+    }
+  });
 
   return (
     <AdminAuthWrapper>
@@ -325,6 +344,84 @@ export default function AdminUsersPage() {
                     </Button>
                   </div>
                 </div>
+
+                {/* Tabs */}
+                <Tabs
+                  value={activeTab}
+                  onValueChange={setActiveTab}
+                  className="w-full"
+                >
+                  <TabsList className="inline-flex h-auto items-center gap-2 sm:gap-4 lg:gap-6 bg-transparent border-b border-gray-200 w-full overflow-x-auto pb-2 lg:w-auto lg:overflow-visible">
+                    <TabsTrigger
+                      value="all"
+                      className="relative bg-transparent px-1 pb-3 pt-0 text-xs sm:text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none whitespace-nowrap"
+                    >
+                      <span className="flex items-center gap-1 sm:gap-2">
+                        All Users
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            activeTab === "all"
+                              ? "bg-orange-500 text-white"
+                              : "bg-gray-200 text-gray-600"
+                          }`}
+                        >
+                          {users.filter(u => !u.isArchived).length}
+                        </span>
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="verified"
+                      className="relative bg-transparent px-1 pb-3 pt-0 text-xs sm:text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none whitespace-nowrap"
+                    >
+                      <span className="flex items-center gap-1 sm:gap-2">
+                        Verified
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            activeTab === "verified"
+                              ? "bg-orange-500 text-white"
+                              : "bg-gray-200 text-gray-600"
+                          }`}
+                        >
+                          {users.filter(u => u.verified && !u.isAdmin && !u.isArchived).length}
+                        </span>
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="unverified"
+                      className="relative bg-transparent px-1 pb-3 pt-0 text-xs sm:text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none whitespace-nowrap"
+                    >
+                      <span className="flex items-center gap-1 sm:gap-2">
+                        Unverified
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            activeTab === "unverified"
+                              ? "bg-orange-500 text-white"
+                              : "bg-gray-200 text-gray-600"
+                          }`}
+                        >
+                          {users.filter(u => !u.verified && !u.isAdmin && !u.isArchived).length}
+                        </span>
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="admin"
+                      className="relative bg-transparent px-1 pb-3 pt-0 text-xs sm:text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 data-[state=active]:text-orange-500 data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-orange-500 rounded-none whitespace-nowrap"
+                    >
+                      <span className="flex items-center gap-1 sm:gap-2">
+                        Admins
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            activeTab === "admin"
+                              ? "bg-orange-500 text-white"
+                              : "bg-gray-200 text-gray-600"
+                          }`}
+                        >
+                          {users.filter(u => u.isAdmin && !u.isArchived).length}
+                        </span>
+                      </span>
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
 
                 {/* Search and filter */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">

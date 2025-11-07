@@ -65,13 +65,13 @@ export default function Articles() {
               title: "Your Impact in Action: A Day at Biyaya Animal Sanctuary",
               description: "Looking ahead with Dr. Joden Sumeldan",
               img: "/article-cover3.jpeg",
-              link: "https://www.biyaya.ph/post/your-impact-in-action-a-day-at-biyaya-animal-sanctuary",
+              link: "https://pia.gov.ph/news/pia-teams-up-with-meralco-biyaya-animal-care-to-keep-stray-cats-in-check/",
             },
             {
               title: "Meet Rina Ortiz: The Heart and Mind Behind Biyaya Animal Care",
               description: "Discover the inspiring story of our founder",
               img: "/article-cover2.jpeg",
-              link: "https://www.biyaya.ph/post/a-life-devoted-to-animal-welfare---get-to-know-biyayas-president",
+              link: "https://vogue.ph/lifestyle/raising-hope-meet-rina-ortiz-the-filipina-who-never-tires-of-rescuing-stray-animals/?fbclid=IwY2xjawN65vhleHRuA2FlbQIxMQBzcnRjBmFwcF9pZAEwAAEeObsxy4xt9nLFGujtLc-P-boTDURHizj601rBp5gW9m4IZ3R7yf4yYQPj0ck_aem_bvu-Z4xFzY2zDICxrGD2Rw",
             },
           ].map((article, i) => (
             <div
@@ -133,18 +133,6 @@ export default function Articles() {
             </div>
           </div>
         </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="text-center py-16">
-        <a
-          href="https://www.biyaya.ph/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-8 py-3 text-lg font-bold text-white bg-gradient-to-r from-orange-500 to-blue-600 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all"
-        >
-          Explore More on Biyaya.ph
-        </a>
       </section>
 
       {/* Floating About Button */}

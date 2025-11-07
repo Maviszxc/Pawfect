@@ -46,14 +46,6 @@ export default function Merchandise() {
               Support Biyaya by purchasing official merchandise! Every item you
               buy helps rescued animals and supports the sanctuary.
             </p>
-            <a
-              href="https://shopee.ph/biyayaanimalcaremerchandise"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-6 py-3 text-lg font-semibold text-white bg-gradient-to-r from-orange-500 to-blue-600 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all"
-            >
-              Visit Our Shopee Shop
-            </a>
           </motion.div>
         </section>
 
@@ -125,18 +117,6 @@ export default function Merchandise() {
               </p>
             </div>
           </div>
-        </section>
-
-        {/* CTA again */}
-        <section className="text-center py-16">
-          <a
-            href="https://www.biyaya.ph/pawshoppe"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-8 py-3 text-lg font-bold text-white bg-gradient-to-r from-orange-500 to-blue-600 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all"
-          >
-            Visit Official Store
-          </a>
         </section>
 
         {isAuthenticated ? <AuthNavigation /> : <Navigation />}
